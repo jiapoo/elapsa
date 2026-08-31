@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:elapsa/core/card_number.dart';
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
@@ -13,6 +14,7 @@ import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
+import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 class EditDocumentScreen extends ConsumerStatefulWidget {
   const EditDocumentScreen({super.key, this.existing, this.session});
@@ -76,7 +78,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _label = TextEditingController(text: existing?.label ?? '');
     _holder = TextEditingController(text: existing?.holder ?? '');
     _documentNumber = TextEditingController(
-      text: existing?.documentNumber ?? '',
+      text: existing == null
+          ? ''
+          : existing.type == DocumentType.bankCard
+          ? groupCardNumber(existing.documentNumber ?? '')
+          : existing.documentNumber ?? '',
     );
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
@@ -248,7 +254,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         _holder.text = _titleCase(printed.holderName!);
       }
       if (printed.documentNumber != null) {
-        _documentNumber.text = printed.documentNumber!;
+        _documentNumber.text = printed.type == DocumentType.bankCard
+            ? groupCardNumber(printed.documentNumber!)
+            : printed.documentNumber!;
       }
       if (printed.issuer != null) _label.text = printed.issuer!;
 
@@ -424,6 +432,21 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             TextFormField(
               controller: _documentNumber,
               textCapitalization: TextCapitalization.characters,
+              // Only a payment card is grouped: a passport number is not
+              // written in fours, and spacing one would be wrong rather than
+              // merely unfamiliar.
+              keyboardType: _type == DocumentType.bankCard
+                  ? TextInputType.number
+                  : TextInputType.text,
+              inputFormatters: _type == DocumentType.bankCard
+                  ? const [CardNumberFormatter()]
+                  : null,
+              style: _type == DocumentType.bankCard
+                  ? const TextStyle(
+                      letterSpacing: 1.2,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    )
+                  : null,
               decoration: InputDecoration(
                 hintText: l.fieldNumberHint,
                 prefixIcon: const Icon(Icons.tag),
@@ -574,7 +597,23 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (_imagesLoaded) {
         // The editor holds the whole set, in the order shown, so it is written
         // back as it stands — that is what makes reordering and deleting work.
+        final was = widget.existing!.imageCount;
         await repo.setImages(updated, _images);
+
+        // Decrypted pictures are cached by document and page so that scrolling
+        // the wallet does not decrypt the same photo on every frame. Nothing
+        // in that key changes when the *contents* of a page are replaced, so
+        // without this the home screen keeps showing the picture that was
+        // retaken, reordered or deleted — the row updates, the image does not.
+        for (
+          var page = 0;
+          page < (was > _images.length ? was : _images.length);
+          page++
+        ) {
+          ref.invalidate(
+            documentImageProvider(DocumentImageRef(updated.id, page)),
+          );
+        }
       } else {
         await repo.save(updated);
       }

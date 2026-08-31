@@ -37,7 +37,11 @@ enum VisionHandler {
         guard let path = args["path"] as? String else {
           result(badArguments("recognize needs a path")); return
         }
-        recognize(path: path, result: result)
+        recognize(
+          path: path,
+          boost: args["boost"] as? Bool ?? false,
+          result: result
+        )
 
       case "detectCard":
         guard
@@ -80,7 +84,7 @@ enum VisionHandler {
   /// Tuned for machine-readable zones rather than prose: accurate over fast,
   /// and language correction **off**, because an MRZ is not words and nudging
   /// `L898902C36` towards a dictionary is exactly how check digits break.
-  private static func recognize(path: String, result: @escaping FlutterResult) {
+  private static func recognize(path: String, boost: Bool, result: @escaping FlutterResult) {
     guard
       let image = UIImage(contentsOfFile: path),
       let full = image.cgImage
@@ -94,7 +98,7 @@ enum VisionHandler {
     // and the expiry date — the two fields the whole app exists to capture.
     // Small print on a card needs every pixel the sensor gave it.
     let started = CFAbsoluteTimeGetCurrent()
-    let cgImage = full
+    let cgImage = boost ? embossed(full) ?? full : full
 
     let request = VNRecognizeTextRequest { request, error in
       if let error = error {
@@ -103,8 +107,9 @@ enum VisionHandler {
       }
       let observations = request.results as? [VNRecognizedTextObservation] ?? []
       let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
-      NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)",
-            observations.count, elapsed, cgImage.width, cgImage.height)
+      NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)%@",
+            observations.count, elapsed, cgImage.width, cgImage.height,
+            boost ? " boosted" : "")
       result(observations.compactMap { $0.topCandidates(1).first?.string }
         .joined(separator: "\n"))
     }
@@ -116,6 +121,46 @@ enum VisionHandler {
     perform([request], on: cgImage,
             orientation: cgOrientation(from: image.imageOrientation),
             onFailure: result)
+  }
+
+  /// The image rebuilt to make raised figures legible.
+  ///
+  /// A card number is *embossed*, not printed: the digits are the same colour
+  /// as the card and exist only as a shadow along one side of each stroke and
+  /// a highlight along the other. There is almost no tonal difference for a
+  /// recogniser to work with, which is why the flat-printed name and dates on
+  /// the same card come back perfectly while the number comes back as nothing
+  /// at all.
+  ///
+  /// So the shadow is turned into contrast. Colour goes first — it carries no
+  /// information here and only dilutes the edges. An unsharp mask then pulls
+  /// each stroke away from the card around it, and a hard contrast stretch
+  /// turns what is left into something with actual black in it.
+  ///
+  /// This is a second pass, run only when the first found no number, because
+  /// the same treatment hurts flat print: it blooms fine text and would cost
+  /// the very fields that already read correctly.
+  private static func embossed(_ cgImage: CGImage) -> CGImage? {
+    let source = CIImage(cgImage: cgImage)
+
+    guard let mono = CIFilter(name: "CIColorControls") else { return nil }
+    mono.setValue(source, forKey: kCIInputImageKey)
+    mono.setValue(0.0, forKey: kCIInputSaturationKey)
+    guard let grey = mono.outputImage else { return nil }
+
+    guard let sharpen = CIFilter(name: "CIUnsharpMask") else { return nil }
+    sharpen.setValue(grey, forKey: kCIInputImageKey)
+    sharpen.setValue(2.5, forKey: kCIInputRadiusKey)
+    sharpen.setValue(2.2, forKey: kCIInputIntensityKey)
+    guard let sharp = sharpen.outputImage else { return nil }
+
+    guard let stretch = CIFilter(name: "CIColorControls") else { return nil }
+    stretch.setValue(sharp, forKey: kCIInputImageKey)
+    stretch.setValue(1.9, forKey: kCIInputContrastKey)
+    stretch.setValue(-0.05, forKey: kCIInputBrightnessKey)
+    guard let output = stretch.outputImage else { return nil }
+
+    return ciContext.createCGImage(output, from: source.extent)
   }
 
   /// Narrows the languages we want to the ones this OS actually ships.

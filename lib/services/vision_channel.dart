@@ -87,12 +87,12 @@ class CardQuad {
   /// Interpolates towards [other], so the on-screen guide glides between
   /// detections instead of snapping on every frame.
   CardQuad lerpTo(CardQuad other, double t) => CardQuad(
-        topLeft: Offset.lerp(topLeft, other.topLeft, t)!,
-        topRight: Offset.lerp(topRight, other.topRight, t)!,
-        bottomRight: Offset.lerp(bottomRight, other.bottomRight, t)!,
-        bottomLeft: Offset.lerp(bottomLeft, other.bottomLeft, t)!,
-        confidence: other.confidence,
-      );
+    topLeft: Offset.lerp(topLeft, other.topLeft, t)!,
+    topRight: Offset.lerp(topRight, other.topRight, t)!,
+    bottomRight: Offset.lerp(bottomRight, other.bottomRight, t)!,
+    bottomLeft: Offset.lerp(bottomLeft, other.bottomLeft, t)!,
+    confidence: other.confidence,
+  );
 }
 
 /// On-device Vision, over a platform channel.
@@ -121,9 +121,17 @@ class VisionChannel {
   }
 
   /// Every line of text in the image at [path], newline separated.
-  Future<String> recognize(String path) async {
+  /// Reads the text in the image at [path].
+  ///
+  /// [boost] asks for the pass tuned for embossed figures — greyscaled,
+  /// sharpened and stretched, so a raised card number that has no tonal
+  /// contrast at all becomes something a recogniser can see. It is worth
+  /// running only when the plain pass came back without one: the same
+  /// treatment blooms fine flat print and costs the fields that already read.
+  Future<String> recognize(String path, {bool boost = false}) async {
     final text = await _channel.invokeMethod<String>('recognize', {
       'path': path,
+      'boost': boost,
     });
     return text ?? '';
   }

@@ -215,24 +215,47 @@ class _Wallet extends StatelessWidget {
       l,
     );
 
-    // Without pictures the entries are single rows, and the generous spacing
-    // that a wall of cards needs turns into a list adrift on the page.
-    final dense = !display.showsImage;
-
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 8, 16, dense ? 120 : 140),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
       children: [
         if (needsAttention.isNotEmpty) ...[
           _SectionHeader(l.homeNeedsAttention),
-          ...needsAttention.map(
-            (d) => _WalletEntry(document: d, display: display),
-          ),
-          SizedBox(height: dense ? 24 : 20),
+          _section(needsAttention),
+          const SizedBox(height: 24),
         ],
         if (rest.isNotEmpty) ...[
           _SectionHeader(l.homeEverythingElse),
-          ...rest.map((d) => _WalletEntry(document: d, display: display)),
+          _section(rest),
         ],
+      ],
+    );
+  }
+
+  /// One section, arranged to suit the size of what is in it.
+  ///
+  /// A small card leaves most of a phone's width unused, so the picture-only
+  /// wallet pairs them up rather than running a narrow column down the middle
+  /// of the screen.
+  Widget _section(List<TrackedDocument> documents) {
+    if (display == WalletDisplay.imageOnly) {
+      return GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: kCardAspectRatio,
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        children: [
+          for (final document in documents)
+            _WalletEntry(document: document, display: display),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        for (final document in documents)
+          _WalletEntry(document: document, display: display),
       ],
     );
   }
@@ -260,9 +283,9 @@ class _SectionHeader extends StatelessWidget {
 
 /// One document, at whichever density the user asked for.
 ///
-/// The status line always survives. Whatever else is hidden, an app whose
-/// entire purpose is telling you when to start renewing cannot show a list
-/// that does not say.
+/// The status always survives. Whatever else is hidden, an app whose entire
+/// purpose is telling you when to start renewing cannot show a list that does
+/// not say.
 class _WalletEntry extends StatelessWidget {
   const _WalletEntry({required this.document, required this.display});
 
@@ -277,65 +300,151 @@ class _WalletEntry extends StatelessWidget {
       ),
     );
 
+    final child = switch (display) {
+      WalletDisplay.imageOnly => _Tile(document: document),
+      WalletDisplay.nameAndImage => _Row(document: document),
+      WalletDisplay.nameOnly => _Listed(document: document),
+    };
+
     return Padding(
-      padding: EdgeInsets.only(bottom: display.showsImage ? 22 : 10),
+      // The grid does its own spacing; a column has to bring its own.
+      padding: EdgeInsets.only(
+        bottom: display == WalletDisplay.imageOnly ? 0 : 10,
+      ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: open,
-        child: display.showsImage
-            ? _Framed(document: document, withName: display.showsName)
-            : _Listed(document: document),
+        child: child,
       ),
     );
   }
 }
 
-/// The picture, full width, with as much or as little written under it as the
-/// display mode allows.
-class _Framed extends StatelessWidget {
-  const _Framed({required this.document, required this.withName});
+/// A thumbnail with the reading beside it.
+///
+/// The card used to run the full width of the screen, which showed perhaps two
+/// documents at a time — handsome, and useless for the thing a wallet is for,
+/// which is finding one document among many. At this size the picture is still
+/// what you recognise it by, and five or six fit on a screen.
+class _Row extends StatelessWidget {
+  const _Row({required this.document});
 
   final TrackedDocument document;
-  final bool withName;
+
+  static const _thumbWidth = 118.0;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Stack(
-          children: [
-            DocumentCardFace(document: document, compact: true),
-            if (document.imageCount > 1)
-              Positioned(
-                right: 10,
-                bottom: 10,
-                child: _PageCount(count: document.imageCount),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        if (withName) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              document.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: _thumbWidth,
+            child: Stack(
+              children: [
+                DocumentCardFace(document: document, compact: true),
+                if (document.imageCount > 1)
+                  Positioned(
+                    right: 5,
+                    bottom: 5,
+                    child: _PageCount(count: document.imageCount),
+                  ),
+              ],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  document.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                _Status(document: document, compact: true),
+                if (document.isTravelRestricted()) ...[
+                  const SizedBox(height: 6),
+                  const _TravelWarning(),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
         ],
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: _Status(document: document),
+      ),
+    );
+  }
+}
+
+/// The picture alone, in a grid two across.
+///
+/// No text at all, so the urgency has to be carried on the card. A small pill
+/// in the corner does it without turning the picture into a dashboard.
+class _Tile extends StatelessWidget {
+  const _Tile({required this.document});
+
+  final TrackedDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final status = document.status();
+    final colour = StatusPalette.from(context).of(status);
+    final days = document.daysRemaining();
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DocumentCardFace(document: document, compact: true),
         ),
+        Positioned(
+          left: 8,
+          top: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: colour,
+              borderRadius: BorderRadius.circular(5),
+            ),
+            child: Text(
+              days < 0 ? l.statusExpired.toUpperCase() : '$days',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+        ),
+        if (document.imageCount > 1)
+          Positioned(
+            right: 8,
+            bottom: 8,
+            child: _PageCount(count: document.imageCount),
+          ),
         if (document.isTravelRestricted())
-          Padding(
-            padding: const EdgeInsets.only(left: 4, top: 8),
-            child: _TravelWarning(),
+          Positioned(
+            right: 8,
+            top: 8,
+            child: Icon(
+              Icons.flight_takeoff,
+              size: 14,
+              color: StatusPalette.from(context).critical,
+            ),
           ),
       ],
     );
@@ -421,9 +530,13 @@ class _Listed extends StatelessWidget {
 /// this app thinks about it, and conflating the two makes the card look like
 /// something official it is not.
 class _Status extends StatelessWidget {
-  const _Status({required this.document});
+  const _Status({required this.document, this.compact = false});
 
   final TrackedDocument document;
+
+  /// Stacks the badge above the countdown instead of beside it, for the
+  /// narrow column next to a thumbnail.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -431,34 +544,43 @@ class _Status extends StatelessWidget {
     final status = document.status();
     final colour = StatusPalette.from(context).of(status);
 
+    final badge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        status.label(l).toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: colour,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+
+    final line = Text(
+      _statusLine(document, l),
+      maxLines: compact ? 2 : 1,
+      overflow: TextOverflow.ellipsis,
+      style: Theme.of(context).textTheme.bodySmall
+          ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [badge, const SizedBox(height: 5), line],
+      );
+    }
+
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: colour.withValues(alpha: 0.14),
-            borderRadius: BorderRadius.circular(5),
-          ),
-          child: Text(
-            status.label(l).toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: colour,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ),
+        badge,
         const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            _statusLine(document, l),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
+        Expanded(child: line),
       ],
     );
   }

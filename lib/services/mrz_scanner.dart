@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
+import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/services/card_cropper.dart';
 import 'package:elapsa/services/vision_channel.dart';
@@ -96,11 +97,34 @@ class MrzScanner {
       }
     }
 
+    var printed = _printed.parse(text);
+    var seen = text;
+
+    // A card whose number did not read gets a second look.
+    //
+    // This is the exact failure the app kept hitting: the bank's name, the
+    // dates and the holder all come back correctly, and the number — the one
+    // field that identifies the card — comes back as nothing. Those fields are
+    // flat print; the number is embossed, and has no tonal contrast for a
+    // recogniser to find. The second pass manufactures some.
+    //
+    // Only in that case. The treatment that rescues raised figures blooms fine
+    // print, so running it always would cost the fields that already work, and
+    // running it at all costs a second full-resolution pass.
+    if (printed.type == DocumentType.bankCard &&
+        printed.documentNumber == null) {
+      final boosted = await _vision.recognize(path, boost: true);
+      if (boosted.trim().isNotEmpty) {
+        seen = '$text\n$boosted';
+        printed = printed.mergedWith(_printed.parse(boosted));
+      }
+    }
+
     return ScanResult(
       mrz: parsed,
-      printed: _printed.parse(text),
+      printed: printed,
       cardImage: card,
-      rawText: text,
+      rawText: seen,
     );
   }
 

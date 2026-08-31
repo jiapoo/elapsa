@@ -22,6 +22,9 @@ enum VisionHandler {
       let args = call.arguments as? [String: Any] ?? [:]
 
       switch call.method {
+      case "prewarm":
+        prewarm(result: result)
+
       case "recognize":
         guard let path = args["path"] as? String else {
           result(badArguments("recognize needs a path")); return
@@ -73,11 +76,20 @@ enum VisionHandler {
   private static func recognize(path: String, result: @escaping FlutterResult) {
     guard
       let image = UIImage(contentsOfFile: path),
-      let cgImage = image.cgImage
+      let full = image.cgImage
     else {
       result(FlutterError(code: "unreadable_image", message: "Could not open \(path)", details: nil))
       return
     }
+
+    // Accurate recognition across three languages is the single most expensive
+    // thing the app does, and its cost scales with the pixel count. A capture
+    // arrives at whatever the sensor produced — often many times more detail
+    // than the text needs. At 1600 across, a card's machine-readable zone
+    // still gets around thirty pixels per character, which is far more than
+    // the recogniser requires, and the wait after the shutter drops sharply.
+    let started = CFAbsoluteTimeGetCurrent()
+    let cgImage = downscaled(full, longestSide: 1600)
 
     let request = VNRecognizeTextRequest { request, error in
       if let error = error {
@@ -85,6 +97,9 @@ enum VisionHandler {
         return
       }
       let observations = request.results as? [VNRecognizedTextObservation] ?? []
+      let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
+      NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)",
+            observations.count, elapsed, cgImage.width, cgImage.height)
       result(observations.compactMap { $0.topCandidates(1).first?.string }
         .joined(separator: "\n"))
     }
@@ -110,6 +125,61 @@ enum VisionHandler {
     }
     let usable = wanted.filter { available.contains($0) }
     return usable.isEmpty ? ["en-US"] : usable
+  }
+
+  /// Scales an image down so its longest side is at most [longestSide].
+  ///
+  /// Returns the original when it is already small enough, so this costs
+  /// nothing on images that do not need it.
+  private static func downscaled(_ image: CGImage, longestSide: CGFloat) -> CGImage {
+    let width = CGFloat(image.width)
+    let height = CGFloat(image.height)
+    let longest = max(width, height)
+    guard longest > longestSide else { return image }
+
+    let scale = longestSide / longest
+    let newWidth = Int((width * scale).rounded())
+    let newHeight = Int((height * scale).rounded())
+
+    guard let context = CGContext(
+      data: nil,
+      width: newWidth,
+      height: newHeight,
+      bitsPerComponent: 8,
+      bytesPerRow: 0,
+      space: CGColorSpaceCreateDeviceRGB(),
+      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    ) else { return image }
+
+    context.interpolationQuality = .medium
+    context.draw(image, in: CGRect(x: 0, y: 0, width: newWidth, height: newHeight))
+    return context.makeImage() ?? image
+  }
+
+  /// Loads the recognition models before the user needs them.
+  ///
+  /// Vision pays for loading its language models on the first request, which
+  /// otherwise lands on the first photo someone takes and reads as the app
+  /// being slow. Called when the scanner opens, while they are still lining
+  /// the card up.
+  private static func prewarm(result: @escaping FlutterResult) {
+    DispatchQueue.global(qos: .utility).async {
+      defer { DispatchQueue.main.async { result(nil) } }
+
+      guard let context = CGContext(
+        data: nil, width: 64, height: 64,
+        bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceGray(),
+        bitmapInfo: CGImageAlphaInfo.none.rawValue
+      ), let blank = context.makeImage() else { return }
+
+      let request = VNRecognizeTextRequest()
+      request.recognitionLevel = .accurate
+      request.usesLanguageCorrection = false
+      request.recognitionLanguages = supportedLanguages(for: request)
+      try? VNImageRequestHandler(cgImage: blank, options: [:]).perform([request])
+      NSLog("Elapsa: vision prewarmed")
+    }
   }
 
   // --------------------------------------------------------------- detection
@@ -232,7 +302,13 @@ enum VisionHandler {
       // the card so it looked upright *to them*, so the card's own up matches
       // the device's up. Turning by the angle nearest that resolves all four
       // at once, including the 180° the shape check could never see.
-      let deviceAngle = -CGFloat(deviceTurns) * .pi / 2
+      //
+      // The sense of this matters and was wrong the first time. Portrait is
+      // zero turns, so a sign error there cancels and portrait captures came
+      // out correct — while every landscape one landed a half turn out, which
+      // is exactly the upside-down card that was reported. Turning with the
+      // device rather than against it is what makes the two agree.
+      let deviceAngle = CGFloat(deviceTurns) * .pi / 2
 
       func distanceFromDevice(_ candidate: CGFloat) -> CGFloat {
         var delta = candidate - deviceAngle
@@ -332,13 +408,8 @@ enum VisionHandler {
     // and table edges produce.
     request.minimumAspectRatio = 0.45
     request.maximumAspectRatio = 0.95
-    request.minimumSize = 0.20
-    // Deliberately forgiving. Frames are scaled down before they get here, and
-    // a smaller picture carries less for the detector to be sure about — at
-    // 0.7 it was finding cards and then throwing them away. A loose threshold
-    // costs an occasional wrong quad, which the flatness gate and the crop's
-    // own sanity check both catch; a strict one costs every detection.
-    request.minimumConfidence = 0.45
+    request.minimumSize = 0.25
+    request.minimumConfidence = 0.7
     request.maximumObservations = 1
     // How far from square the corners may be. Loose enough for a card held at
     // an angle, tight enough to reject arbitrary quadrilaterals.

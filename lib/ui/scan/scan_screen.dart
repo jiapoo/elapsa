@@ -9,7 +9,6 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
-import 'package:elapsa/services/frame_downsampler.dart';
 import 'package:elapsa/services/mrz_scanner.dart';
 import 'package:elapsa/services/vision_channel.dart';
 
@@ -58,19 +57,6 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   /// the guide to feel live and leaves the channel free for everything else.
   static const _detectInterval = Duration(milliseconds: 160);
 
-  /// Roughly how wide a frame is scaled to before detection.
-  ///
-  /// A 1280x720 luma plane is close to a megabyte, and sending one six times a
-  /// second saturates the platform channel — which is what made the preview
-  /// feel heavy. Detection wants edges rather than detail, so a quarter of the
-  /// pixels still finds the card and costs a quarter as much to move.
-  ///
-  /// Not smaller than this. Shrinking further did cut the traffic again, but
-  /// it also cut the detector's confidence in what it found, and the card
-  /// stopped being recognised at all — fast and blind is not a trade worth
-  /// making.
-  static const _detectWidth = 640;
-
   /// How square-on the card must be before the shutter arms.
   ///
   /// At 0.93 the shorter of two opposite edges is within 7% of the longer,
@@ -106,6 +92,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     // of overlay bug: the guide only ever has to account for one rotation
     // between the sensor and the screen instead of four.
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
+    // Pay Vision's model-loading cost now, while the user is still lining the
+    // card up, rather than on the first shutter press where it reads as the
+    // app hanging.
+    _vision.prewarm();
 
     _startCamera();
   }
@@ -220,19 +211,16 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     _detecting = true;
     _lastDetect = DateTime.now();
     try {
+      // Sent at the size the camera produced. Shrinking it did cut the
+      // channel traffic, but it also cut how sure the detector was of what it
+      // found, and the card stopped being recognised at all. The slowness was
+      // never here.
       final plane = image.planes.first;
-      final small = downsampleLuma(
-        plane.bytes,
+      final found = await _vision.detectCard(
+        luma: plane.bytes,
         width: image.width,
         height: image.height,
         bytesPerRow: plane.bytesPerRow,
-        targetWidth: _detectWidth,
-      );
-      final found = await _vision.detectCard(
-        luma: small.bytes,
-        width: small.width,
-        height: small.height,
-        bytesPerRow: small.width,
       );
       if (!mounted) return;
 

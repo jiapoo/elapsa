@@ -107,6 +107,19 @@ class VisionChannel {
 
   static const _channel = MethodChannel('cc.elapsa/vision');
 
+  /// Loads the recognition models before they are needed.
+  ///
+  /// Vision pays for loading its language models on the first request. Left
+  /// alone that cost lands on the first photo someone takes and reads as the
+  /// app being slow, so it is paid while they are still lining the card up.
+  Future<void> prewarm() async {
+    try {
+      await _channel.invokeMethod<void>('prewarm');
+    } on PlatformException catch (error) {
+      debugPrint('Elapsa: prewarm failed: $error');
+    }
+  }
+
   /// Every line of text in the image at [path], newline separated.
   Future<String> recognize(String path) async {
     final text = await _channel.invokeMethod<String>('recognize', {

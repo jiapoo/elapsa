@@ -49,6 +49,7 @@ enum VisionHandler {
         extractCard(
           path: path,
           corners: args["corners"] as? [String: [String: NSNumber]],
+          deviceTurns: (args["deviceTurns"] as? NSNumber)?.intValue ?? 0,
           result: result
         )
 
@@ -176,6 +177,7 @@ enum VisionHandler {
   private static func extractCard(
     path: String,
     corners: [String: [String: NSNumber]]?,
+    deviceTurns: Int,
     result: @escaping FlutterResult
   ) {
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
@@ -218,19 +220,33 @@ enum VisionHandler {
     }
 
     func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
-      // The card's own angle in the frame, taken from its top edge. Undoing
-      // just this leaves the document upright without touching its geometry.
+      // The card's angle in the frame, taken from its top edge.
       let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
-      guard var box = boxed(quad, turnedBy: angle) else { return nil }
 
-      // Every document Elapsa tracks is wider than it is tall. Coming out
-      // portrait means the detector called the short side the top — which is
-      // what happens when the phone is held sideways — so a further quarter
-      // turn lays the card down. Which way to turn is decided here by the
-      // shape that came out, not assumed from the device.
-      if box.rect.height > box.rect.width {
-        guard let turned = boxed(quad, turnedBy: angle + .pi / 2) else { return nil }
-        box = turned
+      // Four rotations line the card up with the axes — the edge angle plus
+      // each quarter turn — and geometry cannot choose between them. A
+      // rectangle turned by θ and by θ+180° has exactly the same bounding box,
+      // so picking on shape alone lands upside down half the time.
+      //
+      // What breaks the tie is how the phone was being held. The user framed
+      // the card so it looked upright *to them*, so the card's own up matches
+      // the device's up. Turning by the angle nearest that resolves all four
+      // at once, including the 180° the shape check could never see.
+      let deviceAngle = -CGFloat(deviceTurns) * .pi / 2
+
+      func distanceFromDevice(_ candidate: CGFloat) -> CGFloat {
+        var delta = candidate - deviceAngle
+        while delta > .pi { delta -= 2 * .pi }
+        while delta < -.pi { delta += 2 * .pi }
+        return abs(delta)
+      }
+
+      let best = (0..<4)
+        .map { angle + CGFloat($0) * .pi / 2 }
+        .min { distanceFromDevice($0) < distanceFromDevice($1) }
+
+      guard let chosen = best, let box = boxed(quad, turnedBy: chosen) else {
+        return nil
       }
 
       // A hair of margin. Vision's corners sit on the card's edge, and a crop

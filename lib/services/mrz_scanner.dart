@@ -66,11 +66,20 @@ class MrzScanner {
   /// Text is read from the **full-resolution original**, so the recogniser
   /// sees every pixel, while the stored face is the cropped card. Reading the
   /// crop instead would throw away detail the parsers depend on.
-  Future<ScanResult> scanFile(String path, {CardQuad? quad}) async {
-    final text = await _vision.recognize(path);
+  Future<ScanResult> scanFile(
+    String path, {
+    CardQuad? quad,
+    int deviceTurns = 0,
+  }) async {
+    // Reading the text and cutting the card are independent passes over the
+    // same photo, and each is a full Vision request. Run together they finish
+    // in about the time the slower one takes; run in series the user waits for
+    // both.
+    final (text, card) = await (
+      _vision.recognize(path),
+      _cardFace(path, quad, deviceTurns),
+    ).wait;
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
-
-    final card = await _cardFace(path, quad);
 
     MrzResult? parsed;
     if (text.trim().isNotEmpty) {
@@ -96,8 +105,16 @@ class MrzScanner {
   /// fired — so the saved card is the one the user framed. Falls back to
   /// detecting afresh, then to a centre crop, when there is no quad or Vision
   /// cannot find a rectangle. Something usable beats nothing.
-  Future<Uint8List?> _cardFace(String path, CardQuad? quad) async {
-    final cut = await _vision.extractCard(path, quad: quad);
+  Future<Uint8List?> _cardFace(
+    String path,
+    CardQuad? quad,
+    int deviceTurns,
+  ) async {
+    final cut = await _vision.extractCard(
+      path,
+      quad: quad,
+      deviceTurns: deviceTurns,
+    );
     if (cut != null) return cut;
     return _cropper.cropToCard(path, aspectRatio: kCardAspectRatio);
   }

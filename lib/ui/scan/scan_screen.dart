@@ -57,6 +57,15 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   /// the guide to feel live and leaves the channel free for everything else.
   static const _detectInterval = Duration(milliseconds: 160);
 
+  /// Roughly how wide a frame is scaled to before detection.
+  ///
+  /// A 1280x720 luma plane is close to a megabyte, and sending one six times a
+  /// second saturates the platform channel — which is what made the preview
+  /// feel heavy. Rectangle detection needs edges, not detail, and the card has
+  /// to fill a quarter of the frame anyway, so a ninth of the pixels finds it
+  /// just as well and costs a ninth as much to move.
+  static const _detectWidth = 420;
+
   /// How square-on the card must be before the shutter arms.
   ///
   /// At 0.93 the shorter of two opposite edges is within 7% of the longer,
@@ -164,11 +173,17 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     _lastDetect = DateTime.now();
     try {
       final plane = image.planes.first;
+      final small = _shrink(
+        plane.bytes,
+        image.width,
+        image.height,
+        plane.bytesPerRow,
+      );
       final found = await _vision.detectCard(
-        luma: plane.bytes,
-        width: image.width,
-        height: image.height,
-        bytesPerRow: plane.bytesPerRow,
+        luma: small.bytes,
+        width: small.width,
+        height: small.height,
+        bytesPerRow: small.width,
       );
       if (!mounted) return;
 
@@ -186,6 +201,35 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     } finally {
       _detecting = false;
     }
+  }
+
+  /// Takes every nth pixel of the luminance plane.
+  ///
+  /// Nearest-neighbour on purpose: averaging would soften precisely the edges
+  /// the rectangle detector is looking for, and cost more to do it.
+  static ({Uint8List bytes, int width, int height}) _shrink(
+    Uint8List source,
+    int width,
+    int height,
+    int bytesPerRow,
+  ) {
+    final step = (width / _detectWidth).floor().clamp(1, 8);
+    if (step == 1) {
+      return (bytes: source, width: width, height: height);
+    }
+
+    final outWidth = width ~/ step;
+    final outHeight = height ~/ step;
+    final out = Uint8List(outWidth * outHeight);
+
+    var target = 0;
+    for (var y = 0; y < outHeight; y++) {
+      final row = y * step * bytesPerRow;
+      for (var x = 0; x < outWidth; x++) {
+        out[target++] = source[row + x * step];
+      }
+    }
+    return (bytes: out, width: outWidth, height: outHeight);
   }
 
   /// How square-on the card currently is, or null when none is detected.
@@ -208,15 +252,28 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
     try {
       final shot = await controller.takePicture();
-      // Cut the card out along the corners the user actually saw. Re-detecting
-      // on the still can find a different rectangle, which is how you end up
-      // with brackets around the card and a photo of something else.
-      _absorb(await _scanner.scanFile(shot.path, quad: framed));
+      // Cut the card out along the corners the user actually saw, turned the
+      // way they were holding the phone. Re-detecting on the still can find a
+      // different rectangle, and geometry alone cannot tell upright from
+      // upside down.
+      _absorb(await _scanner.scanFile(
+        shot.path,
+        quad: framed,
+        deviceTurns: _deviceTurns(controller.value.deviceOrientation),
+      ));
     } catch (error, stack) {
       debugPrint('Elapsa: capture failed: $error\n$stack');
       _restore();
     }
   }
+
+  /// Quarter turns from portrait, matching the sense the native crop uses.
+  static int _deviceTurns(DeviceOrientation device) => switch (device) {
+        DeviceOrientation.portraitUp => 0,
+        DeviceOrientation.landscapeLeft => 1,
+        DeviceOrientation.portraitDown => 2,
+        DeviceOrientation.landscapeRight => 3,
+      };
 
   Future<void> _pickFromLibrary() async {
     setState(() => _stage = _Stage.working);

@@ -2,51 +2,70 @@ import 'package:flutter/foundation.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
+import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/services/card_cropper.dart';
 import 'package:elapsa/services/vision_channel.dart';
 
 /// What reading a document produced.
 ///
-/// The card image is separate from the parse result on purpose: a picture the
-/// user framed is worth keeping even when the code on it could not be read.
+/// The card image is separate from the parsed data on purpose: a picture the
+/// user framed is worth keeping even when nothing legible could be read off
+/// it.
 class ScanResult {
-  /// Null when no machine-readable zone was found at all.
+  /// Set only when the document carries a machine-readable zone.
   final MrzResult? mrz;
 
-  /// The flattened card face. Null only if the photo could not be decoded.
+  /// Read off the printed face. Most of the world's documents have no MRZ —
+  /// a Chinese 居民身份证, a driving licence, an insurance card — and print
+  /// their expiry in plain sight instead.
+  final PrintedFields printed;
+
+  /// The card face, rotated upright and cropped. Null only if the photo could
+  /// not be decoded.
   final Uint8List? cardImage;
 
-  const ScanResult({this.mrz, this.cardImage});
+  const ScanResult({
+    this.mrz,
+    this.printed = PrintedFields.empty,
+    this.cardImage,
+  });
 
-  /// True when a code was found *and* every check digit agreed.
-  bool get isTrustworthy => mrz?.isValid ?? false;
+  /// True when an MRZ was found *and* every check digit agreed.
+  bool get hasTrustedCode => mrz?.isValid ?? false;
 
-  /// A code was found but could not be read cleanly — worth telling the user,
+  /// An MRZ was found but could not be read cleanly — worth telling the user,
   /// because the advice differs from "no code at all".
-  bool get isUnreadable => mrz != null && !mrz!.isValid;
+  bool get isUnreadableCode => mrz != null && !mrz!.isValid;
+
+  /// Whether anything usable came back, from either route.
+  bool get foundAnything => hasTrustedCode || !printed.isEmpty;
 }
 
-/// Reads a document: flattens the card, then reads the code off it.
+/// Reads a document: cuts out the card, then reads whatever it can off it.
 ///
-/// The OCR and card detection are native — Apple Vision on iOS — behind
-/// [VisionChannel]. Everything above that line is pure Dart and unit-tested,
-/// which is why the parser could be finished and verified long before either
-/// platform's camera existed.
+/// Two routes, tried in that order of trust. The machine-readable zone is
+/// protected by check digits, so a valid parse is near-certain. Printed text
+/// has no such guarantee, which is why the parser behind it refuses to guess
+/// (see [PrintedFieldParser]).
+///
+/// Both run on the same recognised text, so a passport gets its MRZ read and
+/// an ID card gets its 有效期限 read, with no second pass over the image.
 class MrzScanner {
   const MrzScanner([
     this._vision = const VisionChannel(),
     this._cropper = const CardCropper(),
+    this._printed = const PrintedFieldParser(),
   ]);
 
   final VisionChannel _vision;
   final CardCropper _cropper;
+  final PrintedFieldParser _printed;
 
   /// Processes one captured photo.
   ///
-  /// The order matters. Text is read from the **full-resolution original**, so
-  /// the recogniser sees every pixel of the machine-readable zone, while the
-  /// stored face is the flattened card. Reading the cropped version instead
-  /// would throw away detail the parser depends on.
+  /// Text is read from the **full-resolution original**, so the recogniser
+  /// sees every pixel, while the stored face is the cropped card. Reading the
+  /// crop instead would throw away detail the parsers depend on.
   Future<ScanResult> scanFile(String path) async {
     final text = await _vision.recognize(path);
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
@@ -58,23 +77,27 @@ class MrzScanner {
       try {
         parsed = MrzParser.parse(text);
       } on MrzException {
-        // No MRZ in this image — expected for the back of a card, or a page
-        // that simply has no code on it.
+        // No MRZ in this image — the normal case for an ID card, and for the
+        // back of almost anything.
         parsed = null;
       }
     }
 
-    return ScanResult(mrz: parsed, cardImage: card);
+    return ScanResult(
+      mrz: parsed,
+      printed: _printed.parse(text),
+      cardImage: card,
+    );
   }
 
-  /// The flattened card, falling back to a centre crop.
+  /// The card, cut out of the photo.
   ///
-  /// Perspective correction needs Vision to actually find a rectangle. When it
-  /// cannot — a document flat on a same-coloured desk, say — a centre crop at
-  /// the card aspect still produces something usable rather than nothing.
+  /// Falls back to a centre crop when Vision cannot find a rectangle — a
+  /// document lying on a same-coloured desk, say. Something usable beats
+  /// nothing.
   Future<Uint8List?> _cardFace(String path) async {
-    final flattened = await _vision.extractCard(path);
-    if (flattened != null) return flattened;
+    final cut = await _vision.extractCard(path);
+    if (cut != null) return cut;
     return _cropper.cropToCard(path, aspectRatio: kCardAspectRatio);
   }
 }

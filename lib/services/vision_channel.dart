@@ -1,5 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+
+/// Which edge of the card is furthest from the camera.
+enum CardEdge { top, bottom, left, right }
 
 /// The four corners of a detected card, normalised 0-1.
 ///
@@ -22,6 +27,62 @@ class CardQuad {
   });
 
   List<Offset> get points => [topLeft, topRight, bottomRight, bottomLeft];
+
+  /// How square-on the card is, from 0 to 1.
+  ///
+  /// A rectangle photographed with the camera parallel to it projects to a
+  /// rectangle: opposite edges come out the same length. Tilt the phone and
+  /// the near edge grows while the far one shrinks, so comparing opposite
+  /// edges measures the tilt directly — no motion sensors, and it works
+  /// whether the card is on a table, on a wall, or in someone's hand.
+  ///
+  /// This is what lets Elapsa avoid perspective correction rather than perform
+  /// it: hold the shutter until this reads high, and there is no perspective
+  /// left to correct.
+  ///
+  /// Must be measured in pixels, not normalised units — the frame is not
+  /// square, so normalised lengths are stretched along one axis and would
+  /// report a tilt that is not there.
+  double flatness(Size frame) {
+    Offset px(Offset n) => Offset(n.dx * frame.width, n.dy * frame.height);
+
+    final tl = px(topLeft);
+    final tr = px(topRight);
+    final br = px(bottomRight);
+    final bl = px(bottomLeft);
+
+    double ratio(double a, double b) {
+      final longest = math.max(a, b);
+      if (longest <= 0) return 0;
+      return math.min(a, b) / longest;
+    }
+
+    return math.min(
+      ratio((tr - tl).distance, (br - bl).distance),
+      ratio((bl - tl).distance, (br - tr).distance),
+    );
+  }
+
+  /// Which edge is furthest from the camera, or null when the card is square
+  /// on.
+  ///
+  /// The far edge is the short one. Dimming its brackets shows the user which
+  /// way to move without a word of instruction.
+  CardEdge? get farthestEdge {
+    final top = (topRight - topLeft).distance;
+    final bottom = (bottomRight - bottomLeft).distance;
+    final left = (bottomLeft - topLeft).distance;
+    final right = (bottomRight - topRight).distance;
+
+    final horizontal = (top - bottom).abs();
+    final vertical = (left - right).abs();
+    if (horizontal < 0.01 && vertical < 0.01) return null;
+
+    if (horizontal >= vertical) {
+      return top < bottom ? CardEdge.top : CardEdge.bottom;
+    }
+    return left < right ? CardEdge.left : CardEdge.right;
+  }
 
   /// Interpolates towards [other], so the on-screen guide glides between
   /// detections instead of snapping on every frame.
@@ -92,12 +153,16 @@ class VisionChannel {
     );
   }
 
-  /// Detects the card in a full-resolution capture and flattens it.
+  /// Detects the card in a full-resolution capture and cuts it out.
   ///
-  /// Perspective correction is what separates this from a crop: a card
-  /// photographed at an angle comes back square-on, the way it would look on a
-  /// scanner bed. Returns null when no card is found, and the caller falls
-  /// back to a centre crop.
+  /// A rigid transform only — rotated to the card's own angle and cropped to
+  /// its corners. No perspective warp, because a warp stretches the far edge
+  /// to match the near one and smears exactly the small print an expiry date
+  /// is written in. The scanner instead holds the shutter until [flatness]
+  /// reads high, so there is no perspective left to correct.
+  ///
+  /// Returns null when no card is found, and the caller falls back to a centre
+  /// crop.
   Future<Uint8List?> extractCard(String path) async {
     try {
       return await _channel.invokeMethod<Uint8List>('extractCard', {

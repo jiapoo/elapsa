@@ -37,6 +37,7 @@
   "editEditTitle": "編輯證件",
   "editScanHelp": "辨識護照、身分證、簽證上的機器可讀區",
   "editFromScanNote": "以下內容由機器可讀區自動填入，每一項你都可以修改。",
+  "editScanNothingRead": "照片已儲存。這一面沒有讀到可用資訊，請在下面填寫。",
   "editScanRepaired": "已掃描 — 機讀碼有點模糊，請核對一下資料。",
   "fieldType": "類型",
   "fieldName": "名稱",

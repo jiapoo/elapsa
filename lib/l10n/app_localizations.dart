@@ -260,6 +260,12 @@ abstract class L {
   /// **'Filled in from the document code. Every field is still yours to change.'**
   String get editFromScanNote;
 
+  /// No description provided for @editScanNothingRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture saved. Nothing readable on this side — fill in the details below.'**
+  String get editScanNothingRead;
+
   /// No description provided for @editScanRepaired.
   ///
   /// In en, this message translates to:

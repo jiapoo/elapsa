@@ -48,7 +48,7 @@ class HomeScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // Manual entry is the fallback, so it gets the quieter of the two.
-          FloatingActionButton.small(
+          FloatingActionButton(
             heroTag: 'add',
             tooltip: l.actionAdd,
             backgroundColor:
@@ -67,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
             heroTag: 'scan',
             tooltip: l.actionScan,
             onPressed: () => _scan(context),
-            child: const Icon(Icons.document_scanner_outlined),
+            child: const Icon(Icons.photo_camera_outlined),
           ),
         ],
       ),

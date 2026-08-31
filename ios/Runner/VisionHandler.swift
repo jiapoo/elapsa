@@ -150,12 +150,20 @@ enum VisionHandler {
     perform([request], on: cgImage, orientation: .up) { _ in result(nil) }
   }
 
-  /// Detects the card in a full-resolution capture and flattens it.
+  /// Detects the card in a full-resolution capture and cuts it out.
   ///
-  /// Perspective correction is what separates this from a centre crop: a card
-  /// photographed at an angle comes back square-on, the way it would look on a
-  /// scanner bed. Returns nil when no rectangle is found, and the caller falls
-  /// back to a plain centre crop.
+  /// Deliberately a **rigid** transform — rotate and crop, nothing more.
+  ///
+  /// A perspective warp can straighten a card photographed at an angle, but it
+  /// does so by stretching the far edge to match the near one, which smears
+  /// exactly the small print an expiry date is written in. The app avoids that
+  /// by refusing the shot until the card is square to the camera, so by the
+  /// time this runs there is no perspective left to correct. Rotating to the
+  /// card's own angle and cropping to its corners keeps every pixel where the
+  /// lens put it.
+  ///
+  /// Returns nil when no rectangle is found; the caller falls back to a plain
+  /// centre crop.
   private static func extractCard(path: String, result: @escaping FlutterResult) {
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
       result(nil); return
@@ -168,26 +176,42 @@ enum VisionHandler {
     let request = makeRectangleRequest { observation in
       guard let observation = observation else { result(nil); return }
 
-      // Vision reports normalised points; Core Image wants them in image
-      // space. Both use a bottom-left origin, so this is a plain scale.
-      func point(_ p: CGPoint) -> CIVector {
-        CIVector(x: extent.origin.x + p.x * extent.width,
-                 y: extent.origin.y + p.y * extent.height)
+      // Vision reports normalised points; Core Image works in image space.
+      // Both use a bottom-left origin, so this is a plain scale.
+      func point(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: extent.origin.x + p.x * extent.width,
+                y: extent.origin.y + p.y * extent.height)
       }
 
-      guard let filter = CIFilter(name: "CIPerspectiveCorrection") else {
+      let topLeft = point(observation.topLeft)
+      let topRight = point(observation.topRight)
+      let bottomLeft = point(observation.bottomLeft)
+      let bottomRight = point(observation.bottomRight)
+
+      // The card's own angle in the frame, taken from its top edge. Undoing
+      // just this leaves the document upright without touching its geometry.
+      let angle = atan2(topRight.y - topLeft.y, topRight.x - topLeft.x)
+      let rotation = CGAffineTransform(rotationAngle: -angle)
+
+      let corners = [topLeft, topRight, bottomRight, bottomLeft]
+        .map { $0.applying(rotation) }
+      let xs = corners.map(\.x)
+      let ys = corners.map(\.y)
+      guard
+        let minX = xs.min(), let maxX = xs.max(),
+        let minY = ys.min(), let maxY = ys.max(),
+        maxX > minX, maxY > minY
+      else {
         result(nil); return
       }
-      filter.setValue(ciImage, forKey: kCIInputImageKey)
-      filter.setValue(point(observation.topLeft), forKey: "inputTopLeft")
-      filter.setValue(point(observation.topRight), forKey: "inputTopRight")
-      filter.setValue(point(observation.bottomLeft), forKey: "inputBottomLeft")
-      filter.setValue(point(observation.bottomRight), forKey: "inputBottomRight")
+
+      let cropped = ciImage
+        .transformed(by: rotation)
+        .cropped(to: CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY))
 
       guard
-        let output = filter.outputImage,
         let jpeg = ciContext.jpegRepresentation(
-          of: output,
+          of: cropped,
           colorSpace: CGColorSpaceCreateDeviceRGB(),
           options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
         )

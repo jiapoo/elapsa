@@ -103,6 +103,9 @@ class LZh extends L {
   String get editFromScanNote => '以下内容由机读码自动填入，每一项你都可以修改。';
 
   @override
+  String get editScanNothingRead => '照片已保存。这一面没有读到可用信息，请在下面填写。';
+
+  @override
   String get editScanRepaired => '已扫描 — 机读码有点模糊，请核对一下信息。';
 
   @override
@@ -413,6 +416,9 @@ class LZhHant extends LZh {
 
   @override
   String get editFromScanNote => '以下內容由機器可讀區自動填入，每一項你都可以修改。';
+
+  @override
+  String get editScanNothingRead => '照片已儲存。這一面沒有讀到可用資訊，請在下面填寫。';
 
   @override
   String get editScanRepaired => '已掃描 — 機讀碼有點模糊，請核對一下資料。';

@@ -42,6 +42,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
   bool _fromScan = false;
 
+  /// Whether the scan actually yielded any field, as opposed to only a
+  /// picture. Claiming "filled in from the document" over an empty form is
+  /// worse than saying nothing.
+  bool _readAnything = false;
+
   /// True until the user edits the lead time by hand, after which changing the
   /// document type no longer overwrites their choice.
   bool _leadDaysIsAuto = true;
@@ -100,9 +105,26 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     setState(() {
       _fromScan = true;
+      _readAnything = mrz != null || !session.printed.isEmpty;
       _images
         ..clear()
         ..addAll(session.images);
+
+      // Printed fields first, so a validated MRZ can still override them.
+      // Most documents have no MRZ at all — a Chinese 居民身份证 prints its
+      // 有效期限 in plain sight and nothing else.
+      final printed = session.printed;
+      if (printed.type != null) {
+        _type = printed.type!;
+        if (_leadDaysIsAuto) {
+          _renewalLeadDays = _type.defaultRenewalLeadDays;
+        }
+      }
+      if (printed.expiryDate != null) _expiryDate = printed.expiryDate;
+      if (printed.documentNumber != null &&
+          _documentNumber.text.trim().isEmpty) {
+        _documentNumber.text = printed.documentNumber!;
+      }
 
       if (mrz == null) {
         if (_label.text.trim().isEmpty) _label.text = _type.label(l);
@@ -221,7 +243,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             if (_fromScan) ...[
               _InfoNote(
                 icon: Icons.verified_outlined,
-                text: l.editFromScanNote,
+                text: _readAnything ? l.editFromScanNote : l.editScanNothingRead,
               ),
               const SizedBox(height: 24),
             ],

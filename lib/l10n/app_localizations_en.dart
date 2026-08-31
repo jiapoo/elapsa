@@ -119,6 +119,10 @@ class LEn extends L {
       'Filled in from the document code. Every field is still yours to change.';
 
   @override
+  String get editScanNothingRead =>
+      'Picture saved. Nothing readable on this side — fill in the details below.';
+
+  @override
   String get editScanRepaired =>
       'Scanned — the code was a little blurry, so please check the details.';
 

@@ -37,6 +37,7 @@
   "editEditTitle": "Edit document",
   "editScanHelp": "Reads the code on a passport, ID card or visa",
   "editFromScanNote": "Filled in from the document code. Every field is still yours to change.",
+  "editScanNothingRead": "Picture saved. Nothing readable on this side — fill in the details below.",
   "editScanRepaired": "Scanned — the code was a little blurry, so please check the details.",
   "fieldType": "Type",
   "fieldName": "Name",

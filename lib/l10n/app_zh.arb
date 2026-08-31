@@ -37,6 +37,7 @@
   "editEditTitle": "编辑证件",
   "editScanHelp": "识别护照、身份证、签证上的机读码",
   "editFromScanNote": "以下内容由机读码自动填入，每一项你都可以修改。",
+  "editScanNothingRead": "照片已保存。这一面没有读到可用信息，请在下面填写。",
   "editScanRepaired": "已扫描 — 机读码有点模糊，请核对一下信息。",
   "fieldType": "类型",
   "fieldName": "名称",

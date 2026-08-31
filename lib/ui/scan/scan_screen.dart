@@ -290,7 +290,6 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
             _CornerGuide(
               quad: _quad,
               frameSize: _frameSize,
-              controller: _controller!,
               armed: _armed,
               dimmed: busy,
             ),
@@ -486,14 +485,12 @@ class _CornerGuide extends StatelessWidget {
   const _CornerGuide({
     required this.quad,
     required this.frameSize,
-    required this.controller,
     required this.armed,
     required this.dimmed,
   });
 
   final CardQuad? quad;
   final Size? frameSize;
-  final CameraController controller;
   final bool armed;
   final bool dimmed;
 
@@ -508,28 +505,13 @@ class _CornerGuide extends StatelessWidget {
             quad: quad,
             armed: armed,
             farEdge: quad?.farthestEdge,
-            previewSize: controller.value.previewSize,
-            rotation: _rotationDegrees(controller),
+            frameSize: frameSize,
           ),
         ),
       ),
     );
   }
 
-  /// Degrees the sensor image must be rotated to match what is on screen.
-  ///
-  /// Measured against the *interface* orientation, which this screen locks to
-  /// portrait — not the physical one. The two now differ: turn the phone
-  /// sideways and the device reports landscape while the layout stays upright,
-  /// so reading the physical orientation here would swing the guide away from
-  /// a card that had not moved.
-  ///
-  /// Sensor mounting differs between devices, so that part is still read from
-  /// the camera rather than assumed.
-  static int _rotationDegrees(CameraController controller) {
-    // The interface is pinned to portraitUp, whose compensation is zero.
-    return controller.description.sensorOrientation % 360;
-  }
 }
 
 class _CornerPainter extends CustomPainter {
@@ -537,15 +519,17 @@ class _CornerPainter extends CustomPainter {
     required this.quad,
     required this.armed,
     required this.farEdge,
-    required this.previewSize,
-    required this.rotation,
+    required this.frameSize,
   });
 
   final CardQuad? quad;
   final bool armed;
   final CardEdge? farEdge;
-  final Size? previewSize;
-  final int rotation;
+
+  /// Dimensions of the frame the quad was detected in. Everything the mapping
+  /// needs comes from here, so the overlay and the detection can never be
+  /// working from different ideas of the picture.
+  final Size? frameSize;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -595,38 +579,33 @@ class _CornerPainter extends CustomPainter {
 
   /// Maps the detected quad into the widget's pixel space.
   ///
-  /// Two transforms compose: the sensor's mounting rotation relative to the
-  /// screen, then the BoxFit.cover the preview is displayed with. Vision's
-  /// bottom-left origin was already flipped upstream.
+  /// The frame's own dimensions decide whether a quarter turn is needed, which
+  /// is the one fact here that cannot be wrong. With the capture orientation
+  /// locked, the plugin orients the streamed frames too, so a buffer often
+  /// arrives already upright — assuming the sensor's mounting angle instead
+  /// puts the guide at right angles to a card that has not moved.
   List<Offset> _screenCorners(Size size) {
     final quad = this.quad;
-    if (quad == null) return _restingFrame(size);
+    final frame = frameSize;
+    if (quad == null || frame == null) return _restingFrame(size);
 
-    final preview = previewSize ?? size;
-    final quarterTurn = rotation == 90 || rotation == 270;
-    final sourceWidth = quarterTurn ? preview.height : preview.width;
-    final sourceHeight = quarterTurn ? preview.width : preview.height;
+    // A frame taller than it is wide is already in the screen's orientation.
+    final upright = frame.height >= frame.width;
+    final sourceWidth = upright ? frame.width : frame.height;
+    final sourceHeight = upright ? frame.height : frame.width;
 
     final scale = math.max(size.width / sourceWidth, size.height / sourceHeight);
     final dx = (size.width - sourceWidth * scale) / 2;
     final dy = (size.height - sourceHeight * scale) / 2;
 
     return quad.points.map((p) {
-      final r = _rotate(p, rotation);
+      final r = upright ? p : Offset(1 - p.dy, p.dx);
       return Offset(
         r.dx * sourceWidth * scale + dx,
         r.dy * sourceHeight * scale + dy,
       );
     }).toList();
   }
-
-  /// Rotates a point in normalised space.
-  static Offset _rotate(Offset p, int degrees) => switch (degrees) {
-        90 => Offset(1 - p.dy, p.dx),
-        180 => Offset(1 - p.dx, 1 - p.dy),
-        270 => Offset(p.dy, 1 - p.dx),
-        _ => p,
-      };
 
   /// Where the brackets rest before anything is detected — a card-shaped hint
   /// in the middle of the frame.
@@ -651,7 +630,7 @@ class _CornerPainter extends CustomPainter {
       old.quad != quad ||
       old.armed != armed ||
       old.farEdge != farEdge ||
-      old.rotation != rotation;
+      old.frameSize != frameSize;
 }
 
 /// The shutter. A circle with a centred glyph and no label, which is what

@@ -106,9 +106,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     setState(() {
       _fromScan = true;
       _readAnything = mrz != null || !session.printed.isEmpty;
-      _images
-        ..clear()
-        ..addAll(session.images);
+      // Append. "Add another side" opens a fresh scanner, so replacing here
+      // would throw away every page captured before it.
+      _images.addAll(session.images);
 
       // Printed fields first, so a validated MRZ can still override them.
       // Most documents have no MRZ at all — a Chinese 居民身份证 prints its
@@ -389,7 +389,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (_images.isEmpty) {
         await repo.save(updated);
       } else {
-        await repo.replaceImages(updated, _images);
+        // Added alongside whatever the document already had, for the same
+        // reason: a new side is an addition, not a replacement.
+        await repo.appendImages(updated, _images);
       }
     } else {
       // Permission first. iOS silently discards notifications scheduled while

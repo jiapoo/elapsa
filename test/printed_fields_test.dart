@@ -48,6 +48,51 @@ void main() {
     });
   });
 
+  group('bank card', () {
+    // What Vision reads off a China Construction Bank UnionPay debit card.
+    const card = '''
+中国建设银行
+China Construction Bank
+龙卡通(储蓄卡)
+6217 0033 2000 2856 600
+MONTH/YEAR
+DEBIT CCB GD VALID THRU 07/35
+UnionPay 银联
+''';
+
+    test('reads MM/YY as the last day of that month', () {
+      // A card marked 07/35 is good *through* July, so expiring it on the 1st
+      // would fire every reminder a month early.
+      expect(parser.parse(card).expiryDate, DateTime(2035, 7, 31));
+    });
+
+    test('handles February and leap years', () {
+      expect(parser.parse('VALID THRU 02/27').expiryDate, DateTime(2027, 2, 28));
+      expect(parser.parse('VALID THRU 02/28').expiryDate, DateTime(2028, 2, 29));
+    });
+
+    test('identifies the type', () {
+      expect(parser.parse(card).type, DocumentType.bankCard);
+      expect(parser.parse('UnionPay').type, DocumentType.bankCard);
+    });
+
+    test('reads the card number without its spacing', () {
+      expect(parser.parse(card).documentNumber, '6217003320002856600');
+    });
+
+    test('needs a label — a bare MM/YY is not an expiry', () {
+      // "07/35" alone could be part of a number, a sort code, an issue date.
+      expect(parser.parse('6217 0033 07/35').expiryDate, isNull);
+    });
+
+    test('an identity number wins over a card number', () {
+      // Both patterns can match 18 digits; the ID is the more specific claim.
+      final fields = parser.parse('居民身份证 44010119900307201X');
+      expect(fields.documentNumber, '44010119900307201X');
+      expect(fields.type, DocumentType.nationalId);
+    });
+  });
+
   group('labelled expiry dates', () {
     test('reads a Chinese label', () {
       expect(

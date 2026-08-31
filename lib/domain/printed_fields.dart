@@ -60,9 +60,33 @@ class PrintedFieldParser {
     caseSensitive: false,
   );
 
+  /// A bank card's `MM/YY`, introduced by the label printed beside it.
+  ///
+  /// Anchored to a label on purpose: two digits, a slash and two digits also
+  /// describes part of a card number, a sort code and a date of issue. The
+  /// label is what makes it an expiry.
+  static final _monthYearExpiry = RegExp(
+    r'(?:valid\s*thru|valid\s*through|month\s*/\s*year|expires?\s*end|good\s*thru|有效期(?:至|限)?)'
+    r'[\s:：]*'
+    r'(\d{1,2})\s*[/\-.]\s*(\d{2}|\d{4})',
+    caseSensitive: false,
+  );
+
   /// Mainland Chinese national identity number: 17 digits and a check
   /// character.
   static final _chineseIdNumber = RegExp(r'(?<!\d)(\d{17}[\dXx])(?!\d)');
+
+  /// A payment card number: 13 to 19 digits, usually printed in groups.
+  static final _cardNumber = RegExp(
+    r'(?<![\d/])((?:\d[ -]?){12,18}\d)(?![\d/])',
+  );
+
+  /// Wording that marks the document as a payment card.
+  static final _cardWording = RegExp(
+    r'银联|銀聯|储蓄卡|儲蓄卡|信用卡|借记卡|'
+    r'unionpay|\bdebit\b|\bcredit\b|\bbank\b|\bcard\b',
+    caseSensitive: false,
+  );
 
   PrintedFields parse(String text) {
     if (text.trim().isEmpty) return PrintedFields.empty;
@@ -88,14 +112,30 @@ class PrintedFieldParser {
       if (labelled != null) {
         expiry = _date(labelled.group(1), labelled.group(2), labelled.group(3));
       }
+      // A payment card prints MM/YY and nothing else.
+      final monthYear = _monthYearExpiry.firstMatch(normalised);
+      if (expiry == null && monthYear != null) {
+        expiry = _endOfMonth(monthYear.group(1), monthYear.group(2));
+      }
     }
 
-    final number = _chineseIdNumber.firstMatch(normalised)?.group(1);
+    // A long run of digits is only a card number when something else on the
+    // document says "card". Bare, it could as easily be an IMEI, a policy
+    // number or a serial — and inventing a document number is the same failure
+    // as inventing a date.
+    final looksLikeCard = _cardWording.hasMatch(normalised) ||
+        _monthYearExpiry.hasMatch(normalised);
+
+    final chineseId = _chineseIdNumber.firstMatch(normalised)?.group(1);
+    final card = (chineseId == null && looksLikeCard)
+        ? _cardNumber.firstMatch(normalised)?.group(1)
+        : null;
+    final number = chineseId ?? card?.replaceAll(RegExp(r'[ -]'), '');
 
     return PrintedFields(
       expiryDate: expiry,
       documentNumber: number?.toUpperCase(),
-      type: _typeFrom(normalised, hasChineseId: number != null),
+      type: _typeFrom(normalised, hasChineseId: chineseId != null),
       neverExpires: permanent,
     );
   }
@@ -127,7 +167,25 @@ class PrintedFieldParser {
         RegExp(r'residence\s*permit', caseSensitive: false).hasMatch(text)) {
       return DocumentType.residencePermit;
     }
+    if (_cardWording.hasMatch(text) || _monthYearExpiry.hasMatch(text)) {
+      return DocumentType.bankCard;
+    }
     return null;
+  }
+
+  /// A card marked `07/35` is good through the *last* day of July 2035, not
+  /// the first. Recording the first would expire it a month early and fire
+  /// every reminder against the wrong date.
+  static DateTime? _endOfMonth(String? month, String? year) {
+    final m = int.tryParse(month ?? '');
+    var y = int.tryParse(year ?? '');
+    if (m == null || y == null || m < 1 || m > 12) return null;
+    if (y < 100) y += 2000;
+    if (y < 2000 || y > 2200) return null;
+
+    // Day zero of the following month is the last day of this one, and it
+    // handles February and leap years without a table.
+    return DateTime(y, m + 1, 0);
   }
 
   static DateTime? _date(String? year, String? month, String? day) {

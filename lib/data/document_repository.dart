@@ -85,13 +85,23 @@ class DocumentRepository {
     await _resync();
   }
 
-  /// Replaces the pictures on an existing document.
-  Future<void> replaceImages(
+  /// Adds pictures to an existing document, keeping the ones already stored.
+  ///
+  /// A user photographing the back of a card expects to end up with both
+  /// sides, not to lose the front.
+  Future<void> appendImages(
     domain.TrackedDocument doc,
     List<Uint8List> images,
   ) async {
-    final path = await _images.saveAll(doc.id, images);
-    await save(doc.copyWith(imagePath: path, imageCount: images.length));
+    if (images.isEmpty) return save(doc);
+
+    for (var i = 0; i < images.length; i++) {
+      await _images.save(doc.id, doc.imageCount + i, images[i]);
+    }
+    await save(doc.copyWith(
+      imagePath: doc.imagePath ?? '${doc.id}_0.enc',
+      imageCount: doc.imageCount + images.length,
+    ));
   }
 
   /// Rebuilds the scheduled reminders from what is currently stored.

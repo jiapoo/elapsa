@@ -193,7 +193,15 @@ enum VisionHandler {
               y: extent.origin.y + p.y * extent.height)
     }
 
-    func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) {
+    /// Rotates to the card's own angle and crops to its corners, or returns
+    /// nil when the result is not plausibly a whole document.
+    ///
+    /// The check matters because the preview stream and the still can differ
+    /// in aspect ratio — 16:9 against 4:3 — so corners measured on one do not
+    /// always transfer to the other. When they do not, the crop comes out as a
+    /// shifted sliver, and a sliver of someone's card is worse than falling
+    /// back to a rougher cut of the whole thing.
+    func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
       // The card's own angle in the frame, taken from its top edge. Undoing
       // just this leaves the document upright without touching its geometry.
       let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
@@ -204,29 +212,32 @@ enum VisionHandler {
       let ys = rotated.map(\.y)
       guard
         let minX = xs.min(), let maxX = xs.max(),
-        let minY = ys.min(), let maxY = ys.max(),
-        maxX > minX, maxY > minY
-      else {
-        result(nil); return
-      }
+        let minY = ys.min(), let maxY = ys.max()
+      else { return nil }
 
-      let cropped = ciImage
-        .transformed(by: rotation)
-        .cropped(to: CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY))
+      let rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
 
+      // A real document fills a meaningful share of a frame the user framed it
+      // in. These bounds are loose enough for a card held well back, tight
+      // enough to reject a sliver.
+      let longestSide = max(extent.width, extent.height)
       guard
-        let jpeg = ciContext.jpegRepresentation(
-          of: cropped,
-          colorSpace: CGColorSpaceCreateDeviceRGB(),
-          options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
-        )
-      else {
-        result(nil); return
-      }
+        rect.width > longestSide * 0.10,
+        rect.height > longestSide * 0.10,
+        rect.width * rect.height > extent.width * extent.height * 0.04
+      else { return nil }
 
-      result(FlutterStandardTypedData(bytes: jpeg))
+      let cropped = ciImage.transformed(by: rotation).cropped(to: rect)
+      guard !cropped.extent.isEmpty else { return nil }
+
+      return ciContext.jpegRepresentation(
+        of: cropped,
+        colorSpace: CGColorSpaceCreateDeviceRGB(),
+        options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
+      )
     }
 
+    // First choice: the corners the user actually saw.
     if let corners = corners {
       // Dart works in a top-left origin; flip back to Vision's bottom-left.
       func supplied(_ key: String) -> CGPoint? {
@@ -239,20 +250,27 @@ enum VisionHandler {
       }
 
       if let tl = supplied("topLeft"), let tr = supplied("topRight"),
-         let br = supplied("bottomRight"), let bl = supplied("bottomLeft") {
-        cut((tl: tl, tr: tr, br: br, bl: bl))
+         let br = supplied("bottomRight"), let bl = supplied("bottomLeft"),
+         let jpeg = cut((tl: tl, tr: tr, br: br, bl: bl)) {
+        result(FlutterStandardTypedData(bytes: jpeg))
         return
       }
     }
 
+    // Otherwise find the card again in the still itself.
     let request = makeRectangleRequest { observation in
-      guard let observation = observation else { result(nil); return }
-      cut((
-        tl: point(observation.topLeft),
-        tr: point(observation.topRight),
-        br: point(observation.bottomRight),
-        bl: point(observation.bottomLeft)
-      ))
+      guard
+        let observation = observation,
+        let jpeg = cut((
+          tl: point(observation.topLeft),
+          tr: point(observation.topRight),
+          br: point(observation.bottomRight),
+          bl: point(observation.bottomLeft)
+        ))
+      else {
+        result(nil); return
+      }
+      result(FlutterStandardTypedData(bytes: jpeg))
     }
 
     perform([request], on: cgImage, orientation: orientation) { _ in result(nil) }

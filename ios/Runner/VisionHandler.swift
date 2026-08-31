@@ -12,6 +12,14 @@ enum VisionHandler {
 
   private static let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
+  /// The quarter turn that lays a standing card down the right way up.
+  ///
+  /// Core Image works in a y-up space, where a positive angle turns
+  /// anticlockwise. The two directions give landscape boxes of identical size
+  /// and differ by a half turn, so this single sign decides whether a card
+  /// photographed with the phone sideways comes out upright or inverted.
+  private static let quarterTurn: CGFloat = -.pi / 2
+
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "cc.elapsa/vision",
@@ -266,42 +274,28 @@ enum VisionHandler {
     /// The card cut out and turned upright, or nil when the result is not
     /// plausibly a whole document.
     func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
-      // The card's angle in the frame, taken from its top edge.
+      // The card's angle in the frame, taken from the edge Vision calls the
+      // top. Note *Vision's* top: the corners are labelled against the image,
+      // not the card, so with the phone held sideways this edge is the card's
+      // short one and the box below comes out standing up.
       let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
 
-      // Lay the card down first. Every document tracked here is wider than it
-      // is tall, so a box that comes out portrait means the detector called
-      // the short side the top.
-      var landscape = angle
-      if let upright = boxed(quad, turnedBy: angle), upright.rect.height > upright.rect.width {
-        landscape = angle + .pi / 2
-      }
-
-      // That leaves one question geometry cannot answer: a rectangle turned by
-      // θ and by θ+180° has exactly the same bounding box, so the card may be
-      // the right way up or upside down and the shape is identical either way.
+      // Every document tracked here is wider than it is tall, so a box that
+      // comes out portrait needs a quarter turn to lay it down.
       //
-      // Two attempts to settle it from the device's orientation both failed —
-      // the conventions for which way a phone is "turned" did not line up with
-      // the sensor's. So it is settled from the card instead: a document has
-      // text, text has a right way up, and the recogniser reads far more of it
-      // one way round than the other. That needs no convention to be correct.
-      let candidates = [landscape, landscape + .pi]
-      var best: (image: CIImage, score: Int)?
-
-      for candidate in candidates {
-        guard let cropped = crop(quad, turnedBy: candidate) else { continue }
-        let score = legibility(of: cropped)
-        if best == nil || score > best!.score {
-          best = (cropped, score)
-        }
-        // Nothing beats reading plenty of text; stop looking.
-        if score > 40 { break }
+      // Which way round that turn goes is the whole question. Both directions
+      // produce a landscape box of identical size, and they differ by a half
+      // turn — so getting it backwards does not look like a rotation error at
+      // all, it looks like the card came out upside down.
+      var chosen = angle
+      if let standing = boxed(quad, turnedBy: angle),
+         standing.rect.height > standing.rect.width {
+        chosen = angle + quarterTurn
       }
 
-      guard let winner = best else { return nil }
+      guard let cropped = crop(quad, turnedBy: chosen) else { return nil }
       return ciContext.jpegRepresentation(
-        of: winner.image,
+        of: cropped,
         colorSpace: CGColorSpaceCreateDeviceRGB(),
         options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
       )
@@ -334,30 +328,6 @@ enum VisionHandler {
 
       let cropped = turnedImage.cropped(to: rect)
       return cropped.extent.isEmpty ? nil : cropped
-    }
-
-    /// How much text reads out of an image — the measure of which way is up.
-    ///
-    /// Deliberately cheap: a fast pass over a small copy, because this only
-    /// has to tell two orientations apart, not read anything properly. Digits
-    /// count, so it works on a Chinese identity card whose only Latin
-    /// characters are the dates.
-    func legibility(of image: CIImage) -> Int {
-      let side = max(image.extent.width, image.extent.height)
-      let scale = side > 900 ? 900 / side : 1
-      let small = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-
-      guard let cg = ciContext.createCGImage(small, from: small.extent) else { return 0 }
-
-      let request = VNRecognizeTextRequest()
-      request.recognitionLevel = .fast
-      request.usesLanguageCorrection = false
-
-      try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
-      let observations = request.results as? [VNRecognizedTextObservation] ?? []
-      return observations
-        .compactMap { $0.topCandidates(1).first?.string.count }
-        .reduce(0, +)
     }
 
     // First choice: the corners the user actually saw.

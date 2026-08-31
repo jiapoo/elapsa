@@ -76,19 +76,4 @@ enum DocumentType {
         DocumentType.other => Icons.description_outlined,
       };
 
-  /// English label. Localised strings replace this once l10n lands; keeping it
-  /// here for now avoids a context lookup in every list row.
-  String get label => switch (this) {
-        DocumentType.passport => 'Passport',
-        DocumentType.nationalId => 'National ID',
-        DocumentType.driversLicence => "Driver's Licence",
-        DocumentType.visa => 'Visa',
-        DocumentType.residencePermit => 'Residence Permit',
-        DocumentType.vehicleRegistration => 'Vehicle Registration',
-        DocumentType.insurance => 'Insurance',
-        DocumentType.professionalLicence => 'Professional Licence',
-        DocumentType.membership => 'Membership',
-        DocumentType.bankCard => 'Bank Card',
-        DocumentType.other => 'Other',
-      };
 }

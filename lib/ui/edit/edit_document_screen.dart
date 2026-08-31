@@ -4,18 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import 'package:elapsa/core/lead_time.dart';
+import 'package:elapsa/core/labels.dart';
+import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_type.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
-
-final _dateFormat = DateFormat('d MMMM yyyy');
+import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 class EditDocumentScreen extends ConsumerStatefulWidget {
-  const EditDocumentScreen({super.key, this.existing});
+  const EditDocumentScreen({super.key, this.existing, this.session});
 
   final TrackedDocument? existing;
+
+  /// A scan the user just made, if they arrived here from the scanner.
+  final ScanSession? session;
 
   @override
   ConsumerState<EditDocumentScreen> createState() => _EditDocumentScreenState();
@@ -32,14 +36,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   late int _renewalLeadDays;
   String? _issuingCountry;
 
-  /// Photo from a scan, still in a temp directory. It is encrypted into the
-  /// app's own storage on save — not before, because the document needs an id
-  /// first and an abandoned form should leave nothing behind.
-  Uint8List? _cardImage;
+  /// Pictures from this session. Empty on an edit means "leave what is stored
+  /// alone" — only a fresh scan replaces them.
+  final _images = <Uint8List>[];
 
-  /// Set when the fields came from a scan rather than being typed, so the UI
-  /// can say so — people are reasonably suspicious of a form that filled
-  /// itself in with their passport number.
   bool _fromScan = false;
 
   /// True until the user edits the lead time by hand, after which changing the
@@ -56,12 +56,21 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _type = existing?.type ?? DocumentType.passport;
     _label = TextEditingController(text: existing?.label ?? '');
     _holder = TextEditingController(text: existing?.holder ?? '');
-    _documentNumber = TextEditingController(text: existing?.documentNumber ?? '');
+    _documentNumber =
+        TextEditingController(text: existing?.documentNumber ?? '');
     _expiryDate = existing?.expiryDate;
     _issuingCountry = existing?.issuingCountry;
     _renewalLeadDays = existing?.renewalLeadDays ?? _type.defaultRenewalLeadDays;
     _leadDaysIsAuto = existing == null ||
         existing.renewalLeadDays == existing.type.defaultRenewalLeadDays;
+
+    final session = widget.session;
+    if (session != null) {
+      // Deferred, because filling the form needs the localisations that are
+      // only available once there is a context.
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _applySession(session));
+    }
   }
 
   @override
@@ -72,188 +81,35 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? 'Edit document' : 'Add document'),
-        titleTextStyle: Theme.of(context).textTheme.titleLarge,
-        actions: [
-          if (_isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete',
-              onPressed: _confirmDelete,
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-          children: [
-            if (!_isEditing) ...[
-              OutlinedButton.icon(
-                onPressed: _scan,
-                icon: const Icon(Icons.document_scanner_outlined),
-                label: const Text('Scan document'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  side: BorderSide(color: scheme.outlineVariant),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  'Reads the code on a passport, ID card or visa',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurfaceVariant,
-                      ),
-                ),
-              ),
-              const SizedBox(height: 28),
-            ],
-
-            if (_fromScan) ...[
-              _InfoNote(
-                icon: Icons.verified_outlined,
-                text: 'Filled in from the document code. Every field is still '
-                    'yours to change.',
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            _Label('Type'),
-            DropdownButtonFormField<DocumentType>(
-              initialValue: _type,
-              items: DocumentType.values
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Row(
-                        children: [
-                          Icon(t.icon, size: 18),
-                          const SizedBox(width: 10),
-                          Text(t.label),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _type = value;
-                  if (_leadDaysIsAuto) {
-                    _renewalLeadDays = value.defaultRenewalLeadDays;
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            _Label('Name'),
-            TextFormField(
-              controller: _label,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(hintText: 'My ${_type.label.toLowerCase()}'),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Give it a name' : null,
-            ),
-            const SizedBox(height: 20),
-
-            _Label('Expiry date'),
-            _DateField(
-              value: _expiryDate,
-              onChanged: (d) => setState(() => _expiryDate = d),
-            ),
-            const SizedBox(height: 20),
-
-            _Label('Start reminding me'),
-            _LeadTimeField(
-              days: _renewalLeadDays,
-              onChanged: (days) => setState(() {
-                _renewalLeadDays = days;
-                _leadDaysIsAuto = false;
-              }),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              _leadTimeExplanation(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
-            ),
-
-            if (_type.hasSixMonthTravelRule) ...[
-              const SizedBox(height: 14),
-              _InfoNote(
-                icon: Icons.flight_takeoff,
-                text: 'Many countries require six months of validity beyond '
-                    'your entry date, so this document stops being usable for '
-                    'travel about six months before it expires.',
-              ),
-            ],
-
-            const SizedBox(height: 28),
-            _Label('Optional'),
-            TextFormField(
-              controller: _holder,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Who it belongs to',
-                prefixIcon: Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _documentNumber,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                hintText: 'Document number',
-                prefixIcon: Icon(Icons.tag),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-            FilledButton(
-              onPressed: _save,
-              child: Text(_isEditing ? 'Save changes' : 'Add document'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Opens the scanner and folds any result into the form.
-  ///
-  /// Everything stays editable afterwards. The check digits make a validated
-  /// MRZ near-certain to be right, but the user's own name for the document is
-  /// theirs to choose, and a wrong guess should never be locked in.
   Future<void> _scan() async {
-    final capture = await Navigator.of(context).push<ScanCapture>(
+    final session = await Navigator.of(context).push<ScanSession>(
       MaterialPageRoute(builder: (_) => const ScanScreen()),
     );
-    if (capture == null || !mounted) return;
+    if (session != null) _applySession(session);
+  }
 
-    final result = capture.mrz;
+  /// Folds a scan into the form.
+  ///
+  /// Everything stays editable afterwards. The check digits make a validated
+  /// code near-certain to be right, but the user's own name for the document
+  /// is theirs to choose, and a wrong guess should never be locked in.
+  void _applySession(ScanSession session) {
+    if (!mounted) return;
+    final l = L.of(context);
+    final mrz = session.mrz;
 
     setState(() {
       _fromScan = true;
-      _cardImage = capture.cardImage;
+      _images
+        ..clear()
+        ..addAll(session.images);
 
-      final scannedType = _typeFromDocumentCode(result.documentCode);
+      if (mrz == null) {
+        if (_label.text.trim().isEmpty) _label.text = _type.label(l);
+        return;
+      }
+
+      final scannedType = _typeFromDocumentCode(mrz.documentCode);
       if (scannedType != null) {
         _type = scannedType;
         if (_leadDaysIsAuto) {
@@ -261,28 +117,20 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         }
       }
 
-      if (result.expiryDate != null) _expiryDate = result.expiryDate;
-      if (result.documentNumber.isNotEmpty) {
-        _documentNumber.text = result.documentNumber;
+      if (mrz.expiryDate != null) _expiryDate = mrz.expiryDate;
+      if (mrz.documentNumber.isNotEmpty) {
+        _documentNumber.text = mrz.documentNumber;
       }
-      if (result.issuingState.isNotEmpty) {
-        _issuingCountry = result.issuingState;
+      if (mrz.issuingState.isNotEmpty) _issuingCountry = mrz.issuingState;
+      if (mrz.fullName.isNotEmpty && _holder.text.trim().isEmpty) {
+        _holder.text = _titleCase(mrz.fullName);
       }
-      if (result.fullName.isNotEmpty && _holder.text.trim().isEmpty) {
-        _holder.text = _titleCase(result.fullName);
-      }
-      if (_label.text.trim().isEmpty) {
-        _label.text = _type.label;
-      }
+      if (_label.text.trim().isEmpty) _label.text = _type.label(l);
     });
 
-    if (result.wasRepaired && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Scanned — the code was a little blurry, so please '
-              'check the details.'),
-        ),
-      );
+    if (mrz != null && mrz.wasRepaired && mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l.editScanRepaired)));
     }
   }
 
@@ -308,25 +156,197 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       .map((w) => w[0] + w.substring(1).toLowerCase())
       .join(' ');
 
-  String _leadTimeExplanation() {
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_isEditing ? l.editEditTitle : l.editAddTitle),
+        titleTextStyle: Theme.of(context).textTheme.titleLarge,
+        actions: [
+          if (_isEditing)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: l.actionDelete,
+              onPressed: _confirmDelete,
+            ),
+        ],
+      ),
+      body: Form(
+        key: _formKey,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+          children: [
+            if (_images.isNotEmpty) ...[
+              _Label(l.fieldImages),
+              _CapturedPages(images: _images, onAdd: _scan),
+              const SizedBox(height: 24),
+            ] else if (_isEditing && widget.existing!.imageCount > 0) ...[
+              _Label(l.fieldImages),
+              _StoredPages(document: widget.existing!, onRescan: _scan),
+              const SizedBox(height: 24),
+            ] else ...[
+              OutlinedButton.icon(
+                onPressed: _scan,
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: Text(l.actionScan),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(color: scheme.outlineVariant),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  l.editScanHelp,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            if (_fromScan) ...[
+              _InfoNote(
+                icon: Icons.verified_outlined,
+                text: l.editFromScanNote,
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            _Label(l.fieldType),
+            DropdownButtonFormField<DocumentType>(
+              initialValue: _type,
+              items: DocumentType.values
+                  .map(
+                    (t) => DropdownMenuItem(
+                      value: t,
+                      child: Row(
+                        children: [
+                          Icon(t.icon, size: 18),
+                          const SizedBox(width: 10),
+                          Text(t.label(l)),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) {
+                if (value == null) return;
+                setState(() {
+                  _type = value;
+                  if (_leadDaysIsAuto) {
+                    _renewalLeadDays = value.defaultRenewalLeadDays;
+                  }
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+
+            _Label(l.fieldName),
+            TextFormField(
+              controller: _label,
+              textCapitalization: TextCapitalization.sentences,
+              decoration:
+                  InputDecoration(hintText: l.fieldNameHint(_type.label(l))),
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? l.fieldNameRequired : null,
+            ),
+            const SizedBox(height: 20),
+
+            _Label(l.fieldExpiry),
+            _DateField(
+              value: _expiryDate,
+              onChanged: (d) => setState(() => _expiryDate = d),
+            ),
+            const SizedBox(height: 20),
+
+            _Label(l.fieldRemindMe),
+            _LeadTimeField(
+              days: _renewalLeadDays,
+              onChanged: (days) => setState(() {
+                _renewalLeadDays = days;
+                _leadDaysIsAuto = false;
+              }),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _leadTimeExplanation(l),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.4,
+                  ),
+            ),
+
+            if (_type.hasSixMonthTravelRule) ...[
+              const SizedBox(height: 14),
+              _InfoNote(
+                icon: Icons.flight_takeoff,
+                text: l.sixMonthRuleNote,
+              ),
+            ],
+
+            const SizedBox(height: 28),
+            _Label(l.fieldOptional),
+            TextFormField(
+              controller: _holder,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: l.fieldHolderHint,
+                prefixIcon: const Icon(Icons.person_outline),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _documentNumber,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: l.fieldNumberHint,
+                prefixIcon: const Icon(Icons.tag),
+              ),
+            ),
+
+            const SizedBox(height: 32),
+            FilledButton(
+              onPressed: _save,
+              child: Text(_isEditing ? l.editSave : l.actionAdd),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _leadTimeExplanation(L l) {
     if (_expiryDate == null) {
-      return 'Elapsa will remind you ${leadTimeLabel(_renewalLeadDays)} before '
-          'it expires, then again as the date approaches.';
+      return l.leadExplainNoDate(leadTimeLabel(l, _renewalLeadDays));
     }
     final start = _expiryDate!.subtract(Duration(days: _renewalLeadDays));
-    final when = _dateFormat.format(start);
-    return start.isBefore(DateTime.now())
-        ? 'That window has already passed — you should start now.'
-        : 'First reminder on $when, then again as the date approaches.';
+    if (start.isBefore(DateTime.now())) return l.leadExplainPassed;
+
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    return l.leadExplainFirst(DateFormat.yMMMMd(locale).format(start));
   }
 
   Future<void> _save() async {
+    final l = L.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     if (_expiryDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pick an expiry date')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l.fieldExpiryRequired)));
       return;
     }
 
@@ -335,23 +355,24 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final number = _documentNumber.text.trim();
 
     if (_isEditing) {
-      await repo.save(
-        widget.existing!.copyWith(
-          type: _type,
-          label: _label.text.trim(),
-          holder: holder.isEmpty ? null : holder,
-          documentNumber: number.isEmpty ? null : number,
-          issuingCountry: _issuingCountry,
-          expiryDate: _expiryDate,
-          renewalLeadDays: _renewalLeadDays,
-        ),
+      final updated = widget.existing!.copyWith(
+        type: _type,
+        label: _label.text.trim(),
+        holder: holder.isEmpty ? null : holder,
+        documentNumber: number.isEmpty ? null : number,
+        issuingCountry: _issuingCountry,
+        expiryDate: _expiryDate,
+        renewalLeadDays: _renewalLeadDays,
       );
+      if (_images.isEmpty) {
+        await repo.save(updated);
+      } else {
+        await repo.replaceImages(updated, _images);
+      }
     } else {
-      // Ask for permission *before* the first save. iOS silently discards any
-      // notification scheduled while the app is unauthorised, so creating the
-      // document first would leave it with no reminders at all. The prompt is
-      // still shown in context — the user has just committed to adding
-      // something worth being reminded about, which is what makes them say yes.
+      // Permission first. iOS silently discards notifications scheduled while
+      // the app is unauthorised, so creating the document before asking would
+      // leave it with no reminders at all.
       await ref.read(notificationServiceProvider).requestPermission();
 
       await repo.create(
@@ -362,7 +383,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         holder: holder.isEmpty ? null : holder,
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
-        cardImage: _cardImage,
+        images: _images,
       );
     }
 
@@ -370,19 +391,20 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   }
 
   Future<void> _confirmDelete() async {
+    final l = L.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete this document?'),
-        content: const Text('Its reminders will be cancelled.'),
+        title: Text(l.editDeleteTitle),
+        content: Text(l.editDeleteBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(l.actionCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(l.actionDelete),
           ),
         ],
       ),
@@ -391,6 +413,118 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     if (confirmed != true) return;
     await ref.read(documentRepositoryProvider).delete(widget.existing!.id);
     if (mounted) Navigator.of(context).pop();
+  }
+}
+
+/// Pictures captured in this session, not yet saved.
+class _CapturedPages extends StatelessWidget {
+  const _CapturedPages({required this.images, required this.onAdd});
+
+  final List<Uint8List> images;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: images.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (index == images.length) return _AddPageTile(onTap: onAdd);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.memory(
+              images[index],
+              width: 108 * kCardAspectRatio,
+              height: 108,
+              fit: BoxFit.cover,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Pictures already stored against a saved document.
+class _StoredPages extends ConsumerWidget {
+  const _StoredPages({required this.document, required this.onRescan});
+
+  final TrackedDocument document;
+  final VoidCallback onRescan;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: document.imageCount + 1,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          if (index == document.imageCount) {
+            return _AddPageTile(onTap: onRescan);
+          }
+          final bytes = ref
+              .watch(documentImageProvider(DocumentImageRef(document.id, index)))
+              .asData
+              ?.value;
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: bytes == null
+                ? Container(
+                    width: 108 * kCardAspectRatio,
+                    height: 108,
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  )
+                : Image.memory(
+                    bytes,
+                    width: 108 * kCardAspectRatio,
+                    height: 108,
+                    fit: BoxFit.cover,
+                  ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AddPageTile extends StatelessWidget {
+  const _AddPageTile({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 108 * kCardAspectRatio,
+        height: 108,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_a_photo_outlined, color: scheme.onSurfaceVariant),
+            const SizedBox(height: 6),
+            Text(
+              L.of(context).scanAddAnother,
+              style: Theme.of(context)
+                  .textTheme
+                  .labelSmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -422,7 +556,9 @@ class _DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
+    final locale = Localizations.localeOf(context).toLanguageTag();
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -441,7 +577,9 @@ class _DateField extends StatelessWidget {
           prefixIcon: Icon(Icons.event_outlined),
         ),
         child: Text(
-          value == null ? 'Select a date' : _dateFormat.format(value!),
+          value == null
+              ? l.fieldExpiryEmpty
+              : DateFormat.yMMMMd(locale).format(value!),
           style: TextStyle(
             fontSize: 16,
             color: value == null ? scheme.onSurfaceVariant : scheme.onSurface,
@@ -464,14 +602,14 @@ class _LeadTimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: _options.map((d) {
-        final selected = d == days;
         return ChoiceChip(
-          label: Text(leadTimeLabel(d)),
-          selected: selected,
+          label: Text(leadTimeLabel(l, d)),
+          selected: d == days,
           onSelected: (_) => onChanged(d),
         );
       }).toList(),

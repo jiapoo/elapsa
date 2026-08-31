@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
+import 'package:elapsa/ui/scan/scan_screen.dart';
+import 'package:elapsa/ui/settings/settings_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -12,31 +16,73 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
     final documents = ref.watch(documentsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Elapsa'),
+        title: Text(l.appTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            tooltip: 'Scheduled reminders',
+            tooltip: l.remindersTitle(0),
             onPressed: () => _showPendingReminders(context, ref),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: l.settingsTitle,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
           ),
         ],
       ),
       body: documents.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Could not load documents.\n$e')),
+        error: (e, _) => Center(child: Text('$e')),
         data: (docs) =>
             docs.isEmpty ? const _EmptyState() : _Wallet(documents: docs),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(builder: (_) => const EditDocumentScreen()),
-        ),
-        icon: const Icon(Icons.add),
-        label: const Text('Add document'),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          // Manual entry is the fallback, so it gets the quieter of the two.
+          FloatingActionButton.small(
+            heroTag: 'add',
+            tooltip: l.actionAdd,
+            backgroundColor:
+                Theme.of(context).colorScheme.surfaceContainerHighest,
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const EditDocumentScreen(),
+              ),
+            ),
+            child: const Icon(Icons.add),
+          ),
+          const SizedBox(height: 12),
+          // Scanning is the way in that the app is actually built around.
+          FloatingActionButton(
+            heroTag: 'scan',
+            tooltip: l.actionScan,
+            onPressed: () => _scan(context),
+            child: const Icon(Icons.document_scanner_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _scan(BuildContext context) async {
+    final session = await Navigator.of(context).push<ScanSession>(
+      MaterialPageRoute(builder: (_) => const ScanScreen()),
+    );
+    if (session == null || !context.mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EditDocumentScreen(session: session),
       ),
     );
   }
@@ -44,6 +90,7 @@ class HomeScreen extends ConsumerWidget {
   Future<void> _showPendingReminders(BuildContext context, WidgetRef ref) async {
     final pending = await ref.read(notificationServiceProvider).pending();
     if (!context.mounted) return;
+    final l = L.of(context);
 
     showModalBottomSheet<void>(
       context: context,
@@ -56,14 +103,12 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${pending.length} reminder${pending.length == 1 ? '' : 's'} scheduled',
+                l.remindersTitle(pending.length),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 8),
               Text(
-                pending.isEmpty
-                    ? 'Add a document and Elapsa will schedule reminders for it.'
-                    : 'These fire even if the app is never opened.',
+                pending.isEmpty ? l.remindersEmptyBody : l.remindersBody,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -97,21 +142,22 @@ class _Wallet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final needsAttention =
         documents.where((d) => d.status() != DocumentStatus.valid).toList();
     final rest =
         documents.where((d) => d.status() == DocumentStatus.valid).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
       children: [
         if (needsAttention.isNotEmpty) ...[
-          const _SectionHeader('Needs attention'),
+          _SectionHeader(l.homeNeedsAttention),
           ...needsAttention.map((d) => _WalletEntry(document: d)),
           const SizedBox(height: 20),
         ],
         if (rest.isNotEmpty) ...[
-          const _SectionHeader('Everything else'),
+          _SectionHeader(l.homeEverythingElse),
           ...rest.map((d) => _WalletEntry(document: d)),
         ],
       ],
@@ -152,6 +198,7 @@ class _WalletEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final palette = StatusPalette.from(context);
     final status = document.status();
     final colour = palette.of(status);
@@ -169,7 +216,40 @@ class _WalletEntry extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            DocumentCardFace(document: document, compact: true),
+            Stack(
+              children: [
+                DocumentCardFace(document: document, compact: true),
+                if (document.imageCount > 1)
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.collections_outlined,
+                              size: 11, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${document.imageCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
             const SizedBox(height: 10),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -177,9 +257,10 @@ class _WalletEntry extends StatelessWidget {
                 document.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(height: 6),
@@ -195,7 +276,7 @@ class _WalletEntry extends StatelessWidget {
                       borderRadius: BorderRadius.circular(5),
                     ),
                     child: Text(
-                      statusLabel(status).toUpperCase(),
+                      status.label(l).toUpperCase(),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: colour,
                             fontWeight: FontWeight.w700,
@@ -206,7 +287,7 @@ class _WalletEntry extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      _statusLine(days),
+                      _statusLine(l, days),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -226,12 +307,15 @@ class _WalletEntry extends StatelessWidget {
                     Icon(Icons.flight_takeoff,
                         size: 13, color: palette.critical),
                     const SizedBox(width: 6),
-                    Text(
-                      'Below the 6-month travel rule',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: palette.critical,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    Expanded(
+                      child: Text(
+                        l.travelRuleBadge,
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: palette.critical,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                      ),
                     ),
                   ],
                 ),
@@ -242,12 +326,12 @@ class _WalletEntry extends StatelessWidget {
     );
   }
 
-  String _statusLine(int days) {
-    if (days < 0) return '${-days} days ago';
+  String _statusLine(L l, int days) {
+    if (days < 0) return l.daysAgo(-days);
     if (document.status() == DocumentStatus.actionNeeded) {
-      return '$days days left · start renewing now';
+      return '${l.daysLeft(days)} · ${l.startRenewingNow}';
     }
-    return '$days days left';
+    return l.daysLeft(days);
   }
 }
 
@@ -256,6 +340,7 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
 
     return Center(
@@ -267,13 +352,13 @@ class _EmptyState extends StatelessWidget {
             Icon(Icons.hourglass_empty, size: 56, color: muted),
             const SizedBox(height: 20),
             Text(
-              'Nothing expiring',
+              l.homeEmptyTitle,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 10),
             Text(
-              'Add a passport, ID or licence and Elapsa will tell you when to '
-              'start renewing it — not when it is already too late.',
+              l.homeEmptyBody,
               textAlign: TextAlign.center,
               style: Theme.of(context)
                   .textTheme

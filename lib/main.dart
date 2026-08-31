@@ -1,14 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/home/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final container = ProviderContainer();
+  // Settings are read before the first frame so no screen ever has to render
+  // an "unknown language" state.
+  final prefs = await SharedPreferences.getInstance();
+
+  final container = ProviderContainer(
+    overrides: [
+      settingsRepositoryProvider.overrideWithValue(SettingsRepository(prefs)),
+    ],
+  );
   await container.read(notificationServiceProvider).init();
 
   runApp(
@@ -19,17 +31,29 @@ Future<void> main() async {
   );
 }
 
-class ElapsaApp extends StatelessWidget {
+class ElapsaApp extends ConsumerWidget {
   const ElapsaApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Null lets Flutter resolve the device's own preference; a value overrides
+    // it with the user's explicit choice from Settings.
+    final locale = ref.watch(languageProvider).locale;
+
     return MaterialApp(
-      title: 'Elapsa',
+      onGenerateTitle: (context) => L.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       theme: ElapsaTheme.light(),
       darkTheme: ElapsaTheme.dark(),
       themeMode: ThemeMode.system,
+      locale: locale,
+      supportedLocales: L.supportedLocales,
+      localizationsDelegates: const [
+        L.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       home: const _ResyncOnResume(child: HomeScreen()),
     );
   }

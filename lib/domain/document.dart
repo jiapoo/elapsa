@@ -40,8 +40,12 @@ class TrackedDocument {
   /// country, and they know their own situation better than we do.
   final int renewalLeadDays;
 
-  /// Relative path to the encrypted scan, if one was captured.
+  /// Relative path to the first encrypted scan, if one was captured.
   final String? imagePath;
+
+  /// How many pictures this document has — a card has two sides, and some
+  /// documents run to several pages.
+  final int imageCount;
 
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -59,6 +63,7 @@ class TrackedDocument {
     this.issuingCountry,
     this.issueDate,
     this.imagePath,
+    this.imageCount = 0,
   });
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -131,6 +136,7 @@ class TrackedDocument {
     DateTime? expiryDate,
     int? renewalLeadDays,
     String? imagePath,
+    int? imageCount,
     DateTime? updatedAt,
   }) {
     return TrackedDocument(
@@ -144,6 +150,7 @@ class TrackedDocument {
       expiryDate: expiryDate ?? this.expiryDate,
       renewalLeadDays: renewalLeadDays ?? this.renewalLeadDays,
       imagePath: imagePath ?? this.imagePath,
+      imageCount: imageCount ?? this.imageCount,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

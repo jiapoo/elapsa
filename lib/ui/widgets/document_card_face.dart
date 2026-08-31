@@ -4,46 +4,66 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:elapsa/core/labels.dart';
+import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_type.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
 
-/// ISO/IEC 7810 ID-1 — the proportions of a bank card, national ID or driving
-/// licence. Passports are a different shape, but a wallet of mixed documents
-/// reads far better when every card shares one silhouette.
-const kCardAspectRatio = 1.586;
+/// Identifies one picture belonging to one document.
+class DocumentImageRef {
+  final String documentId;
+  final int index;
 
-/// Decrypted image bytes for one document, or null when there is no scan.
+  const DocumentImageRef(this.documentId, this.index);
+
+  @override
+  bool operator ==(Object other) =>
+      other is DocumentImageRef &&
+      other.documentId == documentId &&
+      other.index == index;
+
+  @override
+  int get hashCode => Object.hash(documentId, index);
+}
+
+/// Decrypted bytes for one picture, or null when there is none.
 ///
-/// Cached by Riverpod per document id so scrolling a list does not decrypt the
+/// Cached by Riverpod per reference so scrolling a list does not decrypt the
 /// same photo on every frame.
 final documentImageProvider =
-    FutureProvider.family<Uint8List?, String>((ref, documentId) async {
-  return ref.watch(documentImageStoreProvider).load(documentId);
+    FutureProvider.family<Uint8List?, DocumentImageRef>((ref, image) async {
+  return ref.watch(documentImageStoreProvider).load(image.documentId, image.index);
 });
 
 /// The visual representation of a document.
 ///
 /// Shows the user's own photo when one was captured — that is the only honest
-/// way to make a card "look like the real one" — and otherwise a designed face
+/// way to make a card look like the real thing — and otherwise a designed face
 /// built from the scanned data. Elapsa never synthesises a replica of official
 /// document artwork.
 class DocumentCardFace extends ConsumerWidget {
   const DocumentCardFace({
     super.key,
     required this.document,
+    this.page = 0,
     this.compact = false,
   });
 
   final TrackedDocument document;
 
-  /// Trims the type line and shrinks the type scale for list use.
+  /// Which picture to show. 0 is the face shown in the wallet.
+  final int page;
+
+  /// Shrinks the type scale for list use.
   final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final image = ref.watch(documentImageProvider(document.id));
-
+    final image = document.imageCount > page
+        ? ref.watch(documentImageProvider(DocumentImageRef(document.id, page)))
+        : const AsyncValue<Uint8List?>.data(null);
     final bytes = image.asData?.value;
 
     return AspectRatio(
@@ -51,10 +71,9 @@ class DocumentCardFace extends ConsumerWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(compact ? 14 : 20),
         // A real card shows itself. The document already prints its own name,
-        // number and expiry, so overlaying ours on top duplicates the
-        // information and forces a heavy scrim over the very thing the user
-        // wanted to look at. Elapsa's own read on the document lives in the
-        // status line beneath the card instead.
+        // number and expiry, so overlaying ours duplicates the information and
+        // forces a heavy scrim over the very thing the user wanted to see.
+        // Elapsa's own read on the document lives beneath the card instead.
         child: bytes != null
             ? Image.memory(bytes, fit: BoxFit.cover)
             : Stack(
@@ -72,15 +91,15 @@ class DocumentCardFace extends ConsumerWidget {
 /// The fallback face, used until the user captures a photo.
 ///
 /// Colour is derived from the document type so a wallet of several documents
-/// is scannable at a glance, the way real cards are told apart by their
-/// colour long before anyone reads them.
+/// is scannable at a glance, the way real cards are told apart by colour long
+/// before anyone reads them.
 class _DesignedFace extends StatelessWidget {
   const _DesignedFace({required this.type});
 
   final DocumentType type;
 
   static const _gradients = {
-    DocumentType.passport: [Color(0xFF1F4B43), Color(0xFF2F6F62)],
+    DocumentType.passport: [Color(0xFF7A0F26), Color(0xFFDD1B3F)],
     DocumentType.nationalId: [Color(0xFF243B55), Color(0xFF3B5F82)],
     DocumentType.driversLicence: [Color(0xFF4A3A22), Color(0xFF7A5C33)],
     DocumentType.visa: [Color(0xFF3A2A4D), Color(0xFF5C4380)],
@@ -90,13 +109,12 @@ class _DesignedFace extends StatelessWidget {
     DocumentType.professionalLicence: [Color(0xFF33304D), Color(0xFF524D7A)],
     DocumentType.membership: [Color(0xFF2E3B2E), Color(0xFF4C6146)],
     DocumentType.bankCard: [Color(0xFF262626), Color(0xFF454545)],
-    DocumentType.other: [Color(0xFF2B3330), Color(0xFF49554F)],
+    DocumentType.other: [Color(0xFF33302F), Color(0xFF565150)],
   };
 
   @override
   Widget build(BuildContext context) {
-    final colours =
-        _gradients[type] ?? _gradients[DocumentType.other]!;
+    final colours = _gradients[type] ?? _gradients[DocumentType.other]!;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -143,6 +161,7 @@ class _CardText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l = L.of(context);
     final number = document.documentNumber;
     final holder = document.holder;
     final padding = compact ? 14.0 : 20.0;
@@ -157,7 +176,7 @@ class _CardText extends StatelessWidget {
               if (document.issuingCountry != null)
                 _Pill(text: document.issuingCountry!),
               const Spacer(),
-              _Pill(text: document.type.label.toUpperCase()),
+              _Pill(text: document.type.label(l).toUpperCase()),
             ],
           ),
           const Spacer(),
@@ -199,7 +218,7 @@ class _CardText extends StatelessWidget {
                   ),
                 ),
               const Spacer(),
-              _ExpiryStamp(document: document, compact: compact),
+              _ExpiryStamp(document: document, compact: compact, l: l),
             ],
           ),
         ],
@@ -234,21 +253,25 @@ class _Pill extends StatelessWidget {
 }
 
 class _ExpiryStamp extends StatelessWidget {
-  const _ExpiryStamp({required this.document, required this.compact});
+  const _ExpiryStamp({
+    required this.document,
+    required this.compact,
+    required this.l,
+  });
 
   final TrackedDocument document;
   final bool compact;
+  final L l;
 
   @override
   Widget build(BuildContext context) {
-    final days = document.daysRemaining();
-    final expired = days < 0;
+    final expired = document.daysRemaining() < 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text(
-          expired ? 'EXPIRED' : 'EXPIRES',
+          (expired ? l.statusExpired : l.fieldExpiry).toUpperCase(),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
             fontSize: 8.5,
@@ -258,7 +281,8 @@ class _ExpiryStamp extends StatelessWidget {
         ),
         const SizedBox(height: 1),
         Text(
-          DateFormat('MMM yyyy').format(document.expiryDate),
+          DateFormat.yMMM(Localizations.localeOf(context).toLanguageTag())
+              .format(document.expiryDate),
           style: TextStyle(
             color: Colors.white,
             fontSize: compact ? 13 : 15,

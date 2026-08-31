@@ -1,9 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/domain/document.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
 
 /// Schedules the reminders that are the entire point of the app.
 ///
@@ -76,14 +79,23 @@ class NotificationService {
   }
 
   /// Rebuilds the whole pending-notification set from the current documents.
-  Future<void> rescheduleAll(List<TrackedDocument> docs, {DateTime? now}) async {
+  ///
+  /// Takes the localisations explicitly rather than reaching for a
+  /// BuildContext: this runs from a repository with no widget tree, and a
+  /// reminder that fires in six months should be written in the language the
+  /// user has chosen, not the one the phone happened to boot in.
+  Future<void> rescheduleAll(
+    List<TrackedDocument> docs,
+    L l, {
+    DateTime? now,
+  }) async {
     await init();
     await _plugin.cancelAll();
 
     final pending = <_PendingReminder>[];
     for (final doc in docs) {
       for (final date in doc.reminderDates(now: now)) {
-        pending.add(_PendingReminder(doc, date));
+        pending.add(_PendingReminder(doc, date, l));
       }
     }
 
@@ -128,16 +140,15 @@ class NotificationService {
       reminder.title,
       reminder.body,
       local,
-      const NotificationDetails(
+      NotificationDetails(
         android: AndroidNotificationDetails(
           'elapsa_reminders',
-          'Renewal reminders',
-          channelDescription:
-              'Tells you when to start renewing a document, not when it is too late.',
+          reminder.l.notifyChannelName,
+          channelDescription: reminder.l.notifyChannelDescription,
           importance: Importance.high,
           priority: Priority.high,
         ),
-        iOS: DarwinNotificationDetails(),
+        iOS: const DarwinNotificationDetails(),
       ),
       // Inexact is deliberate. A renewal reminder does not need second
       // accuracy, and asking for SCHEDULE_EXACT_ALARM invites a Play Store
@@ -156,8 +167,9 @@ class NotificationService {
 class _PendingReminder {
   final TrackedDocument doc;
   final DateTime date;
+  final L l;
 
-  _PendingReminder(this.doc, this.date);
+  _PendingReminder(this.doc, this.date, this.l);
 
   int get daysBefore => doc.expiryDate.difference(date).inDays;
 
@@ -166,35 +178,20 @@ class _PendingReminder {
   /// installed this.
   String get title {
     if (daysBefore >= doc.renewalLeadDays) {
-      return 'Time to renew your ${doc.type.label.toLowerCase()}';
+      return l.notifyRenewTitle(doc.type.label(l));
     }
     // Always name the actual number of days. Two reminders that both say
     // "expires soon" are indistinguishable in a notification list.
-    return '${doc.label} expires in $daysBefore '
-        '${daysBefore == 1 ? 'day' : 'days'}';
+    return l.notifyExpiresTitle(doc.label, daysBefore);
   }
 
   String get body {
     final when = _formatDate(doc.expiryDate);
-
-    if (daysBefore >= doc.renewalLeadDays) {
-      return 'It expires $when. That is far enough ahead to renew without '
-          'rushing — start now and it will be done in good time.';
-    }
-
-    if (doc.type.hasSixMonthTravelRule) {
-      return 'Expires $when. Many countries require six months of validity, '
-          'so it may already be unusable for travel.';
-    }
-
-    return 'Expires $when.';
+    if (daysBefore >= doc.renewalLeadDays) return l.notifyRenewBody(when);
+    if (doc.type.hasSixMonthTravelRule) return l.notifyTravelBody(when);
+    return l.notifyPlainBody(when);
   }
 
-  static String _formatDate(DateTime d) {
-    const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December',
-    ];
-    return 'on ${d.day} ${months[d.month - 1]} ${d.year}';
-  }
+  String _formatDate(DateTime d) =>
+      DateFormat.yMMMMd(l.localeName).format(d);
 }

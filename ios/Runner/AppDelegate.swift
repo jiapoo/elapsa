@@ -17,9 +17,9 @@ import UIKit
     // only point where the engine exists and the scene lifecycle has not yet
     // built a window to hang a view controller from.
     if let registrar = engineBridge.pluginRegistry.registrar(
-      forPlugin: "TextRecognitionHandler"
+      forPlugin: "VisionHandler"
     ) {
-      TextRecognitionHandler.register(with: registrar)
+      VisionHandler.register(with: registrar)
     }
   }
 }

@@ -5,7 +5,9 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlcipher_flutter_libs/sqlcipher_flutter_libs.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sqlite3/open.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/services/secure_store.dart';
@@ -28,6 +30,11 @@ class Documents extends Table {
   DateTimeColumn get expiryDate => dateTime()();
   IntColumn get renewalLeadDays => integer()();
   TextColumn get imagePath => text().nullable()();
+
+  /// How many pictures this document has. A card has two sides and some
+  /// documents several pages, so one record owns an ordered set of images
+  /// rather than a single face.
+  IntColumn get imageCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -44,7 +51,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(documents, documents.imageCount);
+            // Records written before multi-image support have one picture if
+            // they have any picture at all.
+            await customStatement(
+              'UPDATE documents SET image_count = 1 WHERE image_path IS NOT NULL',
+            );
+          }
+        },
+      );
 
   /// All documents, soonest expiry first, as a live stream so the list
   /// redraws itself whenever anything changes.
@@ -72,6 +93,41 @@ class AppDatabase extends _$AppDatabase {
       (delete(documents)..where((t) => t.id.equals(id))).go();
 }
 
+/// Removes a database that this device's key cannot open.
+///
+/// The key lives in the Keychain and the data is worthless without it, so if
+/// the two ever part company — the key cleared, the file restored from another
+/// device's backup — the contents are already unrecoverable. Starting over is
+/// then the only outcome available, and it is a great deal better than an app
+/// that throws on launch and can never be opened again.
+///
+/// Deliberately narrow: only `SQLITE_NOTADB` triggers this. A disk error or a
+/// locked file is transient and must not cost the user their documents.
+Future<void> _discardIfUnreadable(File file, String passphrase) async {
+  if (!await file.exists()) return;
+
+  try {
+    final probe = sqlite3.open(file.path);
+    try {
+      probe.execute("PRAGMA key = '$passphrase';");
+      probe.select('SELECT count(*) FROM sqlite_master;');
+    } finally {
+      probe.dispose();
+    }
+  } on SqliteException catch (error) {
+    const sqliteNotADatabase = 26;
+    if (error.extendedResultCode != sqliteNotADatabase &&
+        error.resultCode != sqliteNotADatabase) {
+      rethrow;
+    }
+    debugPrint(
+      'Elapsa: database cannot be decrypted with this device key — '
+      'starting a new one.',
+    );
+    await file.delete();
+  }
+}
+
 /// Opens the database encrypted with SQLCipher.
 ///
 /// The passphrase is derived from the Keychain-held master key, so the file on
@@ -88,6 +144,8 @@ LazyDatabase _openConnection(SecureStore secure) {
     final dir = await getApplicationDocumentsDirectory();
     final file = File(p.join(dir.path, 'elapsa.sqlite'));
     final passphrase = await secure.databasePassphrase();
+
+    await _discardIfUnreadable(file, passphrase);
 
     return NativeDatabase(
       file,

@@ -46,7 +46,11 @@ enum VisionHandler {
         guard let path = args["path"] as? String else {
           result(badArguments("extractCard needs a path")); return
         }
-        extractCard(path: path, result: result)
+        extractCard(
+          path: path,
+          corners: args["corners"] as? [String: [String: NSNumber]],
+          result: result
+        )
 
       default:
         result(FlutterMethodNotImplemented)
@@ -162,9 +166,18 @@ enum VisionHandler {
   /// card's own angle and cropping to its corners keeps every pixel where the
   /// lens put it.
   ///
-  /// Returns nil when no rectangle is found; the caller falls back to a plain
-  /// centre crop.
-  private static func extractCard(path: String, result: @escaping FlutterResult) {
+  /// When [corners] is supplied — the quad the scanner had locked on as the
+  /// shutter fired — those are used directly. Detecting afresh on the still
+  /// can settle on a different rectangle, which is how a user ends up with
+  /// brackets around their card and a photograph of the desk beside it.
+  ///
+  /// Returns nil when there is nothing to work with; the caller falls back to
+  /// a plain centre crop.
+  private static func extractCard(
+    path: String,
+    corners: [String: [String: NSNumber]]?,
+    result: @escaping FlutterResult
+  ) {
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
       result(nil); return
     }
@@ -173,30 +186,22 @@ enum VisionHandler {
     let ciImage = CIImage(cgImage: cgImage).oriented(orientation)
     let extent = ciImage.extent
 
-    let request = makeRectangleRequest { observation in
-      guard let observation = observation else { result(nil); return }
+    /// Normalised Vision point to image space. Both use a bottom-left origin,
+    /// so this is a plain scale.
+    func point(_ p: CGPoint) -> CGPoint {
+      CGPoint(x: extent.origin.x + p.x * extent.width,
+              y: extent.origin.y + p.y * extent.height)
+    }
 
-      // Vision reports normalised points; Core Image works in image space.
-      // Both use a bottom-left origin, so this is a plain scale.
-      func point(_ p: CGPoint) -> CGPoint {
-        CGPoint(x: extent.origin.x + p.x * extent.width,
-                y: extent.origin.y + p.y * extent.height)
-      }
-
-      let topLeft = point(observation.topLeft)
-      let topRight = point(observation.topRight)
-      let bottomLeft = point(observation.bottomLeft)
-      let bottomRight = point(observation.bottomRight)
-
+    func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) {
       // The card's own angle in the frame, taken from its top edge. Undoing
       // just this leaves the document upright without touching its geometry.
-      let angle = atan2(topRight.y - topLeft.y, topRight.x - topLeft.x)
+      let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
       let rotation = CGAffineTransform(rotationAngle: -angle)
 
-      let corners = [topLeft, topRight, bottomRight, bottomLeft]
-        .map { $0.applying(rotation) }
-      let xs = corners.map(\.x)
-      let ys = corners.map(\.y)
+      let rotated = [quad.tl, quad.tr, quad.br, quad.bl].map { $0.applying(rotation) }
+      let xs = rotated.map(\.x)
+      let ys = rotated.map(\.y)
       guard
         let minX = xs.min(), let maxX = xs.max(),
         let minY = ys.min(), let maxY = ys.max(),
@@ -220,6 +225,34 @@ enum VisionHandler {
       }
 
       result(FlutterStandardTypedData(bytes: jpeg))
+    }
+
+    if let corners = corners {
+      // Dart works in a top-left origin; flip back to Vision's bottom-left.
+      func supplied(_ key: String) -> CGPoint? {
+        guard
+          let p = corners[key],
+          let x = p["x"]?.doubleValue,
+          let y = p["y"]?.doubleValue
+        else { return nil }
+        return point(CGPoint(x: x, y: 1.0 - y))
+      }
+
+      if let tl = supplied("topLeft"), let tr = supplied("topRight"),
+         let br = supplied("bottomRight"), let bl = supplied("bottomLeft") {
+        cut((tl: tl, tr: tr, br: br, bl: bl))
+        return
+      }
+    }
+
+    let request = makeRectangleRequest { observation in
+      guard let observation = observation else { result(nil); return }
+      cut((
+        tl: point(observation.topLeft),
+        tr: point(observation.topRight),
+        br: point(observation.bottomRight),
+        bl: point(observation.bottomLeft)
+      ))
     }
 
     perform([request], on: cgImage, orientation: orientation) { _ in result(nil) }

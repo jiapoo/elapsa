@@ -66,11 +66,11 @@ class MrzScanner {
   /// Text is read from the **full-resolution original**, so the recogniser
   /// sees every pixel, while the stored face is the cropped card. Reading the
   /// crop instead would throw away detail the parsers depend on.
-  Future<ScanResult> scanFile(String path) async {
+  Future<ScanResult> scanFile(String path, {CardQuad? quad}) async {
     final text = await _vision.recognize(path);
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
-    final card = await _cardFace(path);
+    final card = await _cardFace(path, quad);
 
     MrzResult? parsed;
     if (text.trim().isNotEmpty) {
@@ -92,11 +92,12 @@ class MrzScanner {
 
   /// The card, cut out of the photo.
   ///
-  /// Falls back to a centre crop when Vision cannot find a rectangle — a
-  /// document lying on a same-coloured desk, say. Something usable beats
-  /// nothing.
-  Future<Uint8List?> _cardFace(String path) async {
-    final cut = await _vision.extractCard(path);
+  /// Uses [quad] — the corners the scanner had locked on when the shutter
+  /// fired — so the saved card is the one the user framed. Falls back to
+  /// detecting afresh, then to a centre crop, when there is no quad or Vision
+  /// cannot find a rectangle. Something usable beats nothing.
+  Future<Uint8List?> _cardFace(String path, CardQuad? quad) async {
+    final cut = await _vision.extractCard(path, quad: quad);
     if (cut != null) return cut;
     return _cropper.cropToCard(path, aspectRatio: kCardAspectRatio);
   }

@@ -163,14 +163,28 @@ class VisionChannel {
   ///
   /// Returns null when no card is found, and the caller falls back to a centre
   /// crop.
-  Future<Uint8List?> extractCard(String path) async {
+  Future<Uint8List?> extractCard(String path, {CardQuad? quad}) async {
     try {
       return await _channel.invokeMethod<Uint8List>('extractCard', {
         'path': path,
+        // The corners the scanner had locked on when the shutter fired. Sent
+        // so the cut matches what the user was shown — re-detecting on the
+        // still can settle on a different rectangle entirely.
+        if (quad != null) 'corners': _encode(quad),
       });
     } on PlatformException catch (error) {
       debugPrint('Elapsa: extractCard failed: $error');
       return null;
     }
+  }
+
+  static Map<String, Map<String, double>> _encode(CardQuad quad) {
+    Map<String, double> pair(Offset p) => {'x': p.dx, 'y': p.dy};
+    return {
+      'topLeft': pair(quad.topLeft),
+      'topRight': pair(quad.topRight),
+      'bottomRight': pair(quad.bottomRight),
+      'bottomLeft': pair(quad.bottomLeft),
+    };
   }
 }

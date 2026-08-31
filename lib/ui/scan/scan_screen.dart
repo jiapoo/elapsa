@@ -129,6 +129,15 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
       await controller.initialize();
+
+      // Pin the camera to portrait as well as the layout. CameraPreview
+      // rotates itself to follow the *physical* device, so with only the
+      // layout locked, turning the phone spins the image inside a
+      // portrait-shaped box and BoxFit.cover stretches it. Locking here also
+      // means the still arrives in the same orientation as the frames the
+      // guide was computed from.
+      await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
+
       if (!mounted) {
         await controller.dispose();
         return;
@@ -193,12 +202,16 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
 
+    final framed = _quad;
     setState(() => _stage = _Stage.working);
     HapticFeedback.mediumImpact();
 
     try {
       final shot = await controller.takePicture();
-      _absorb(await _scanner.scanFile(shot.path));
+      // Cut the card out along the corners the user actually saw. Re-detecting
+      // on the still can find a different rectangle, which is how you end up
+      // with brackets around the card and a photo of something else.
+      _absorb(await _scanner.scanFile(shot.path, quad: framed));
     } catch (error, stack) {
       debugPrint('Elapsa: capture failed: $error\n$stack');
       _restore();

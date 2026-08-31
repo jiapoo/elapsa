@@ -1,13 +1,10 @@
 {
   "@@locale": "zh",
-
   "appTitle": "Elapsa",
-
   "homeNeedsAttention": "需要处理",
   "homeEverythingElse": "其他证件",
   "homeEmptyTitle": "没有快到期的证件",
   "homeEmptyBody": "添加护照、身份证或驾驶证，Elapsa 会在该动手办理的时候提醒你，而不是等到来不及。",
-
   "actionAdd": "添加证件",
   "actionScan": "扫描证件",
   "actionSettings": "设置",
@@ -15,24 +12,38 @@
   "actionDelete": "删除",
   "actionDone": "完成",
   "actionRetake": "重拍",
-
   "statusExpired": "已过期",
   "statusExpiring": "即将到期",
   "statusRenewNow": "该办理了",
   "statusValid": "有效",
-
   "daysLeft": "还剩 {days} 天",
-  "@daysLeft": { "placeholders": { "days": { "type": "int" } } },
+  "@daysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "已过期 {days} 天",
-  "@daysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "@daysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "startRenewingNow": "现在就该开始办",
   "travelRuleBadge": "已不足六个月，多数国家不予入境",
-
   "remindersTitle": "{count, plural, =0{没有已安排的提醒} other{已安排 {count} 条提醒}}",
-  "@remindersTitle": { "placeholders": { "count": { "type": "int" } } },
+  "@remindersTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "remindersEmptyBody": "添加证件后，Elapsa 会自动为它安排提醒。",
   "remindersBody": "即使你从不打开这个 App，提醒也会照常发出。",
-
   "editAddTitle": "添加证件",
   "editEditTitle": "编辑证件",
   "editScanHelp": "识别护照、身份证、签证上的机读码",
@@ -42,7 +53,13 @@
   "fieldType": "类型",
   "fieldName": "名称",
   "fieldNameHint": "我的{type}",
-  "@fieldNameHint": { "placeholders": { "type": { "type": "String" } } },
+  "@fieldNameHint": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "fieldNameRequired": "请起个名字",
   "fieldExpiry": "到期日",
   "fieldExpiryEmpty": "选择日期",
@@ -58,21 +75,48 @@
   "editSave": "保存",
   "editDeleteTitle": "删除这个证件？",
   "editDeleteBody": "它的提醒和照片也会一并删除。",
-
   "leadExplainNoDate": "Elapsa 会在到期前 {lead} 提醒你，之后随着日子临近再提醒几次。",
-  "@leadExplainNoDate": { "placeholders": { "lead": { "type": "String" } } },
+  "@leadExplainNoDate": {
+    "placeholders": {
+      "lead": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainFirst": "第一次提醒：{date}，之后随着日子临近再提醒几次。",
-  "@leadExplainFirst": { "placeholders": { "date": { "type": "String" } } },
+  "@leadExplainFirst": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainPassed": "这个时间点已经过了 — 现在就该开始办。",
   "leadWeeks": "{weeks} 周",
-  "@leadWeeks": { "placeholders": { "weeks": { "type": "int" } } },
+  "@leadWeeks": {
+    "placeholders": {
+      "weeks": {
+        "type": "int"
+      }
+    }
+  },
   "leadMonths": "{months} 个月",
-  "@leadMonths": { "placeholders": { "months": { "type": "int" } } },
+  "@leadMonths": {
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
   "leadYears": "{years} 年",
-  "@leadYears": { "placeholders": { "years": { "type": "int" } } },
-
+  "@leadYears": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
   "sixMonthRuleNote": "很多国家要求入境时护照仍有六个月以上有效期，所以它在到期前约六个月就已经不能用来出行了。",
-
   "typePassport": "护照",
   "typeNationalId": "身份证",
   "typeDriversLicence": "驾驶证",
@@ -84,7 +128,6 @@
   "typeMembership": "会员卡",
   "typeBankCard": "银行卡",
   "typeOther": "其他",
-
   "scanTitle": "扫描证件",
   "scanHintSearching": "对准证件，尽量放平",
   "scanHintFound": "拿稳，别动",
@@ -98,11 +141,16 @@
   "scanFailedPhoto": "这张照片读不出来。",
   "scanFailedCapture": "拍照失败，请再试一次。",
   "scanPageCount": "{count} 张照片",
-  "@scanPageCount": { "placeholders": { "count": { "type": "int" } } },
+  "@scanPageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "scanAddAnother": "再拍一面",
   "scanSideFront": "正面",
   "scanSideBack": "反面",
-
   "detailCardholderName": "持卡人姓名",
   "detailSecurityCode": "安全码",
   "detailNationality": "国籍",
@@ -116,13 +164,11 @@
   "detailSensitiveNote": "默认隐藏，加密保存在这台手机里，绝不上传。",
   "detailReveal": "显示",
   "detailHide": "隐藏",
-
   "sortTitle": "排序",
   "sortExpiry": "按到期日",
   "sortAdded": "按添加时间",
   "sortName": "按名称",
   "sortType": "按类型",
-
   "settingsTitle": "设置",
   "settingsLanguage": "语言",
   "settingsLanguageSystem": "跟随系统",
@@ -130,20 +176,82 @@
   "settingsPrivacyTitle": "所有资料都只留在这台手机上",
   "settingsPrivacyBody": "你的证件信息、照片和号码都经过加密，只保存在这台手机里。Elapsa 没有账号，也没有服务器，任何内容都不会被上传。",
   "settingsVersion": "版本 {version}",
-  "@settingsVersion": { "placeholders": { "version": { "type": "String" } } },
-
+  "@settingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "notifyRenewTitle": "该去办{type}了",
-  "@notifyRenewTitle": { "placeholders": { "type": { "type": "String" } } },
+  "@notifyRenewTitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "notifyExpiresTitle": "{label} 还有 {days} 天到期",
   "@notifyExpiresTitle": {
-    "placeholders": { "label": { "type": "String" }, "days": { "type": "int" } }
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "notifyRenewBody": "到期日是 {date}。现在时间还宽裕，从容办完刚刚好。",
-  "@notifyRenewBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyRenewBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyTravelBody": "到期日是 {date}。很多国家要求剩余有效期满六个月，现在可能已经不能出行了。",
-  "@notifyTravelBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyTravelBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyPlainBody": "到期日：{date}。",
-  "@notifyPlainBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyPlainBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyChannelName": "证件到期提醒",
-  "notifyChannelDescription": "在该动手办理的时候提醒你，而不是等到来不及。"
+  "notifyChannelDescription": "在该动手办理的时候提醒你，而不是等到来不及。",
+  "settingsAppearance": "外观",
+  "settingsTheme": "主题",
+  "themeSystem": "跟随系统",
+  "themeLight": "浅色",
+  "themeDark": "深色",
+  "settingsWallet": "卡包",
+  "settingsWalletDisplay": "卡片显示方式",
+  "displayNameOnly": "仅名称",
+  "displayImageOnly": "仅图片",
+  "displayNameAndImage": "名称与图片",
+  "displayNameOnlyBody": "紧凑列表。屏幕上没有旁人能看到的内容。",
+  "displayImageOnlyBody": "你自己拍的照片，像打开钱包一样。",
+  "displayNameAndImageBody": "照片下方显示名称与到期日。",
+  "settingsRemindersTitle": "提醒",
+  "settingsRemindersLead": "默认提前提醒",
+  "settingsRemindersBody": "适用于新添加的证件，每张仍可单独调整。",
+  "settingsRemindersAuto": "由每张证件自行决定",
+  "settingsScheduled": "已安排的提醒",
+  "settingsResync": "重建提醒计划",
+  "settingsResyncDone": "提醒计划已重建。",
+  "settingsDiagnostics": "诊断",
+  "settingsLastScan": "最近一次识别",
+  "settingsLastScanBody": "相机读到的原始文字，尚未经过解析。某个字段为空时可用来排查。",
+  "settingsLastScanEmpty": "本次启动后还没有扫描过。",
+  "actionCopy": "复制",
+  "settingsCopied": "已复制。"
 }

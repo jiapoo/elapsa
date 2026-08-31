@@ -24,10 +24,18 @@ class ScanResult {
   /// not be decoded.
   final Uint8List? cardImage;
 
+  /// Everything the recogniser read, verbatim.
+  ///
+  /// Kept so the app can show it back when a field comes up empty. That single
+  /// screen separates "the camera never read it" from "the parser did not
+  /// understand it", which is otherwise unanswerable from the outside.
+  final String rawText;
+
   const ScanResult({
     this.mrz,
     this.printed = PrintedFields.empty,
     this.cardImage,
+    this.rawText = '',
   });
 
   /// True when an MRZ was found *and* every check digit agreed.
@@ -92,6 +100,7 @@ class MrzScanner {
       mrz: parsed,
       printed: _printed.parse(text),
       cardImage: card,
+      rawText: text,
     );
   }
 

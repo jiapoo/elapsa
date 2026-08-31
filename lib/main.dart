@@ -45,7 +45,7 @@ class ElapsaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: ElapsaTheme.light(),
       darkTheme: ElapsaTheme.dark(),
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(themeProvider).mode,
       locale: locale,
       supportedLocales: L.supportedLocales,
       localizationsDelegates: const [

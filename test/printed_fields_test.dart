@@ -115,7 +115,7 @@ UnionPay 银联
 招商银行
 CHINA MERCHANTS BANK
 全币种国际信用卡
-4514 6176 5081 6954
+4539 1488 0343 6467
 VALID
 MONTH/YEAR
 FROM
@@ -164,8 +164,8 @@ Signature
     test('a number in fours is a card number without any other wording', () {
       // Requiring the word "bank" meant one bad line of recognition threw the
       // number away. Nothing else on a document is laid out like this.
-      final fields = parser.parse('4514 6176 5081 6954');
-      expect(fields.documentNumber, '4514617650816954');
+      final fields = parser.parse('4539 1488 0343 6467');
+      expect(fields.documentNumber, '4539148803436467');
       expect(fields.type, DocumentType.bankCard);
     });
 
@@ -173,8 +173,8 @@ Signature
       // Embossed digits are set far apart, so the recogniser hands back each
       // group of four as its own observation. Insisting on a space between
       // them missed the number on every card it was tried against.
-      final fields = parser.parse('招商银行\n4514\n6176\n5081\n6954\nLIU JIA');
-      expect(fields.documentNumber, '4514617650816954');
+      final fields = parser.parse('招商银行\n4539\n1488\n0343\n6467\nLIU JIA');
+      expect(fields.documentNumber, '4539148803436467');
     });
 
     test('a nineteen-digit UnionPay number is read whole', () {
@@ -184,12 +184,48 @@ Signature
       );
     });
 
-    test('an unbroken run still needs the wording', () {
-      // Sixteen digits with nothing around them could be anything.
-      expect(parser.parse('4514617650816954').documentNumber, isNull);
+    test('a run that fails the checksum still needs the wording', () {
+      // Sixteen digits that are not a card number could be anything.
+      expect(parser.parse('4539148803436468').documentNumber, isNull);
       expect(
-        parser.parse('DEBIT 4514617650816954').documentNumber,
-        '4514617650816954',
+        parser.parse('DEBIT 4539148803436468').documentNumber,
+        '4539148803436468',
+      );
+    });
+
+    test('a checksum-valid run needs no wording at all', () {
+      // Every scheme's number satisfies Luhn, so passing it is not a hint
+      // about the number — it is the number identifying itself.
+      final fields = parser.parse('4539148803436467');
+      expect(fields.documentNumber, '4539148803436467');
+      expect(fields.type, DocumentType.bankCard);
+    });
+
+    test('a misread digit is repaired by the checksum', () {
+      // The figures are embossed rather than printed — same colour as the
+      // card, read by their shadow — so one character coming back as a letter
+      // is ordinary. It used to throw the entire number away.
+      expect(
+        parser.parse('招商银行\n4539 1488 O343 6467').documentNumber,
+        '4539148803436467',
+      );
+      expect(
+        parser.parse('4S39 1488 0343 646T').documentNumber,
+        '4539148803436467',
+      );
+    });
+
+    test('a letter substitution that is really a word is not a number', () {
+      // Folding letters to digits everywhere would make GOOD read as 6000.
+      expect(parser.parse('GOOD BILBO DIGS OODLES').documentNumber, isNull);
+    });
+
+    test('the service numbers on the back are not a card number', () {
+      expect(
+        parser
+            .parse('OVERSEAS CALL +86 400 820 5555\n24 Hours 400-820-5555')
+            .documentNumber,
+        isNull,
       );
     });
 
@@ -204,7 +240,7 @@ Signature
     const back = '''
 OVERSEAS CALL: +86 400 820 5555
 AUTHORIZED SIGNATURE NOT VALID UNLESS SIGNED
-6954 774
+6467 774
 24 Hours Hotline 400-820-5555
 招商银行 信用卡
 http://www.8008205555.com
@@ -227,14 +263,14 @@ http://www.8008205555.com
       // Front has number, dates and name; back has the security code. Keeping
       // only the first page that read anything threw the other half away.
       const front = PrintedFields(
-        documentNumber: '4514617650816954',
+        documentNumber: '4539148803436467',
         holderName: 'LIU JIA',
         type: DocumentType.bankCard,
       );
       const back = PrintedFields(securityCode: '774', issuer: '招商银行');
 
       final merged = front.mergedWith(back);
-      expect(merged.documentNumber, '4514617650816954');
+      expect(merged.documentNumber, '4539148803436467');
       expect(merged.holderName, 'LIU JIA');
       expect(merged.securityCode, '774');
       expect(merged.issuer, '招商银行');

@@ -3,9 +3,11 @@ import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:elapsa/core/theme.dart';
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/mrz.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
@@ -26,11 +28,11 @@ class ScanSession {
   const ScanSession(this.images, this.mrz, this.printed);
 }
 
-class ScanScreen extends StatefulWidget {
+class ScanScreen extends ConsumerStatefulWidget {
   const ScanScreen({super.key});
 
   @override
-  State<ScanScreen> createState() => _ScanScreenState();
+  ConsumerState<ScanScreen> createState() => _ScanScreenState();
 }
 
 enum _Stage { starting, ready, noCamera, working }
@@ -43,13 +45,14 @@ enum _Stage { starting, ready, noCamera, working }
 /// the right way up. Every button here is a circle, so rotating the glyph
 /// alone leaves the button itself looking identical.
 double _glyphTurns(DeviceOrientation device) => switch (device) {
-      DeviceOrientation.portraitUp => 0,
-      DeviceOrientation.landscapeLeft => 0.25,
-      DeviceOrientation.portraitDown => 0.5,
-      DeviceOrientation.landscapeRight => -0.25,
-    };
+  DeviceOrientation.portraitUp => 0,
+  DeviceOrientation.landscapeLeft => 0.25,
+  DeviceOrientation.portraitDown => 0.5,
+  DeviceOrientation.landscapeRight => -0.25,
+};
 
-class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
+class _ScanScreenState extends ConsumerState<ScanScreen>
+    with WidgetsBindingObserver {
   static const _scanner = MrzScanner();
   static const _vision = VisionChannel();
 
@@ -301,6 +304,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   void _absorb(ScanResult result) {
     if (!mounted) return;
 
+    // Held in memory only, for the diagnostics screen. Never written to disk:
+    // this is the raw contents of someone's card.
+    if (result.rawText.trim().isNotEmpty) {
+      ref.read(lastScanTextProvider.notifier).state = result.rawText;
+    }
+
     setState(() {
       if (result.cardImage != null) _pages.add(result.cardImage!);
       if (result.hasTrustedCode && _bestMrz == null) _bestMrz = result.mrz;
@@ -315,8 +324,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
   void _restore() {
     if (!mounted) return;
-    setState(() =>
-        _stage = _controller != null ? _Stage.ready : _Stage.noCamera);
+    setState(
+      () => _stage = _controller != null ? _Stage.ready : _Stage.noCamera,
+    );
   }
 
   void _finish() {
@@ -325,8 +335,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       return;
     }
     HapticFeedback.mediumImpact();
-    Navigator.of(context)
-        .pop(ScanSession(List.of(_pages), _bestMrz, _printed));
+    Navigator.of(context).pop(ScanSession(List.of(_pages), _bestMrz, _printed));
   }
 
   @override
@@ -397,38 +406,39 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                     child: _RotatingGlyphs(
                       controller: _controller,
                       child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_pages.isNotEmpty) ...[
-                          _PageStrip(pages: _pages),
-                          const SizedBox(height: 18),
-                        ],
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            _GlyphButton(
-                              icon: Icons.photo_library_outlined,
-                              semantic: l.scanChoosePhoto,
-                              onTap: busy ? null : _pickFromLibrary,
-                            ),
-                            const SizedBox(width: 26),
-                            _Shutter(
-                              armed: _armed,
-                              enabled: hasCamera && !busy,
-                              semantic: l.actionScan,
-                              onTap: _capture,
-                            ),
-                            const SizedBox(width: 26),
-                            _GlyphButton(
-                              icon: Icons.keyboard_outlined,
-                              semantic: l.scanEnterByHand,
-                              onTap:
-                                  busy ? null : () => Navigator.of(context).pop(),
-                            ),
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_pages.isNotEmpty) ...[
+                            _PageStrip(pages: _pages),
+                            const SizedBox(height: 18),
                           ],
-                        ),
-                      ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              _GlyphButton(
+                                icon: Icons.photo_library_outlined,
+                                semantic: l.scanChoosePhoto,
+                                onTap: busy ? null : _pickFromLibrary,
+                              ),
+                              const SizedBox(width: 26),
+                              _Shutter(
+                                armed: _armed,
+                                enabled: hasCamera && !busy,
+                                semantic: l.actionScan,
+                                onTap: _capture,
+                              ),
+                              const SizedBox(width: 26),
+                              _GlyphButton(
+                                icon: Icons.keyboard_outlined,
+                                semantic: l.scanEnterByHand,
+                                onTap: busy
+                                    ? null
+                                    : () => Navigator.of(context).pop(),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -529,7 +539,11 @@ class _NoCameraLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Icon(Icons.photo_library_outlined, size: 52, color: Colors.white38),
+      child: Icon(
+        Icons.photo_library_outlined,
+        size: 52,
+        color: Colors.white38,
+      ),
     );
   }
 }
@@ -572,7 +586,6 @@ class _CornerGuide extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _CornerPainter extends CustomPainter {
@@ -609,7 +622,10 @@ class _CornerPainter extends CustomPainter {
         Path()..addRect(Offset.zero & size),
         Path()..addPolygon(corners, true),
       );
-      canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.38));
+      canvas.drawPath(
+        outside,
+        Paint()..color = Colors.black.withValues(alpha: 0.38),
+      );
     }
 
     // A hairline along the full outline ties the four brackets together into
@@ -637,13 +653,21 @@ class _CornerPainter extends CustomPainter {
       final width = armed ? 5.0 : 3.5;
 
       // Arms are a fraction of each edge, so they scale with the card rather
-      // than looking oversized when it is far away. Rounded joins turn the
-      // corner in one sweep instead of two lines meeting at a point.
-      final start = _along(corner, previous, 0.2);
-      final end = _along(corner, next, 0.2);
+      // than looking oversized when it is far away.
+      //
+      // The turn itself is an arc, not a mitre. A rounded stroke *join* still
+      // leaves the eye a point to land on; drawing the corner as a curve
+      // between two points short of it gives the bracket the same radius as
+      // the card it is framing, and the overlay stops looking like a
+      // technical diagram laid over the picture.
+      final start = _along(corner, previous, 0.22);
+      final end = _along(corner, next, 0.22);
+      final turnIn = _along(corner, previous, 0.055);
+      final turnOut = _along(corner, next, 0.055);
       final elbow = Path()
         ..moveTo(start.dx, start.dy)
-        ..lineTo(corner.dx, corner.dy)
+        ..lineTo(turnIn.dx, turnIn.dy)
+        ..quadraticBezierTo(corner.dx, corner.dy, turnOut.dx, turnOut.dy)
         ..lineTo(end.dx, end.dy);
 
       // A soft halo under each bracket keeps it legible over a pale document
@@ -674,12 +698,12 @@ class _CornerPainter extends CustomPainter {
 
   /// Corners are indexed top-left, top-right, bottom-right, bottom-left.
   bool _touchesFarEdge(int corner) => switch (farEdge) {
-        CardEdge.top => corner == 0 || corner == 1,
-        CardEdge.right => corner == 1 || corner == 2,
-        CardEdge.bottom => corner == 2 || corner == 3,
-        CardEdge.left => corner == 3 || corner == 0,
-        null => false,
-      };
+    CardEdge.top => corner == 0 || corner == 1,
+    CardEdge.right => corner == 1 || corner == 2,
+    CardEdge.bottom => corner == 2 || corner == 3,
+    CardEdge.left => corner == 3 || corner == 0,
+    null => false,
+  };
 
   static Offset _along(Offset from, Offset to, double t) =>
       Offset.lerp(from, to, t)!;
@@ -701,7 +725,10 @@ class _CornerPainter extends CustomPainter {
     final sourceWidth = upright ? frame.width : frame.height;
     final sourceHeight = upright ? frame.height : frame.width;
 
-    final scale = math.max(size.width / sourceWidth, size.height / sourceHeight);
+    final scale = math.max(
+      size.width / sourceWidth,
+      size.height / sourceHeight,
+    );
     final dx = (size.width - sourceWidth * scale) / 2;
     final dy = (size.height - sourceHeight * scale) / 2;
 
@@ -720,7 +747,10 @@ class _CornerPainter extends CustomPainter {
     // A card is a landscape object even when the phone is upright, so the
     // resting guide is wide and shallow — it shows how to hold the document,
     // not how to hold the phone.
-    final width = math.min(size.width * 0.86, size.height * 0.7 * kCardAspectRatio);
+    final width = math.min(
+      size.width * 0.86,
+      size.height * 0.7 * kCardAspectRatio,
+    );
     final height = width / kCardAspectRatio;
     final left = (size.width - width) / 2;
     final top = (size.height - height) / 2;

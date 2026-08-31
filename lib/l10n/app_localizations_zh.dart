@@ -386,6 +386,84 @@ class LZh extends L {
 
   @override
   String get notifyChannelDescription => '在该动手办理的时候提醒你，而不是等到来不及。';
+
+  @override
+  String get settingsAppearance => '外观';
+
+  @override
+  String get settingsTheme => '主题';
+
+  @override
+  String get themeSystem => '跟随系统';
+
+  @override
+  String get themeLight => '浅色';
+
+  @override
+  String get themeDark => '深色';
+
+  @override
+  String get settingsWallet => '卡包';
+
+  @override
+  String get settingsWalletDisplay => '卡片显示方式';
+
+  @override
+  String get displayNameOnly => '仅名称';
+
+  @override
+  String get displayImageOnly => '仅图片';
+
+  @override
+  String get displayNameAndImage => '名称与图片';
+
+  @override
+  String get displayNameOnlyBody => '紧凑列表。屏幕上没有旁人能看到的内容。';
+
+  @override
+  String get displayImageOnlyBody => '你自己拍的照片，像打开钱包一样。';
+
+  @override
+  String get displayNameAndImageBody => '照片下方显示名称与到期日。';
+
+  @override
+  String get settingsRemindersTitle => '提醒';
+
+  @override
+  String get settingsRemindersLead => '默认提前提醒';
+
+  @override
+  String get settingsRemindersBody => '适用于新添加的证件，每张仍可单独调整。';
+
+  @override
+  String get settingsRemindersAuto => '由每张证件自行决定';
+
+  @override
+  String get settingsScheduled => '已安排的提醒';
+
+  @override
+  String get settingsResync => '重建提醒计划';
+
+  @override
+  String get settingsResyncDone => '提醒计划已重建。';
+
+  @override
+  String get settingsDiagnostics => '诊断';
+
+  @override
+  String get settingsLastScan => '最近一次识别';
+
+  @override
+  String get settingsLastScanBody => '相机读到的原始文字，尚未经过解析。某个字段为空时可用来排查。';
+
+  @override
+  String get settingsLastScanEmpty => '本次启动后还没有扫描过。';
+
+  @override
+  String get actionCopy => '复制';
+
+  @override
+  String get settingsCopied => '已复制。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -769,4 +847,82 @@ class LZhHant extends LZh {
 
   @override
   String get notifyChannelDescription => '在該動手辦理的時候提醒你，而不是等到來不及。';
+
+  @override
+  String get settingsAppearance => '外觀';
+
+  @override
+  String get settingsTheme => '主題';
+
+  @override
+  String get themeSystem => '跟隨系統';
+
+  @override
+  String get themeLight => '淺色';
+
+  @override
+  String get themeDark => '深色';
+
+  @override
+  String get settingsWallet => '卡包';
+
+  @override
+  String get settingsWalletDisplay => '卡片顯示方式';
+
+  @override
+  String get displayNameOnly => '僅名稱';
+
+  @override
+  String get displayImageOnly => '僅圖片';
+
+  @override
+  String get displayNameAndImage => '名稱與圖片';
+
+  @override
+  String get displayNameOnlyBody => '緊湊列表。螢幕上沒有旁人能看到的內容。';
+
+  @override
+  String get displayImageOnlyBody => '你自己拍的照片，像打開錢包一樣。';
+
+  @override
+  String get displayNameAndImageBody => '照片下方顯示名稱與到期日。';
+
+  @override
+  String get settingsRemindersTitle => '提醒';
+
+  @override
+  String get settingsRemindersLead => '預設提前提醒';
+
+  @override
+  String get settingsRemindersBody => '套用於新加入的證件，每張仍可單獨調整。';
+
+  @override
+  String get settingsRemindersAuto => '由每張證件自行決定';
+
+  @override
+  String get settingsScheduled => '已排定的提醒';
+
+  @override
+  String get settingsResync => '重建提醒排程';
+
+  @override
+  String get settingsResyncDone => '提醒排程已重建。';
+
+  @override
+  String get settingsDiagnostics => '診斷';
+
+  @override
+  String get settingsLastScan => '最近一次辨識';
+
+  @override
+  String get settingsLastScanBody => '相機讀到的原始文字，尚未經過解析。某個欄位為空時可用來排查。';
+
+  @override
+  String get settingsLastScanEmpty => '本次啟動後尚未掃描過。';
+
+  @override
+  String get actionCopy => '複製';
+
+  @override
+  String get settingsCopied => '已複製。';
 }

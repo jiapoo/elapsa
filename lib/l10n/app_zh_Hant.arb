@@ -1,13 +1,10 @@
 {
   "@@locale": "zh_Hant",
-
   "appTitle": "Elapsa",
-
   "homeNeedsAttention": "需要處理",
   "homeEverythingElse": "其他證件",
   "homeEmptyTitle": "沒有快到期的證件",
   "homeEmptyBody": "加入護照、身分證或駕照，Elapsa 會在該動手辦的時候提醒你，而不是等到來不及。",
-
   "actionAdd": "新增證件",
   "actionScan": "掃描證件",
   "actionSettings": "設定",
@@ -15,24 +12,38 @@
   "actionDelete": "刪除",
   "actionDone": "完成",
   "actionRetake": "重拍",
-
   "statusExpired": "已過期",
   "statusExpiring": "即將到期",
   "statusRenewNow": "該辦了",
   "statusValid": "有效",
-
   "daysLeft": "還剩 {days} 天",
-  "@daysLeft": { "placeholders": { "days": { "type": "int" } } },
+  "@daysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "已過期 {days} 天",
-  "@daysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "@daysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "startRenewingNow": "現在就該開始辦",
   "travelRuleBadge": "已不足六個月，多數國家不予入境",
-
   "remindersTitle": "{count, plural, =0{沒有已排定的提醒} other{已排定 {count} 則提醒}}",
-  "@remindersTitle": { "placeholders": { "count": { "type": "int" } } },
+  "@remindersTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "remindersEmptyBody": "加入證件後，Elapsa 會自動為它排定提醒。",
   "remindersBody": "就算你從來不打開這個 App，提醒也會照常送出。",
-
   "editAddTitle": "新增證件",
   "editEditTitle": "編輯證件",
   "editScanHelp": "辨識護照、身分證、簽證上的機器可讀區",
@@ -42,7 +53,13 @@
   "fieldType": "類型",
   "fieldName": "名稱",
   "fieldNameHint": "我的{type}",
-  "@fieldNameHint": { "placeholders": { "type": { "type": "String" } } },
+  "@fieldNameHint": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "fieldNameRequired": "請取個名稱",
   "fieldExpiry": "到期日",
   "fieldExpiryEmpty": "選擇日期",
@@ -58,21 +75,48 @@
   "editSave": "儲存",
   "editDeleteTitle": "刪除這張證件？",
   "editDeleteBody": "它的提醒和照片也會一併刪除。",
-
   "leadExplainNoDate": "Elapsa 會在到期前 {lead} 提醒你，之後隨著日子接近再提醒幾次。",
-  "@leadExplainNoDate": { "placeholders": { "lead": { "type": "String" } } },
+  "@leadExplainNoDate": {
+    "placeholders": {
+      "lead": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainFirst": "第一次提醒：{date}，之後隨著日子接近再提醒幾次。",
-  "@leadExplainFirst": { "placeholders": { "date": { "type": "String" } } },
+  "@leadExplainFirst": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainPassed": "這個時間點已經過了 — 現在就該開始辦。",
   "leadWeeks": "{weeks} 週",
-  "@leadWeeks": { "placeholders": { "weeks": { "type": "int" } } },
+  "@leadWeeks": {
+    "placeholders": {
+      "weeks": {
+        "type": "int"
+      }
+    }
+  },
   "leadMonths": "{months} 個月",
-  "@leadMonths": { "placeholders": { "months": { "type": "int" } } },
+  "@leadMonths": {
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
   "leadYears": "{years} 年",
-  "@leadYears": { "placeholders": { "years": { "type": "int" } } },
-
+  "@leadYears": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
   "sixMonthRuleNote": "很多國家要求入境時護照仍有六個月以上效期，所以它在到期前約六個月就已經不能用來出國了。",
-
   "typePassport": "護照",
   "typeNationalId": "身分證",
   "typeDriversLicence": "駕照",
@@ -84,7 +128,6 @@
   "typeMembership": "會員卡",
   "typeBankCard": "銀行卡",
   "typeOther": "其他",
-
   "scanTitle": "掃描證件",
   "scanHintSearching": "對準證件，盡量放平",
   "scanHintFound": "拿穩，別動",
@@ -98,11 +141,16 @@
   "scanFailedPhoto": "這張照片讀不出來。",
   "scanFailedCapture": "拍照失敗，請再試一次。",
   "scanPageCount": "{count} 張照片",
-  "@scanPageCount": { "placeholders": { "count": { "type": "int" } } },
+  "@scanPageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "scanAddAnother": "再拍一面",
   "scanSideFront": "正面",
   "scanSideBack": "背面",
-
   "detailCardholderName": "持卡人姓名",
   "detailSecurityCode": "安全碼",
   "detailNationality": "國籍",
@@ -116,13 +164,11 @@
   "detailSensitiveNote": "預設隱藏，加密保存在這台手機裡，絕不上傳。",
   "detailReveal": "顯示",
   "detailHide": "隱藏",
-
   "sortTitle": "排序",
   "sortExpiry": "按到期日",
   "sortAdded": "按新增時間",
   "sortName": "按名稱",
   "sortType": "按類型",
-
   "settingsTitle": "設定",
   "settingsLanguage": "語言",
   "settingsLanguageSystem": "跟隨系統",
@@ -130,20 +176,82 @@
   "settingsPrivacyTitle": "所有資料都只留在這台手機上",
   "settingsPrivacyBody": "你的證件資料、照片和號碼都經過加密，只保存在這台手機裡。Elapsa 沒有帳號，也沒有伺服器，任何內容都不會被上傳。",
   "settingsVersion": "版本 {version}",
-  "@settingsVersion": { "placeholders": { "version": { "type": "String" } } },
-
+  "@settingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "notifyRenewTitle": "該去辦{type}了",
-  "@notifyRenewTitle": { "placeholders": { "type": { "type": "String" } } },
+  "@notifyRenewTitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "notifyExpiresTitle": "{label} 還有 {days} 天到期",
   "@notifyExpiresTitle": {
-    "placeholders": { "label": { "type": "String" }, "days": { "type": "int" } }
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "notifyRenewBody": "到期日是 {date}。現在時間還寬裕，從容辦完剛剛好。",
-  "@notifyRenewBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyRenewBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyTravelBody": "到期日是 {date}。很多國家要求剩餘效期滿六個月，現在可能已經不能出國了。",
-  "@notifyTravelBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyTravelBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyPlainBody": "到期日：{date}。",
-  "@notifyPlainBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyPlainBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyChannelName": "證件到期提醒",
-  "notifyChannelDescription": "在該動手辦理的時候提醒你，而不是等到來不及。"
+  "notifyChannelDescription": "在該動手辦理的時候提醒你，而不是等到來不及。",
+  "settingsAppearance": "外觀",
+  "settingsTheme": "主題",
+  "themeSystem": "跟隨系統",
+  "themeLight": "淺色",
+  "themeDark": "深色",
+  "settingsWallet": "卡包",
+  "settingsWalletDisplay": "卡片顯示方式",
+  "displayNameOnly": "僅名稱",
+  "displayImageOnly": "僅圖片",
+  "displayNameAndImage": "名稱與圖片",
+  "displayNameOnlyBody": "緊湊列表。螢幕上沒有旁人能看到的內容。",
+  "displayImageOnlyBody": "你自己拍的照片，像打開錢包一樣。",
+  "displayNameAndImageBody": "照片下方顯示名稱與到期日。",
+  "settingsRemindersTitle": "提醒",
+  "settingsRemindersLead": "預設提前提醒",
+  "settingsRemindersBody": "套用於新加入的證件，每張仍可單獨調整。",
+  "settingsRemindersAuto": "由每張證件自行決定",
+  "settingsScheduled": "已排定的提醒",
+  "settingsResync": "重建提醒排程",
+  "settingsResyncDone": "提醒排程已重建。",
+  "settingsDiagnostics": "診斷",
+  "settingsLastScan": "最近一次辨識",
+  "settingsLastScanBody": "相機讀到的原始文字，尚未經過解析。某個欄位為空時可用來排查。",
+  "settingsLastScanEmpty": "本次啟動後尚未掃描過。",
+  "actionCopy": "複製",
+  "settingsCopied": "已複製。"
 }

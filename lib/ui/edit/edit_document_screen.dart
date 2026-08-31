@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
@@ -501,15 +502,26 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   }
 
   /// The conventional set: when to start, then a tail as the date closes in.
-  static List<int> _defaultOffsets(int leadDays) =>
-      <int>{
-          leadDays,
-          90,
-          30,
-          7,
-          1,
-        }.where((d) => d > 0 && d <= leadDays).toList()
-        ..sort((a, b) => b.compareTo(a));
+  /// The reminder times a document starts with.
+  ///
+  /// The user's own default from Settings wins outright. Otherwise the
+  /// conventional ladder, built from *this type's* renewal lead time — which
+  /// is the better fallback precisely because it is not one list: a passport
+  /// needs telling about months in advance, a gym membership does not.
+  List<int> _defaultOffsets(int leadDays) {
+    final preferred = ref.read(defaultRemindersProvider);
+    if (preferred.isNotEmpty) {
+      return [...preferred]..sort((a, b) => b.compareTo(a));
+    }
+    return <int>{
+        leadDays,
+        90,
+        30,
+        7,
+        1,
+      }.where((d) => d > 0 && d <= leadDays).toList()
+      ..sort((a, b) => b.compareTo(a));
+  }
 
   /// The earliest reminder, which is also when renewal should begin.
   int get _renewalLeadDays => _reminderOffsets.isEmpty

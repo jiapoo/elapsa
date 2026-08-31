@@ -775,6 +775,162 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Tells you when to start renewing a document, not when it is too late.'**
   String get notifyChannelDescription;
+
+  /// Appearance
+  ///
+  /// In en, this message translates to:
+  /// **'Appearance'**
+  String get settingsAppearance;
+
+  /// Theme
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get settingsTheme;
+
+  /// Follow device
+  ///
+  /// In en, this message translates to:
+  /// **'Follow device'**
+  String get themeSystem;
+
+  /// Light
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeLight;
+
+  /// Dark
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeDark;
+
+  /// Wallet
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get settingsWallet;
+
+  /// Show each card as
+  ///
+  /// In en, this message translates to:
+  /// **'Show each card as'**
+  String get settingsWalletDisplay;
+
+  /// Name only
+  ///
+  /// In en, this message translates to:
+  /// **'Name only'**
+  String get displayNameOnly;
+
+  /// Picture only
+  ///
+  /// In en, this message translates to:
+  /// **'Picture only'**
+  String get displayImageOnly;
+
+  /// Name and picture
+  ///
+  /// In en, this message translates to:
+  /// **'Name and picture'**
+  String get displayNameAndImage;
+
+  /// A compact list. Nothing on screen anyone could read over your shoulder.
+  ///
+  /// In en, this message translates to:
+  /// **'A compact list. Nothing on screen anyone could read over your shoulder.'**
+  String get displayNameOnlyBody;
+
+  /// Your own photographs, the way a wallet looks when it is open.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own photographs, the way a wallet looks when it is open.'**
+  String get displayImageOnlyBody;
+
+  /// The photograph with its name and expiry underneath.
+  ///
+  /// In en, this message translates to:
+  /// **'The photograph with its name and expiry underneath.'**
+  String get displayNameAndImageBody;
+
+  /// Reminders
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get settingsRemindersTitle;
+
+  /// Remind me by default
+  ///
+  /// In en, this message translates to:
+  /// **'Remind me by default'**
+  String get settingsRemindersLead;
+
+  /// Applied to new documents. Each one can still be changed on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Applied to new documents. Each one can still be changed on its own.'**
+  String get settingsRemindersBody;
+
+  /// Choose for each document
+  ///
+  /// In en, this message translates to:
+  /// **'Choose for each document'**
+  String get settingsRemindersAuto;
+
+  /// Scheduled reminders
+  ///
+  /// In en, this message translates to:
+  /// **'Scheduled reminders'**
+  String get settingsScheduled;
+
+  /// Rebuild the schedule
+  ///
+  /// In en, this message translates to:
+  /// **'Rebuild the schedule'**
+  String get settingsResync;
+
+  /// Reminder schedule rebuilt.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminder schedule rebuilt.'**
+  String get settingsResyncDone;
+
+  /// Diagnostics
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get settingsDiagnostics;
+
+  /// Last scan
+  ///
+  /// In en, this message translates to:
+  /// **'Last scan'**
+  String get settingsLastScan;
+
+  /// Exactly what the camera read, before Elapsa made sense of it. Useful when a field comes back empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Exactly what the camera read, before Elapsa made sense of it. Useful when a field comes back empty.'**
+  String get settingsLastScanBody;
+
+  /// Nothing scanned yet in this session.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing scanned yet in this session.'**
+  String get settingsLastScanEmpty;
+
+  /// Copy
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get actionCopy;
+
+  /// Copied.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied.'**
+  String get settingsCopied;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

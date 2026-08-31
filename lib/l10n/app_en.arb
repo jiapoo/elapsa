@@ -1,13 +1,10 @@
 {
   "@@locale": "en",
-
   "appTitle": "Elapsa",
-
   "homeNeedsAttention": "Needs attention",
   "homeEverythingElse": "Everything else",
   "homeEmptyTitle": "Nothing expiring",
   "homeEmptyBody": "Add a passport, ID or licence and Elapsa will tell you when to start renewing it — not when it is already too late.",
-
   "actionAdd": "Add document",
   "actionScan": "Scan document",
   "actionSettings": "Settings",
@@ -15,24 +12,38 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
-
   "statusExpired": "Expired",
   "statusExpiring": "Expiring",
   "statusRenewNow": "Renew now",
   "statusValid": "Valid",
-
   "daysLeft": "{days, plural, =1{1 day left} other{{days} days left}}",
-  "@daysLeft": { "placeholders": { "days": { "type": "int" } } },
+  "@daysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "daysAgo": "{days, plural, =1{1 day ago} other{{days} days ago}}",
-  "@daysAgo": { "placeholders": { "days": { "type": "int" } } },
+  "@daysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
   "startRenewingNow": "start renewing now",
   "travelRuleBadge": "Below the 6-month travel rule",
-
   "remindersTitle": "{count, plural, =0{No reminders scheduled} =1{1 reminder scheduled} other{{count} reminders scheduled}}",
-  "@remindersTitle": { "placeholders": { "count": { "type": "int" } } },
+  "@remindersTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "remindersEmptyBody": "Add a document and Elapsa will schedule reminders for it.",
   "remindersBody": "These fire even if the app is never opened.",
-
   "editAddTitle": "Add document",
   "editEditTitle": "Edit document",
   "editScanHelp": "Reads the code on a passport, ID card or visa",
@@ -42,7 +53,13 @@
   "fieldType": "Type",
   "fieldName": "Name",
   "fieldNameHint": "My {type}",
-  "@fieldNameHint": { "placeholders": { "type": { "type": "String" } } },
+  "@fieldNameHint": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "fieldNameRequired": "Give it a name",
   "fieldExpiry": "Expiry date",
   "fieldExpiryEmpty": "Select a date",
@@ -58,21 +75,48 @@
   "editSave": "Save",
   "editDeleteTitle": "Delete this document?",
   "editDeleteBody": "Its reminders and pictures will be deleted too.",
-
   "leadExplainNoDate": "Elapsa will remind you {lead} before it expires, then again as the date approaches.",
-  "@leadExplainNoDate": { "placeholders": { "lead": { "type": "String" } } },
+  "@leadExplainNoDate": {
+    "placeholders": {
+      "lead": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainFirst": "First reminder on {date}, then again as the date approaches.",
-  "@leadExplainFirst": { "placeholders": { "date": { "type": "String" } } },
+  "@leadExplainFirst": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "leadExplainPassed": "That window has already passed — you should start now.",
   "leadWeeks": "{weeks, plural, =1{1 week} other{{weeks} weeks}}",
-  "@leadWeeks": { "placeholders": { "weeks": { "type": "int" } } },
+  "@leadWeeks": {
+    "placeholders": {
+      "weeks": {
+        "type": "int"
+      }
+    }
+  },
   "leadMonths": "{months, plural, =1{1 month} other{{months} months}}",
-  "@leadMonths": { "placeholders": { "months": { "type": "int" } } },
+  "@leadMonths": {
+    "placeholders": {
+      "months": {
+        "type": "int"
+      }
+    }
+  },
   "leadYears": "{years, plural, =1{1 year} other{{years} years}}",
-  "@leadYears": { "placeholders": { "years": { "type": "int" } } },
-
+  "@leadYears": {
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
   "sixMonthRuleNote": "Many countries require six months of validity beyond your entry date, so this document stops being usable for travel about six months before it expires.",
-
   "typePassport": "Passport",
   "typeNationalId": "National ID",
   "typeDriversLicence": "Driver's licence",
@@ -84,7 +128,6 @@
   "typeMembership": "Membership",
   "typeBankCard": "Bank card",
   "typeOther": "Other",
-
   "scanTitle": "Scan document",
   "scanHintSearching": "Point at the document, keep it flat",
   "scanHintFound": "Hold steady",
@@ -98,11 +141,16 @@
   "scanFailedPhoto": "Could not read that photo.",
   "scanFailedCapture": "Could not take that photo. Try again.",
   "scanPageCount": "{count, plural, =1{1 picture} other{{count} pictures}}",
-  "@scanPageCount": { "placeholders": { "count": { "type": "int" } } },
+  "@scanPageCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "scanAddAnother": "Add another side",
   "scanSideFront": "Front",
   "scanSideBack": "Back",
-
   "detailCardholderName": "Name on card",
   "detailSecurityCode": "Security code",
   "detailNationality": "Nationality",
@@ -116,13 +164,11 @@
   "detailSensitiveNote": "Hidden by default, encrypted on this device, never uploaded.",
   "detailReveal": "Show",
   "detailHide": "Hide",
-
   "sortTitle": "Sort",
   "sortExpiry": "Expiry date",
   "sortAdded": "Recently added",
   "sortName": "Name",
   "sortType": "Type",
-
   "settingsTitle": "Settings",
   "settingsLanguage": "Language",
   "settingsLanguageSystem": "System default",
@@ -130,20 +176,160 @@
   "settingsPrivacyTitle": "Everything stays on this device",
   "settingsPrivacyBody": "Your documents, their pictures and their numbers are encrypted and stored only on this phone. Elapsa has no account and no server, and nothing is ever uploaded.",
   "settingsVersion": "Version {version}",
-  "@settingsVersion": { "placeholders": { "version": { "type": "String" } } },
-
+  "@settingsVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "notifyRenewTitle": "Time to renew your {type}",
-  "@notifyRenewTitle": { "placeholders": { "type": { "type": "String" } } },
+  "@notifyRenewTitle": {
+    "placeholders": {
+      "type": {
+        "type": "String"
+      }
+    }
+  },
   "notifyExpiresTitle": "{label} expires in {days, plural, =1{1 day} other{{days} days}}",
   "@notifyExpiresTitle": {
-    "placeholders": { "label": { "type": "String" }, "days": { "type": "int" } }
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "days": {
+        "type": "int"
+      }
+    }
   },
   "notifyRenewBody": "It expires on {date}. That is far enough ahead to renew without rushing — start now and it will be done in good time.",
-  "@notifyRenewBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyRenewBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyTravelBody": "Expires on {date}. Many countries require six months of validity, so it may already be unusable for travel.",
-  "@notifyTravelBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyTravelBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyPlainBody": "Expires on {date}.",
-  "@notifyPlainBody": { "placeholders": { "date": { "type": "String" } } },
+  "@notifyPlainBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "notifyChannelName": "Renewal reminders",
-  "notifyChannelDescription": "Tells you when to start renewing a document, not when it is too late."
+  "notifyChannelDescription": "Tells you when to start renewing a document, not when it is too late.",
+  "settingsAppearance": "Appearance",
+  "@settingsAppearance": {
+    "description": "Appearance"
+  },
+  "settingsTheme": "Theme",
+  "@settingsTheme": {
+    "description": "Theme"
+  },
+  "themeSystem": "Follow device",
+  "@themeSystem": {
+    "description": "Follow device"
+  },
+  "themeLight": "Light",
+  "@themeLight": {
+    "description": "Light"
+  },
+  "themeDark": "Dark",
+  "@themeDark": {
+    "description": "Dark"
+  },
+  "settingsWallet": "Wallet",
+  "@settingsWallet": {
+    "description": "Wallet"
+  },
+  "settingsWalletDisplay": "Show each card as",
+  "@settingsWalletDisplay": {
+    "description": "Show each card as"
+  },
+  "displayNameOnly": "Name only",
+  "@displayNameOnly": {
+    "description": "Name only"
+  },
+  "displayImageOnly": "Picture only",
+  "@displayImageOnly": {
+    "description": "Picture only"
+  },
+  "displayNameAndImage": "Name and picture",
+  "@displayNameAndImage": {
+    "description": "Name and picture"
+  },
+  "displayNameOnlyBody": "A compact list. Nothing on screen anyone could read over your shoulder.",
+  "@displayNameOnlyBody": {
+    "description": "A compact list. Nothing on screen anyone could read over your shoulder."
+  },
+  "displayImageOnlyBody": "Your own photographs, the way a wallet looks when it is open.",
+  "@displayImageOnlyBody": {
+    "description": "Your own photographs, the way a wallet looks when it is open."
+  },
+  "displayNameAndImageBody": "The photograph with its name and expiry underneath.",
+  "@displayNameAndImageBody": {
+    "description": "The photograph with its name and expiry underneath."
+  },
+  "settingsRemindersTitle": "Reminders",
+  "@settingsRemindersTitle": {
+    "description": "Reminders"
+  },
+  "settingsRemindersLead": "Remind me by default",
+  "@settingsRemindersLead": {
+    "description": "Remind me by default"
+  },
+  "settingsRemindersBody": "Applied to new documents. Each one can still be changed on its own.",
+  "@settingsRemindersBody": {
+    "description": "Applied to new documents. Each one can still be changed on its own."
+  },
+  "settingsRemindersAuto": "Choose for each document",
+  "@settingsRemindersAuto": {
+    "description": "Choose for each document"
+  },
+  "settingsScheduled": "Scheduled reminders",
+  "@settingsScheduled": {
+    "description": "Scheduled reminders"
+  },
+  "settingsResync": "Rebuild the schedule",
+  "@settingsResync": {
+    "description": "Rebuild the schedule"
+  },
+  "settingsResyncDone": "Reminder schedule rebuilt.",
+  "@settingsResyncDone": {
+    "description": "Reminder schedule rebuilt."
+  },
+  "settingsDiagnostics": "Diagnostics",
+  "@settingsDiagnostics": {
+    "description": "Diagnostics"
+  },
+  "settingsLastScan": "Last scan",
+  "@settingsLastScan": {
+    "description": "Last scan"
+  },
+  "settingsLastScanBody": "Exactly what the camera read, before Elapsa made sense of it. Useful when a field comes back empty.",
+  "@settingsLastScanBody": {
+    "description": "Exactly what the camera read, before Elapsa made sense of it. Useful when a field comes back empty."
+  },
+  "settingsLastScanEmpty": "Nothing scanned yet in this session.",
+  "@settingsLastScanEmpty": {
+    "description": "Nothing scanned yet in this session."
+  },
+  "actionCopy": "Copy",
+  "@actionCopy": {
+    "description": "Copy"
+  },
+  "settingsCopied": "Copied.",
+  "@settingsCopied": {
+    "description": "Copied."
+  }
 }

@@ -288,17 +288,86 @@ enum VisionHandler {
       // turn — so getting it backwards does not look like a rotation error at
       // all, it looks like the card came out upside down.
       var chosen = angle
+      var quarterTurned = false
       if let standing = boxed(quad, turnedBy: angle),
          standing.rect.height > standing.rect.width {
         chosen = angle + quarterTurn
+        quarterTurned = true
       }
 
+      // The rigid crop doubles as the validity check: it is what rejects the
+      // sliver you get when corners measured on the preview do not transfer to
+      // a still of a different shape. Nothing is saved unless it passes.
       guard let cropped = crop(quad, turnedBy: chosen) else { return nil }
+
+      // Then the card is squared up properly. Rotating alone leaves the
+      // keystone in — a card photographed from anywhere but straight above is
+      // a trapezium, and cutting its bounding box keeps the taper and adds a
+      // wedge of desk down each side. A perspective correction pulls the four
+      // corners onto a rectangle, so the saved face looks like the card rather
+      // than like a photograph of one.
+      //
+      // This is safe for recognition in a way it would not have been before:
+      // text is read from the full-resolution original, never from this crop,
+      // so warping the saved face cannot cost a single character.
+      let face = rectified(quad, quarterTurned: quarterTurned) ?? cropped
+
       return ciContext.jpegRepresentation(
-        of: cropped,
+        of: face,
         colorSpace: CGColorSpaceCreateDeviceRGB(),
         options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
       )
+    }
+
+    /// The card pulled flat onto a rectangle, or nil if the filter will not
+    /// produce something plausible.
+    func rectified(
+      _ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint),
+      quarterTurned: Bool
+    ) -> CIImage? {
+      // A hair of margin, taken outward from the centre, for the same reason
+      // the rigid crop has one: Vision's corners sit *on* the card's edge, and
+      // correcting exactly to that line shaves the border off every card.
+      let centre = CGPoint(
+        x: (quad.tl.x + quad.tr.x + quad.br.x + quad.bl.x) / 4,
+        y: (quad.tl.y + quad.tr.y + quad.br.y + quad.bl.y) / 4
+      )
+      func out(_ p: CGPoint) -> CIVector {
+        CIVector(x: centre.x + (p.x - centre.x) * 1.02,
+                 y: centre.y + (p.y - centre.y) * 1.02)
+      }
+
+      // A quarter turn is a relabelling of which corner becomes the output's
+      // top-left. Turning the content a further 90° counter-clockwise puts
+      // what was the top-right corner into the top-left position, and the rest
+      // follow round — the same turn, and the same direction, that the rigid
+      // crop applies.
+      let tl = quarterTurned ? quad.tr : quad.tl
+      let tr = quarterTurned ? quad.br : quad.tr
+      let br = quarterTurned ? quad.bl : quad.br
+      let bl = quarterTurned ? quad.tl : quad.bl
+
+      guard let filter = CIFilter(name: "CIPerspectiveCorrection") else { return nil }
+      filter.setValue(ciImage, forKey: kCIInputImageKey)
+      filter.setValue(out(tl), forKey: "inputTopLeft")
+      filter.setValue(out(tr), forKey: "inputTopRight")
+      filter.setValue(out(br), forKey: "inputBottomRight")
+      filter.setValue(out(bl), forKey: "inputBottomLeft")
+
+      guard let output = filter.outputImage else { return nil }
+      let box = output.extent
+
+      // A badly-formed quad — three corners nearly in a line — makes this
+      // filter produce something enormous or infinite rather than failing.
+      let longestSide = max(extent.width, extent.height)
+      guard
+        box.width.isFinite, box.height.isFinite,
+        box.width > longestSide * 0.10,
+        box.height > longestSide * 0.10,
+        box.width < longestSide * 2, box.height < longestSide * 2
+      else { return nil }
+
+      return output
     }
 
     /// The cropped card at one candidate rotation, validated for size.

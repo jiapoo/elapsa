@@ -34,6 +34,28 @@ extension DocumentSortLabel on DocumentSort {
   };
 }
 
+extension WalletDisplayLabel on WalletDisplay {
+  String label(L l) => switch (this) {
+    WalletDisplay.nameOnly => l.displayNameOnly,
+    WalletDisplay.imageOnly => l.displayImageOnly,
+    WalletDisplay.nameAndImage => l.displayNameAndImage,
+  };
+
+  String description(L l) => switch (this) {
+    WalletDisplay.nameOnly => l.displayNameOnlyBody,
+    WalletDisplay.imageOnly => l.displayImageOnlyBody,
+    WalletDisplay.nameAndImage => l.displayNameAndImageBody,
+  };
+}
+
+extension AppThemeLabel on AppTheme {
+  String label(L l) => switch (this) {
+    AppTheme.system => l.themeSystem,
+    AppTheme.light => l.themeLight,
+    AppTheme.dark => l.themeDark,
+  };
+}
+
 extension DocumentDetailLabel on DocumentDetail {
   String label(L l) => switch (this) {
     DocumentDetail.cardholderName => l.detailCardholderName,

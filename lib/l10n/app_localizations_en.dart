@@ -443,4 +443,87 @@ class LEn extends L {
   @override
   String get notifyChannelDescription =>
       'Tells you when to start renewing a document, not when it is too late.';
+
+  @override
+  String get settingsAppearance => 'Appearance';
+
+  @override
+  String get settingsTheme => 'Theme';
+
+  @override
+  String get themeSystem => 'Follow device';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get settingsWallet => 'Wallet';
+
+  @override
+  String get settingsWalletDisplay => 'Show each card as';
+
+  @override
+  String get displayNameOnly => 'Name only';
+
+  @override
+  String get displayImageOnly => 'Picture only';
+
+  @override
+  String get displayNameAndImage => 'Name and picture';
+
+  @override
+  String get displayNameOnlyBody =>
+      'A compact list. Nothing on screen anyone could read over your shoulder.';
+
+  @override
+  String get displayImageOnlyBody =>
+      'Your own photographs, the way a wallet looks when it is open.';
+
+  @override
+  String get displayNameAndImageBody =>
+      'The photograph with its name and expiry underneath.';
+
+  @override
+  String get settingsRemindersTitle => 'Reminders';
+
+  @override
+  String get settingsRemindersLead => 'Remind me by default';
+
+  @override
+  String get settingsRemindersBody =>
+      'Applied to new documents. Each one can still be changed on its own.';
+
+  @override
+  String get settingsRemindersAuto => 'Choose for each document';
+
+  @override
+  String get settingsScheduled => 'Scheduled reminders';
+
+  @override
+  String get settingsResync => 'Rebuild the schedule';
+
+  @override
+  String get settingsResyncDone => 'Reminder schedule rebuilt.';
+
+  @override
+  String get settingsDiagnostics => 'Diagnostics';
+
+  @override
+  String get settingsLastScan => 'Last scan';
+
+  @override
+  String get settingsLastScanBody =>
+      'Exactly what the camera read, before Elapsa made sense of it. Useful when a field comes back empty.';
+
+  @override
+  String get settingsLastScanEmpty => 'Nothing scanned yet in this session.';
+
+  @override
+  String get actionCopy => 'Copy';
+
+  @override
+  String get settingsCopied => 'Copied.';
 }

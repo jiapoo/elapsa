@@ -34,6 +34,16 @@ class HomeScreen extends ConsumerWidget {
                 PopupMenuItem(value: sort, child: Text(sort.label(l))),
             ],
           ),
+          PopupMenuButton<WalletDisplay>(
+            icon: const Icon(Icons.dashboard_customize_outlined),
+            tooltip: l.settingsWalletDisplay,
+            initialValue: ref.watch(displayProvider),
+            onSelected: (d) => ref.read(displayProvider.notifier).select(d),
+            itemBuilder: (context) => [
+              for (final display in WalletDisplay.values)
+                PopupMenuItem(value: display, child: Text(display.label(l))),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             tooltip: l.remindersTitle(0),
@@ -53,7 +63,11 @@ class HomeScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('$e')),
         data: (docs) => docs.isEmpty
             ? const _EmptyState()
-            : _Wallet(documents: docs, sort: ref.watch(sortProvider)),
+            : _Wallet(
+                documents: docs,
+                sort: ref.watch(sortProvider),
+                display: ref.watch(displayProvider),
+              ),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
@@ -154,10 +168,15 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Wallet extends StatelessWidget {
-  const _Wallet({required this.documents, required this.sort});
+  const _Wallet({
+    required this.documents,
+    required this.sort,
+    required this.display,
+  });
 
   final List<TrackedDocument> documents;
   final DocumentSort sort;
+  final WalletDisplay display;
 
   /// Orders one section.
   ///
@@ -196,17 +215,23 @@ class _Wallet extends StatelessWidget {
       l,
     );
 
+    // Without pictures the entries are single rows, and the generous spacing
+    // that a wall of cards needs turns into a list adrift on the page.
+    final dense = !display.showsImage;
+
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
+      padding: EdgeInsets.fromLTRB(16, 8, 16, dense ? 120 : 140),
       children: [
         if (needsAttention.isNotEmpty) ...[
           _SectionHeader(l.homeNeedsAttention),
-          ...needsAttention.map((d) => _WalletEntry(document: d)),
-          const SizedBox(height: 20),
+          ...needsAttention.map(
+            (d) => _WalletEntry(document: d, display: display),
+          ),
+          SizedBox(height: dense ? 24 : 20),
         ],
         if (rest.isNotEmpty) ...[
           _SectionHeader(l.homeEverythingElse),
-          ...rest.map((d) => _WalletEntry(document: d)),
+          ...rest.map((d) => _WalletEntry(document: d, display: display)),
         ],
       ],
     );
@@ -233,160 +258,273 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-/// One document: its card face, with the urgency read underneath.
+/// One document, at whichever density the user asked for.
 ///
-/// The status line sits below the card rather than on it. The card is the
-/// document as it exists in the world; the countdown is Elapsa's opinion about
-/// it, and conflating the two makes the card look like something official it
-/// is not.
+/// The status line always survives. Whatever else is hidden, an app whose
+/// entire purpose is telling you when to start renewing cannot show a list
+/// that does not say.
 class _WalletEntry extends StatelessWidget {
-  const _WalletEntry({required this.document});
+  const _WalletEntry({required this.document, required this.display});
+
+  final TrackedDocument document;
+  final WalletDisplay display;
+
+  @override
+  Widget build(BuildContext context) {
+    void open() => Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => EditDocumentScreen(existing: document),
+      ),
+    );
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: display.showsImage ? 22 : 10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: open,
+        child: display.showsImage
+            ? _Framed(document: document, withName: display.showsName)
+            : _Listed(document: document),
+      ),
+    );
+  }
+}
+
+/// The picture, full width, with as much or as little written under it as the
+/// display mode allows.
+class _Framed extends StatelessWidget {
+  const _Framed({required this.document, required this.withName});
+
+  final TrackedDocument document;
+  final bool withName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            DocumentCardFace(document: document, compact: true),
+            if (document.imageCount > 1)
+              Positioned(
+                right: 10,
+                bottom: 10,
+                child: _PageCount(count: document.imageCount),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (withName) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              document.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: _Status(document: document),
+        ),
+        if (document.isTravelRestricted())
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 8),
+            child: _TravelWarning(),
+          ),
+      ],
+    );
+  }
+}
+
+/// One row: the type's mark, the name, and the countdown.
+///
+/// No photograph at all — which is the point of the mode. A document is the
+/// one thing on a phone you might not want rendered life-size on a screen
+/// somebody else can see.
+class _Listed extends StatelessWidget {
+  const _Listed({required this.document});
 
   final TrackedDocument document;
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final palette = StatusPalette.from(context);
-    final status = document.status();
-    final colour = palette.of(status);
-    final days = document.daysRemaining();
+    final scheme = Theme.of(context).colorScheme;
+    final colour = StatusPalette.from(context).of(document.status());
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 22),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => EditDocumentScreen(existing: document),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          // A stripe rather than a badge: it reads as urgency at the edge of
+          // vision, in a row that is otherwise all text.
+          Container(
+            width: 3,
+            height: 34,
+            decoration: BoxDecoration(
+              color: colour,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
+          const SizedBox(width: 12),
+          Icon(document.type.icon, size: 19, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                DocumentCardFace(document: document, compact: true),
-                if (document.imageCount > 1)
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.collections_outlined,
-                            size: 11,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            '${document.imageCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                Text(
+                  document.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _statusLine(document, l),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                document.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
-              ),
+          ),
+          if (document.isTravelRestricted()) ...[
+            const SizedBox(width: 8),
+            Icon(
+              Icons.flight_takeoff,
+              size: 15,
+              color: StatusPalette.from(context).critical,
             ),
-            const SizedBox(height: 6),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: colour.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      status.label(l).toUpperCase(),
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colour,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _statusLine(l, days),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (document.isTravelRestricted())
-              Padding(
-                padding: const EdgeInsets.only(left: 4, top: 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.flight_takeoff,
-                      size: 13,
-                      color: palette.critical,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        l.travelRuleBadge,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: palette.critical,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
           ],
-        ),
+        ],
       ),
     );
   }
+}
 
-  String _statusLine(L l, int days) {
-    if (days < 0) return l.daysAgo(-days);
-    if (document.status() == DocumentStatus.actionNeeded) {
-      return '${l.daysLeft(days)} · ${l.startRenewingNow}';
-    }
-    return l.daysLeft(days);
+/// The urgency read: Elapsa's opinion, kept off the card itself.
+///
+/// The card is the document as it exists in the world; the countdown is what
+/// this app thinks about it, and conflating the two makes the card look like
+/// something official it is not.
+class _Status extends StatelessWidget {
+  const _Status({required this.document});
+
+  final TrackedDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final status = document.status();
+    final colour = StatusPalette.from(context).of(status);
+
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: colour.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Text(
+            status.label(l).toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: colour,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            _statusLine(document, l),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
   }
+}
+
+class _PageCount extends StatelessWidget {
+  const _PageCount({required this.count});
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.collections_outlined, size: 11, color: Colors.white),
+          const SizedBox(width: 5),
+          Text(
+            '$count',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TravelWarning extends StatelessWidget {
+  const _TravelWarning();
+
+  @override
+  Widget build(BuildContext context) {
+    final critical = StatusPalette.from(context).critical;
+
+    return Row(
+      children: [
+        Icon(Icons.flight_takeoff, size: 13, color: critical),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            L.of(context).travelRuleBadge,
+            style: Theme.of(context).textTheme.labelSmall
+                ?.copyWith(color: critical, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _statusLine(TrackedDocument document, L l) {
+  final days = document.daysRemaining();
+  if (days < 0) return l.daysAgo(-days);
+  if (document.status() == DocumentStatus.actionNeeded) {
+    return '${l.daysLeft(days)} · ${l.startRenewingNow}';
+  }
+  return l.daysLeft(days);
 }
 
 class _EmptyState extends StatelessWidget {

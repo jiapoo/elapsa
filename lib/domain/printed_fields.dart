@@ -51,15 +51,15 @@ class PrintedFields {
   /// dates, the back carries the security code. Keeping only the first page
   /// that yielded anything threw the other half away.
   PrintedFields mergedWith(PrintedFields other) => PrintedFields(
-        expiryDate: expiryDate ?? other.expiryDate,
-        issueDate: issueDate ?? other.issueDate,
-        documentNumber: documentNumber ?? other.documentNumber,
-        type: type ?? other.type,
-        issuer: issuer ?? other.issuer,
-        securityCode: securityCode ?? other.securityCode,
-        holderName: holderName ?? other.holderName,
-        neverExpires: neverExpires || other.neverExpires,
-      );
+    expiryDate: expiryDate ?? other.expiryDate,
+    issueDate: issueDate ?? other.issueDate,
+    documentNumber: documentNumber ?? other.documentNumber,
+    type: type ?? other.type,
+    issuer: issuer ?? other.issuer,
+    securityCode: securityCode ?? other.securityCode,
+    holderName: holderName ?? other.holderName,
+    neverExpires: neverExpires || other.neverExpires,
+  );
 
   bool get isEmpty =>
       expiryDate == null &&
@@ -115,7 +115,9 @@ class PrintedFieldParser {
   /// So every one is collected and the latest wins. Between an issue date and
   /// an expiry the expiry is always the later, and that holds whatever order
   /// the lines arrive in and whichever captions the recogniser dropped.
-  static final _monthYear = RegExp(r'(?<![\d/])(\d{1,2})\s*/\s*(\d{2})(?![\d/])');
+  static final _monthYear = RegExp(
+    r'(?<![\d/])(\d{1,2})\s*/\s*(\d{2})(?![\d/])',
+  );
 
   /// A three-digit security code, printed after the last four of the card
   /// number on the signature panel.
@@ -148,7 +150,7 @@ class PrintedFieldParser {
   /// four, sometimes with a further group on a nineteen-digit UnionPay card.
   ///
   /// The grouping is itself the evidence. Nothing else on a document is laid
-  /// out as `4514 6176 5081 6954`, so this needs no corroborating wording —
+  /// out as `4539 1488 0343 6467`, so this needs no corroborating wording —
   /// which matters, because requiring the word "bank" meant one bad line of
   /// recognition threw the number away.
   ///
@@ -193,6 +195,118 @@ class PrintedFieldParser {
     caseSensitive: false,
   );
 
+  /// Digits that a recogniser hands back as letters.
+  ///
+  /// The number is *embossed*, not printed: it is the same colour as the card
+  /// and is read by its shadow alone. A misread character is ordinary there in
+  /// a way it never is on flat print, which is why the dates and the name come
+  /// back perfectly from a photo whose number does not.
+  static const _lookalikeDigits = {
+    'O': '0',
+    'D': '0',
+    'Q': '0',
+    'I': '1',
+    'L': '1',
+    '|': '1',
+    '!': '1',
+    'Z': '2',
+    'A': '4',
+    'S': '5',
+    'G': '6',
+    'T': '7',
+    'B': '8',
+  };
+
+  /// The checksum every payment card number carries (ISO/IEC 7812).
+  static bool _passesLuhn(String digits) {
+    var sum = 0;
+    var doubling = false;
+    for (var i = digits.length - 1; i >= 0; i--) {
+      var digit = digits.codeUnitAt(i) - 0x30;
+      if (digit < 0 || digit > 9) return false;
+      if (doubling) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      doubling = !doubling;
+    }
+    return sum % 10 == 0;
+  }
+
+  /// One whitespace-separated token read as a group of digits, or null when it
+  /// is not one.
+  ///
+  /// Letters standing in for digits are folded back, but only in a token that
+  /// is already mostly digits — otherwise `GOOD` reads as `6000` and every
+  /// word on the card becomes a candidate.
+  static String? _asDigitGroup(String token) {
+    final stripped = token.replaceAll('-', '').toUpperCase();
+    if (stripped.length < 3 || stripped.length > 19) return null;
+
+    final digits = StringBuffer();
+    var certain = 0;
+    for (final char in stripped.split('')) {
+      final code = char.codeUnitAt(0);
+      if (code >= 0x30 && code <= 0x39) {
+        certain++;
+        digits.write(char);
+        continue;
+      }
+      final substitute = _lookalikeDigits[char];
+      if (substitute == null) return null;
+      digits.write(substitute);
+    }
+    if (certain < 2 || certain * 2 < stripped.length) return null;
+    return digits.toString();
+  }
+
+  /// The card number, found by its own checksum rather than by its
+  /// surroundings.
+  ///
+  /// This is the one field on a card that proves itself. Every scheme's number
+  /// satisfies Luhn, so a run of digits that passes *is* the number — no
+  /// wording has to corroborate it, and a single embossed `1488` misread as
+  /// `l488` no longer throws the whole number away, because the checksum tells
+  /// us which reading was right.
+  static String? _luhnCardNumber(String text) {
+    // Runs of adjacent digit groups. Adjacency matters: the groups are set far
+    // apart on the card and come back as separate observations, so the number
+    // arrives as four tokens that have to be tried joined.
+    final runs = <List<String>>[];
+    var run = <String>[];
+    for (final token in text.split(RegExp(r'\s+'))) {
+      final group = _asDigitGroup(token);
+      if (group == null) {
+        if (run.isNotEmpty) runs.add(run);
+        run = [];
+      } else {
+        run.add(group);
+      }
+    }
+    if (run.isNotEmpty) runs.add(run);
+
+    String? best;
+    for (final groups in runs) {
+      for (var i = 0; i < groups.length; i++) {
+        final joined = StringBuffer();
+        for (var j = i; j < groups.length; j++) {
+          joined.write(groups[j]);
+          if (joined.length > 19) break;
+          final candidate = joined.toString();
+          if (candidate.length < 13) continue;
+          // Every scheme in circulation begins 2-6. Anchoring here stops an
+          // 18-digit identity number passing on a one-in-ten fluke.
+          final first = candidate.codeUnitAt(0);
+          if (first < 0x32 || first > 0x36) continue;
+          if (!_passesLuhn(candidate)) continue;
+          if (best == null || candidate.length > best.length) best = candidate;
+        }
+      }
+    }
+    return best;
+  }
+
   PrintedFields parse(String text) {
     if (text.trim().isEmpty) return PrintedFields.empty;
 
@@ -209,7 +323,11 @@ class PrintedFieldParser {
         .firstMatch(normalised)
         ?.group(1)
         ?.replaceAll(RegExp(r'\s+'), ' ');
-    final looksLikeCard = grouped != null || _cardWording.hasMatch(normalised);
+    // A checksum-valid number is the strongest evidence there is, and it
+    // arrives before any of the wording does.
+    final luhn = _luhnCardNumber(normalised);
+    final looksLikeCard =
+        luhn != null || grouped != null || _cardWording.hasMatch(normalised);
 
     DateTime? expiry;
     var permanent = false;
@@ -249,8 +367,11 @@ class PrintedFieldParser {
     final chineseId = _chineseIdNumber.firstMatch(normalised)?.group(1);
     final card = chineseId != null
         ? null
-        : grouped ??
-            (looksLikeCard ? _cardNumber.firstMatch(normalised)?.group(1) : null);
+        : luhn ??
+              grouped ??
+              (looksLikeCard
+                  ? _cardNumber.firstMatch(normalised)?.group(1)
+                  : null);
     final number = chineseId ?? card?.replaceAll(RegExp(r'[ -]'), '');
 
     final issuer = _issuerLine.firstMatch(normalised);
@@ -259,10 +380,16 @@ class PrintedFieldParser {
       expiryDate: expiry,
       issueDate: issued,
       documentNumber: number?.toUpperCase(),
-      type: _typeFrom(normalised, hasChineseId: chineseId != null),
-      issuer: (issuer?.group(1) ?? issuer?.group(2) ?? issuer?.group(3))?.trim(),
-      securityCode:
-          looksLikeCard ? _securityCode.firstMatch(normalised)?.group(1) : null,
+      type: _typeFrom(
+        normalised,
+        hasChineseId: chineseId != null,
+        hasCardNumber: luhn != null,
+      ),
+      issuer: (issuer?.group(1) ?? issuer?.group(2) ?? issuer?.group(3))
+          ?.trim(),
+      securityCode: looksLikeCard
+          ? _securityCode.firstMatch(normalised)?.group(1)
+          : null,
       holderName: looksLikeCard ? _holderName(normalised, issuer) : null,
       neverExpires: permanent,
     );
@@ -273,29 +400,41 @@ class PrintedFieldParser {
   /// Only the phrases that appear on the document itself count — the title
   /// line or the issuing authority. A passing mention of a word elsewhere is
   /// not evidence of anything.
-  static DocumentType? _typeFrom(String text, {required bool hasChineseId}) {
+  static DocumentType? _typeFrom(
+    String text, {
+    required bool hasChineseId,
+    required bool hasCardNumber,
+  }) {
     if (text.contains('居民身份证') ||
         text.contains('居民身份證') ||
         text.contains('國民身分證') ||
         hasChineseId) {
       return DocumentType.nationalId;
     }
-    if (text.contains('驾驶证') || text.contains('駕駛執照') ||
-        RegExp(r"driver'?s\s*licen[cs]e", caseSensitive: false).hasMatch(text)) {
+    if (text.contains('驾驶证') ||
+        text.contains('駕駛執照') ||
+        RegExp(
+          r"driver'?s\s*licen[cs]e",
+          caseSensitive: false,
+        ).hasMatch(text)) {
       return DocumentType.driversLicence;
     }
     if (text.contains('行驶证') || text.contains('行車執照')) {
       return DocumentType.vehicleRegistration;
     }
-    if (text.contains('护照') || text.contains('護照') ||
+    if (text.contains('护照') ||
+        text.contains('護照') ||
         RegExp(r'\bpassport\b', caseSensitive: false).hasMatch(text)) {
       return DocumentType.passport;
     }
-    if (text.contains('居留许可') || text.contains('居留證') ||
+    if (text.contains('居留许可') ||
+        text.contains('居留證') ||
         RegExp(r'residence\s*permit', caseSensitive: false).hasMatch(text)) {
       return DocumentType.residencePermit;
     }
-    if (_cardWording.hasMatch(text) || _groupedCardNumber.hasMatch(text)) {
+    if (hasCardNumber ||
+        _cardWording.hasMatch(text) ||
+        _groupedCardNumber.hasMatch(text)) {
       return DocumentType.bankCard;
     }
     return null;

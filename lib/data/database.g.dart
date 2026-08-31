@@ -134,6 +134,17 @@ class $DocumentsTable extends Documents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _reminderOffsetsMeta = const VerificationMeta(
+    'reminderOffsets',
+  );
+  @override
+  late final GeneratedColumn<String> reminderOffsets = GeneratedColumn<String>(
+    'reminder_offsets',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -170,6 +181,7 @@ class $DocumentsTable extends Documents
     imagePath,
     imageCount,
     details,
+    reminderOffsets,
     createdAt,
     updatedAt,
   ];
@@ -265,6 +277,15 @@ class $DocumentsTable extends Documents
         details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
       );
     }
+    if (data.containsKey('reminder_offsets')) {
+      context.handle(
+        _reminderOffsetsMeta,
+        reminderOffsets.isAcceptableOrUnknown(
+          data['reminder_offsets']!,
+          _reminderOffsetsMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -340,6 +361,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}details'],
       ),
+      reminderOffsets: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_offsets'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -383,6 +408,10 @@ class Document extends DataClass implements Insertable<Document> {
   /// field, and a table full of nulls — a bank card has no plate number and a
   /// passport has no security code.
   final String? details;
+
+  /// The reminder times the user chose, in days before expiry, comma
+  /// separated. Null means they never chose and the conventional set applies.
+  final String? reminderOffsets;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Document({
@@ -398,6 +427,7 @@ class Document extends DataClass implements Insertable<Document> {
     this.imagePath,
     required this.imageCount,
     this.details,
+    this.reminderOffsets,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -430,6 +460,9 @@ class Document extends DataClass implements Insertable<Document> {
     if (!nullToAbsent || details != null) {
       map['details'] = Variable<String>(details);
     }
+    if (!nullToAbsent || reminderOffsets != null) {
+      map['reminder_offsets'] = Variable<String>(reminderOffsets);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -461,6 +494,9 @@ class Document extends DataClass implements Insertable<Document> {
       details: details == null && nullToAbsent
           ? const Value.absent()
           : Value(details),
+      reminderOffsets: reminderOffsets == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderOffsets),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -486,6 +522,7 @@ class Document extends DataClass implements Insertable<Document> {
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       imageCount: serializer.fromJson<int>(json['imageCount']),
       details: serializer.fromJson<String?>(json['details']),
+      reminderOffsets: serializer.fromJson<String?>(json['reminderOffsets']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -508,6 +545,7 @@ class Document extends DataClass implements Insertable<Document> {
       'imagePath': serializer.toJson<String?>(imagePath),
       'imageCount': serializer.toJson<int>(imageCount),
       'details': serializer.toJson<String?>(details),
+      'reminderOffsets': serializer.toJson<String?>(reminderOffsets),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -526,6 +564,7 @@ class Document extends DataClass implements Insertable<Document> {
     Value<String?> imagePath = const Value.absent(),
     int? imageCount,
     Value<String?> details = const Value.absent(),
+    Value<String?> reminderOffsets = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Document(
@@ -545,6 +584,9 @@ class Document extends DataClass implements Insertable<Document> {
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     imageCount: imageCount ?? this.imageCount,
     details: details.present ? details.value : this.details,
+    reminderOffsets: reminderOffsets.present
+        ? reminderOffsets.value
+        : this.reminderOffsets,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -572,6 +614,9 @@ class Document extends DataClass implements Insertable<Document> {
           ? data.imageCount.value
           : this.imageCount,
       details: data.details.present ? data.details.value : this.details,
+      reminderOffsets: data.reminderOffsets.present
+          ? data.reminderOffsets.value
+          : this.reminderOffsets,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -592,6 +637,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('imagePath: $imagePath, ')
           ..write('imageCount: $imageCount, ')
           ..write('details: $details, ')
+          ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -612,6 +658,7 @@ class Document extends DataClass implements Insertable<Document> {
     imagePath,
     imageCount,
     details,
+    reminderOffsets,
     createdAt,
     updatedAt,
   );
@@ -631,6 +678,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.imagePath == this.imagePath &&
           other.imageCount == this.imageCount &&
           other.details == this.details &&
+          other.reminderOffsets == this.reminderOffsets &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -648,6 +696,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<String?> imagePath;
   final Value<int> imageCount;
   final Value<String?> details;
+  final Value<String?> reminderOffsets;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -664,6 +713,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.imagePath = const Value.absent(),
     this.imageCount = const Value.absent(),
     this.details = const Value.absent(),
+    this.reminderOffsets = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -681,6 +731,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.imagePath = const Value.absent(),
     this.imageCount = const Value.absent(),
     this.details = const Value.absent(),
+    this.reminderOffsets = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -704,6 +755,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<String>? imagePath,
     Expression<int>? imageCount,
     Expression<String>? details,
+    Expression<String>? reminderOffsets,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -721,6 +773,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (imagePath != null) 'image_path': imagePath,
       if (imageCount != null) 'image_count': imageCount,
       if (details != null) 'details': details,
+      if (reminderOffsets != null) 'reminder_offsets': reminderOffsets,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -740,6 +793,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<String?>? imagePath,
     Value<int>? imageCount,
     Value<String?>? details,
+    Value<String?>? reminderOffsets,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -757,6 +811,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       imagePath: imagePath ?? this.imagePath,
       imageCount: imageCount ?? this.imageCount,
       details: details ?? this.details,
+      reminderOffsets: reminderOffsets ?? this.reminderOffsets,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -804,6 +859,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     if (details.present) {
       map['details'] = Variable<String>(details.value);
     }
+    if (reminderOffsets.present) {
+      map['reminder_offsets'] = Variable<String>(reminderOffsets.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -831,6 +889,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('imagePath: $imagePath, ')
           ..write('imageCount: $imageCount, ')
           ..write('details: $details, ')
+          ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -864,6 +923,7 @@ typedef $$DocumentsTableCreateCompanionBuilder =
       Value<String?> imagePath,
       Value<int> imageCount,
       Value<String?> details,
+      Value<String?> reminderOffsets,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -882,6 +942,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder =
       Value<String?> imagePath,
       Value<int> imageCount,
       Value<String?> details,
+      Value<String?> reminderOffsets,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -954,6 +1015,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<String> get details => $composableBuilder(
     column: $table.details,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderOffsets => $composableBuilder(
+    column: $table.reminderOffsets,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1037,6 +1103,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get reminderOffsets => $composableBuilder(
+    column: $table.reminderOffsets,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1103,6 +1174,11 @@ class $$DocumentsTableAnnotationComposer
   GeneratedColumn<String> get details =>
       $composableBuilder(column: $table.details, builder: (column) => column);
 
+  GeneratedColumn<String> get reminderOffsets => $composableBuilder(
+    column: $table.reminderOffsets,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -1150,6 +1226,7 @@ class $$DocumentsTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<int> imageCount = const Value.absent(),
                 Value<String?> details = const Value.absent(),
+                Value<String?> reminderOffsets = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1166,6 +1243,7 @@ class $$DocumentsTableTableManager
                 imagePath: imagePath,
                 imageCount: imageCount,
                 details: details,
+                reminderOffsets: reminderOffsets,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -1184,6 +1262,7 @@ class $$DocumentsTableTableManager
                 Value<String?> imagePath = const Value.absent(),
                 Value<int> imageCount = const Value.absent(),
                 Value<String?> details = const Value.absent(),
+                Value<String?> reminderOffsets = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -1200,6 +1279,7 @@ class $$DocumentsTableTableManager
                 imagePath: imagePath,
                 imageCount: imageCount,
                 details: details,
+                reminderOffsets: reminderOffsets,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

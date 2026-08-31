@@ -12,7 +12,6 @@ import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
-import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 class EditDocumentScreen extends ConsumerStatefulWidget {
   const EditDocumentScreen({super.key, this.existing, this.session});
@@ -35,7 +34,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   late TextEditingController _documentNumber;
   DateTime? _expiryDate;
   DateTime? _issueDate;
-  late int _renewalLeadDays;
+  late Set<int> _reminderOffsets;
   String? _issuingCountry;
 
   /// One controller per detail, kept for every kind of document rather than
@@ -51,6 +50,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   final _images = <Uint8List>[];
 
   bool _fromScan = false;
+
+  /// Whether the editing list holds the document's whole set of pictures, and
+  /// so can be written back over it.
+  bool _imagesLoaded = false;
 
   /// Whether the scan actually yielded any field, as opposed to only a
   /// picture. Claiming "filled in from the document" over an empty form is
@@ -77,16 +80,21 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
-    _renewalLeadDays =
-        existing?.renewalLeadDays ?? _type.defaultRenewalLeadDays;
-    _leadDaysIsAuto =
-        existing == null ||
-        existing.renewalLeadDays == existing.type.defaultRenewalLeadDays;
+    _reminderOffsets = {
+      ...(existing?.reminderOffsetDays ??
+          _defaultOffsets(_type.defaultRenewalLeadDays)),
+    };
+    _leadDaysIsAuto = existing == null || !existing.hasChosenReminders;
 
     for (final detail in DocumentDetail.values) {
       _details[detail] = TextEditingController(
         text: existing?.details[detail] ?? '',
       );
+    }
+
+    final existingImages = widget.existing;
+    if (existingImages != null && existingImages.imageCount > 0) {
+      _loadStoredImages(existingImages);
     }
 
     final session = widget.session;
@@ -115,7 +123,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// Retake replaces it: the old one goes and the scanner opens for its
   /// successor. Delete simply removes it. Neither is guessable from a
   /// thumbnail, so both are named.
-  Future<void> _pictureOptions(int index, {required bool stored}) async {
+  Future<void> _pictureOptions(int index) async {
     final l = L.of(context);
     final choice = await showDialog<String>(
       context: context,
@@ -139,23 +147,27 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     );
     if (choice == null || !mounted) return;
 
-    if (stored) {
-      await ref
-          .read(documentRepositoryProvider)
-          .removeImage(widget.existing!, index);
-      if (!mounted) return;
-      // The stored set changed underneath this screen, so leave rather than
-      // show a form built from a document that no longer matches.
-      if (choice == 'delete') {
-        Navigator.of(context).pop();
-        return;
-      }
-    } else {
-      setState(() => _images.removeAt(index));
-      if (choice == 'delete') return;
-    }
+    setState(() => _images.removeAt(index));
+    if (choice == 'delete') return;
 
     await _scan();
+  }
+
+  /// Brings a saved document's pictures into the editing list.
+  ///
+  /// One list for everything means reordering, deleting and adding are the
+  /// same operation whether the document has been saved before or not.
+  Future<void> _loadStoredImages(TrackedDocument document) async {
+    final loaded = await ref
+        .read(documentImageStoreProvider)
+        .loadAll(document.id, document.imageCount);
+    if (!mounted || loaded.isEmpty) return;
+    setState(() {
+      _images
+        ..clear()
+        ..addAll(loaded);
+      _imagesLoaded = true;
+    });
   }
 
   Future<void> _scan() async {
@@ -189,7 +201,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (printed.type != null) {
         _type = printed.type!;
         if (_leadDaysIsAuto) {
-          _renewalLeadDays = _type.defaultRenewalLeadDays;
+          _reminderOffsets = {..._defaultOffsets(_type.defaultRenewalLeadDays)};
         }
       }
       if (printed.expiryDate != null) _expiryDate = printed.expiryDate;
@@ -223,7 +235,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (scannedType != null) {
         _type = scannedType;
         if (_leadDaysIsAuto) {
-          _renewalLeadDays = scannedType.defaultRenewalLeadDays;
+          _reminderOffsets = {
+            ..._defaultOffsets(scannedType.defaultRenewalLeadDays),
+          };
         }
       }
 
@@ -294,15 +308,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
               _CapturedPages(
                 images: _images,
                 onAdd: _scan,
-                onTapImage: (index) => _pictureOptions(index, stored: false),
-              ),
-              const SizedBox(height: 24),
-            ] else if (_isEditing && widget.existing!.imageCount > 0) ...[
-              _Label(l.fieldImages),
-              _StoredPages(
-                document: widget.existing!,
-                onRescan: _scan,
-                onTapImage: (index) => _pictureOptions(index, stored: true),
+                onTapImage: _pictureOptions,
+                onReorder: (from, to) => setState(() {
+                  _images.insert(to, _images.removeAt(from));
+                }),
               ),
               const SizedBox(height: 24),
             ] else ...[
@@ -366,7 +375,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                 setState(() {
                   _type = value;
                   if (_leadDaysIsAuto) {
-                    _renewalLeadDays = value.defaultRenewalLeadDays;
+                    _reminderOffsets = {
+                      ..._defaultOffsets(value.defaultRenewalLeadDays),
+                    };
                   }
                 });
               },
@@ -412,9 +423,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
             _Label(l.fieldRemindMe),
             _LeadTimeField(
-              days: _renewalLeadDays,
-              onChanged: (days) => setState(() {
-                _renewalLeadDays = days;
+              selected: _reminderOffsets,
+              onToggle: (days) => setState(() {
+                if (!_reminderOffsets.remove(days)) _reminderOffsets.add(days);
+                // Never leave a document with no reminder at all; that is a
+                // silent way to fail at the app's only job.
+                if (_reminderOffsets.isEmpty) _reminderOffsets.add(days);
                 _leadDaysIsAuto = false;
               }),
             ),
@@ -463,6 +477,22 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     );
   }
 
+  /// The conventional set: when to start, then a tail as the date closes in.
+  static List<int> _defaultOffsets(int leadDays) =>
+      <int>{
+          leadDays,
+          90,
+          30,
+          7,
+          1,
+        }.where((d) => d > 0 && d <= leadDays).toList()
+        ..sort((a, b) => b.compareTo(a));
+
+  /// The earliest reminder, which is also when renewal should begin.
+  int get _renewalLeadDays => _reminderOffsets.isEmpty
+      ? 1
+      : _reminderOffsets.reduce((a, b) => a > b ? a : b);
+
   String _leadTimeExplanation(L l) {
     if (_expiryDate == null) {
       return l.leadExplainNoDate(leadTimeLabel(l, _renewalLeadDays));
@@ -503,14 +533,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         expiryDate: _expiryDate,
         issueDate: _issueDate,
         renewalLeadDays: _renewalLeadDays,
+        reminderOffsets: _reminderOffsets.toList(),
         details: details,
       );
-      if (_images.isEmpty) {
-        await repo.save(updated);
+      if (_imagesLoaded) {
+        // The editor holds the whole set, in the order shown, so it is written
+        // back as it stands — that is what makes reordering and deleting work.
+        await repo.setImages(updated, _images);
       } else {
-        // Added alongside whatever the document already had, for the same
-        // reason: a new side is an addition, not a replacement.
-        await repo.appendImages(updated, _images);
+        await repo.save(updated);
       }
     } else {
       // Permission first. iOS silently discards notifications scheduled while
@@ -523,6 +554,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         label: _label.text.trim(),
         expiryDate: _expiryDate!,
         renewalLeadDays: _renewalLeadDays,
+        reminderOffsets: _reminderOffsets.toList(),
         holder: holder.isEmpty ? null : holder,
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
@@ -561,17 +593,27 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   }
 }
 
-/// Lays out a row of card-shaped tiles.
+/// The pictures of a document, in order.
 ///
-/// Sized so the next tile always breaks the right edge. A strip whose contents
-/// fit exactly gives no sign that it scrolls, which is why a card looked like
-/// it could hold only the two pictures that happened to fit — leaving the next
-/// one half off the edge says "there is more" without a line of text.
-class _PageStrip extends StatelessWidget {
-  const _PageStrip({required this.count, required this.tile});
+/// Sized so the next tile always breaks the right edge: a strip whose contents
+/// fit exactly gives no sign it scrolls, and people stopped at whatever fitted.
+///
+/// Hold one to drag it somewhere else in the row. Which side of a card came
+/// out first is an accident of which way round it was lying, and the first
+/// picture is the face shown in the wallet — so being able to say "that one"
+/// matters more than it sounds.
+class _CapturedPages extends StatelessWidget {
+  const _CapturedPages({
+    required this.images,
+    required this.onAdd,
+    required this.onTapImage,
+    required this.onReorder,
+  });
 
-  final int count;
-  final Widget Function(BuildContext context, int index, Size size) tile;
+  final List<Uint8List> images;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onTapImage;
+  final void Function(int oldIndex, int newIndex) onReorder;
 
   static const _visibleTiles = 1.9;
   static const _gap = 10.0;
@@ -585,99 +627,35 @@ class _PageStrip extends StatelessWidget {
 
         return SizedBox(
           height: size.height,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: count,
-            separatorBuilder: (_, _) => const SizedBox(width: _gap),
-            itemBuilder: (context, index) => tile(context, index, size),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Pictures captured in this session, not yet saved.
-class _CapturedPages extends StatelessWidget {
-  const _CapturedPages({
-    required this.images,
-    required this.onAdd,
-    required this.onTapImage,
-  });
-
-  final List<Uint8List> images;
-  final VoidCallback onAdd;
-  final ValueChanged<int> onTapImage;
-
-  @override
-  Widget build(BuildContext context) {
-    return _PageStrip(
-      count: images.length + 1,
-      tile: (context, index, size) {
-        if (index == images.length) {
-          return _AddPageTile(onTap: onAdd, size: size);
-        }
-        return GestureDetector(
-          onTap: () => onTapImage(index),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.memory(
-              images[index],
-              width: size.width,
-              height: size.height,
-              fit: BoxFit.cover,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Pictures already stored against a saved document.
-class _StoredPages extends ConsumerWidget {
-  const _StoredPages({
-    required this.document,
-    required this.onRescan,
-    required this.onTapImage,
-  });
-
-  final TrackedDocument document;
-  final VoidCallback onRescan;
-  final ValueChanged<int> onTapImage;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return _PageStrip(
-      count: document.imageCount + 1,
-      tile: (context, index, size) {
-        if (index == document.imageCount) {
-          return _AddPageTile(onTap: onRescan, size: size);
-        }
-        final bytes = ref
-            .watch(documentImageProvider(DocumentImageRef(document.id, index)))
-            .asData
-            ?.value;
-        return GestureDetector(
-          onTap: () => onTapImage(index),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: bytes == null
-                ? SizedBox(
-                    width: size.width,
-                    height: size.height,
-                    child: ColoredBox(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainerHighest,
+          child: Row(
+            children: [
+              Expanded(
+                child: ReorderableListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  onReorderItem: onReorder,
+                  itemCount: images.length,
+                  // A long press starts the drag, which leaves a plain tap
+                  // free for the retake and delete choices.
+                  itemBuilder: (context, index) => Padding(
+                    key: ValueKey(images[index].hashCode ^ index),
+                    padding: const EdgeInsets.only(right: _gap),
+                    child: GestureDetector(
+                      onTap: () => onTapImage(index),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.memory(
+                          images[index],
+                          width: size.width,
+                          height: size.height,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
                     ),
-                  )
-                : Image.memory(
-                    bytes,
-                    width: size.width,
-                    height: size.height,
-                    fit: BoxFit.cover,
                   ),
+                ),
+              ),
+              _AddPageTile(onTap: onAdd, size: size),
+            ],
           ),
         );
       },
@@ -858,15 +836,23 @@ class _DateField extends StatelessWidget {
   }
 }
 
+/// When to be reminded — as many times as the user likes.
+///
+/// One reminder is rarely enough. Someone wants to hear about a passport nine
+/// months out so they can start, and again a fortnight before they travel; a
+/// single choice forced them to pick which of those mattered.
+///
+/// The earliest one selected is also when renewal should begin, so the status
+/// on the list still follows it and nothing needs saying twice.
 class _LeadTimeField extends StatelessWidget {
-  const _LeadTimeField({required this.days, required this.onChanged});
+  const _LeadTimeField({required this.selected, required this.onToggle});
 
-  final int days;
-  final ValueChanged<int> onChanged;
+  final Set<int> selected;
+  final ValueChanged<int> onToggle;
 
   /// Presets rather than a free-form number: the exact day is not meaningful,
   /// and a slider that lands on "173 days" makes the app feel fiddly.
-  static const _options = [30, 60, 90, 120, 180, 270, 365];
+  static const _options = [7, 30, 60, 90, 120, 180, 270, 365];
 
   @override
   Widget build(BuildContext context) {
@@ -875,10 +861,10 @@ class _LeadTimeField extends StatelessWidget {
       spacing: 8,
       runSpacing: 8,
       children: _options.map((d) {
-        return ChoiceChip(
+        return FilterChip(
           label: Text(leadTimeLabel(l, d)),
-          selected: d == days,
-          onSelected: (_) => onChanged(d),
+          selected: selected.contains(d),
+          onSelected: (_) => onToggle(d),
         );
       }).toList(),
     );

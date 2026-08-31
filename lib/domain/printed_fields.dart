@@ -144,7 +144,19 @@ class PrintedFieldParser {
   /// character.
   static final _chineseIdNumber = RegExp(r'(?<!\d)(\d{17}[\dXx])(?!\d)');
 
-  /// A payment card number: 13 to 19 digits, usually printed in groups.
+  /// A payment card number printed the way cards print it: four groups of
+  /// four, sometimes with a further group on a nineteen-digit UnionPay card.
+  ///
+  /// The grouping is itself the evidence. Nothing else on a document is laid
+  /// out as `4514 6176 5081 6954`, so this needs no corroborating wording —
+  /// which matters, because requiring the word "bank" meant one bad line of
+  /// recognition threw the number away.
+  static final _groupedCardNumber = RegExp(
+    r'(?<![\d/])(\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{4}(?:[ -]\d{1,3})?)(?![\d/])',
+  );
+
+  /// An unbroken run of 13 to 19 digits. Could be a card number, could be an
+  /// IMEI or a policy number, so this one does need the wording to back it up.
   static final _cardNumber = RegExp(
     r'(?<![\d/])((?:\d[ -]?){12,18}\d)(?![\d/])',
   );
@@ -169,9 +181,10 @@ class PrintedFieldParser {
   /// something here matches — a bare `10/28` on any other piece of paper must
   /// not become an expiry.
   static final _cardWording = RegExp(
-    r'银联|銀聯|储蓄卡|儲蓄卡|信用卡|借记卡|'
-    r'unionpay|\bdebit\b|\bcredit\b|\bbank\b|\bcard\b|'
-    r'valid\s*thru|valid\s*through|good\s*thru|month\s*/\s*year',
+    r'银联|銀聯|银行|銀行|储蓄卡|儲蓄卡|信用卡|借记卡|'
+    r'unionpay|mastercard|maestro|\bjcb\b|american\s*express|'
+    r'\bdebit\b|\bcredit\b|\bbank\b|\bcard\b|'
+    r'\bthru\b|valid\s*through|month\s*/?\s*year',
     caseSensitive: false,
   );
 
@@ -187,7 +200,8 @@ class PrintedFieldParser {
     // become an excuse to read any `10/28` anywhere as an expiry. The wording
     // is the evidence now: a card says bank, or debit, or 银联, somewhere on
     // its face.
-    final looksLikeCard = _cardWording.hasMatch(normalised);
+    final grouped = _groupedCardNumber.firstMatch(normalised)?.group(1);
+    final looksLikeCard = grouped != null || _cardWording.hasMatch(normalised);
 
     DateTime? expiry;
     var permanent = false;
@@ -225,9 +239,10 @@ class PrintedFieldParser {
     // number or a serial — and inventing a document number is the same failure
     // as inventing a date.
     final chineseId = _chineseIdNumber.firstMatch(normalised)?.group(1);
-    final card = (chineseId == null && looksLikeCard)
-        ? _cardNumber.firstMatch(normalised)?.group(1)
-        : null;
+    final card = chineseId != null
+        ? null
+        : grouped ??
+            (looksLikeCard ? _cardNumber.firstMatch(normalised)?.group(1) : null);
     final number = chineseId ?? card?.replaceAll(RegExp(r'[ -]'), '');
 
     final issuer = _issuerLine.firstMatch(normalised);
@@ -272,7 +287,7 @@ class PrintedFieldParser {
         RegExp(r'residence\s*permit', caseSensitive: false).hasMatch(text)) {
       return DocumentType.residencePermit;
     }
-    if (_cardWording.hasMatch(text)) {
+    if (_cardWording.hasMatch(text) || _groupedCardNumber.hasMatch(text)) {
       return DocumentType.bankCard;
     }
     return null;

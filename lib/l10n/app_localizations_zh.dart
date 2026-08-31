@@ -178,6 +178,11 @@ class LZh extends L {
   String get leadExplainPassed => '这个时间点已经过了 — 现在就该开始办。';
 
   @override
+  String leadWeeks(int weeks) {
+    return '$weeks 周';
+  }
+
+  @override
   String leadMonths(int months) {
     return '$months 个月';
   }
@@ -311,6 +316,21 @@ class LZh extends L {
 
   @override
   String get detailHide => '隐藏';
+
+  @override
+  String get sortTitle => '排序';
+
+  @override
+  String get sortExpiry => '按到期日';
+
+  @override
+  String get sortAdded => '按添加时间';
+
+  @override
+  String get sortName => '按名称';
+
+  @override
+  String get sortType => '按类型';
 
   @override
   String get settingsTitle => '设置';
@@ -541,6 +561,11 @@ class LZhHant extends LZh {
   String get leadExplainPassed => '這個時間點已經過了 — 現在就該開始辦。';
 
   @override
+  String leadWeeks(int weeks) {
+    return '$weeks 週';
+  }
+
+  @override
   String leadMonths(int months) {
     return '$months 個月';
   }
@@ -674,6 +699,21 @@ class LZhHant extends LZh {
 
   @override
   String get detailHide => '隱藏';
+
+  @override
+  String get sortTitle => '排序';
+
+  @override
+  String get sortExpiry => '按到期日';
+
+  @override
+  String get sortAdded => '按新增時間';
+
+  @override
+  String get sortName => '按名稱';
+
+  @override
+  String get sortType => '按類型';
 
   @override
   String get settingsTitle => '設定';

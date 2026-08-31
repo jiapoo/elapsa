@@ -45,6 +45,7 @@ class DocumentRepository {
     String? issuingCountry,
     DateTime? issueDate,
     Map<DocumentDetail, String> details = const {},
+    List<int>? reminderOffsets,
 
     /// Pictures from a scan, already flattened. Encrypted into the app's own
     /// storage before anything is written to the database.
@@ -68,6 +69,7 @@ class DocumentRepository {
       imagePath: imagePath,
       imageCount: images.length,
       details: details,
+      reminderOffsets: reminderOffsets,
       createdAt: now,
       updatedAt: now,
     );
@@ -88,33 +90,17 @@ class DocumentRepository {
     await _resync();
   }
 
-  /// Removes one stored picture from a document.
-  Future<void> removeImage(domain.TrackedDocument doc, int index) async {
-    await _images.removeAt(doc.id, index, doc.imageCount);
-    final remaining = doc.imageCount - 1;
-    await save(doc.copyWith(
-      imagePath: remaining > 0 ? '${doc.id}_0.enc' : null,
-      imageCount: remaining < 0 ? 0 : remaining,
-    ));
-  }
-
-  /// Adds pictures to an existing document, keeping the ones already stored.
+  /// Replaces every picture on a document with the given set, in order.
   ///
-  /// A user photographing the back of a card expects to end up with both
-  /// sides, not to lose the front.
-  Future<void> appendImages(
+  /// Used when the editor has the whole set in hand — which it does whenever
+  /// a document is opened — so reordering, deleting and adding are all just
+  /// this one operation.
+  Future<void> setImages(
     domain.TrackedDocument doc,
     List<Uint8List> images,
   ) async {
-    if (images.isEmpty) return save(doc);
-
-    for (var i = 0; i < images.length; i++) {
-      await _images.save(doc.id, doc.imageCount + i, images[i]);
-    }
-    await save(doc.copyWith(
-      imagePath: doc.imagePath ?? '${doc.id}_0.enc',
-      imageCount: doc.imageCount + images.length,
-    ));
+    final path = await _images.saveAll(doc.id, images);
+    await save(doc.copyWith(imagePath: path, imageCount: images.length));
   }
 
   /// Rebuilds the scheduled reminders from what is currently stored.
@@ -141,9 +127,23 @@ class DocumentRepository {
       imagePath: row.imagePath,
       imageCount: row.imageCount,
       details: domain.DocumentDetails.decode(row.details),
+      reminderOffsets: _decodeOffsets(row.reminderOffsets),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
+  }
+
+  /// Parses the stored comma-separated offsets, ignoring anything that is not
+  /// a positive whole number of days.
+  static List<int>? _decodeOffsets(String? stored) {
+    if (stored == null || stored.isEmpty) return null;
+    final days = stored
+        .split(',')
+        .map((part) => int.tryParse(part.trim()))
+        .whereType<int>()
+        .where((d) => d > 0)
+        .toList();
+    return days.isEmpty ? null : days;
   }
 
   static DocumentsCompanion _toCompanion(domain.TrackedDocument doc) {
@@ -160,6 +160,9 @@ class DocumentRepository {
       imagePath: Value(doc.imagePath),
       imageCount: Value(doc.imageCount),
       details: Value(domain.DocumentDetails.encode(doc.details)),
+      reminderOffsets: Value(
+        doc.hasChosenReminders ? doc.reminderOffsetDays.join(',') : null,
+      ),
       createdAt: Value(doc.createdAt),
       updatedAt: Value(doc.updatedAt),
     );

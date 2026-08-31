@@ -398,6 +398,12 @@ abstract class L {
   /// **'That window has already passed — you should start now.'**
   String get leadExplainPassed;
 
+  /// No description provided for @leadWeeks.
+  ///
+  /// In en, this message translates to:
+  /// **'{weeks, plural, =1{1 week} other{{weeks} weeks}}'**
+  String leadWeeks(int weeks);
+
   /// No description provided for @leadMonths.
   ///
   /// In en, this message translates to:
@@ -655,6 +661,36 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Hide'**
   String get detailHide;
+
+  /// No description provided for @sortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get sortTitle;
+
+  /// No description provided for @sortExpiry.
+  ///
+  /// In en, this message translates to:
+  /// **'Expiry date'**
+  String get sortExpiry;
+
+  /// No description provided for @sortAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get sortAdded;
+
+  /// No description provided for @sortName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get sortName;
+
+  /// No description provided for @sortType.
+  ///
+  /// In en, this message translates to:
+  /// **'Type'**
+  String get sortType;
 
   /// No description provided for @settingsTitle.
   ///

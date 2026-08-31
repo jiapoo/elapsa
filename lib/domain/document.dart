@@ -41,7 +41,15 @@ class TrackedDocument {
   /// Days before expiry at which renewal should begin. Defaults from the
   /// document type but the user can override — processing times differ by
   /// country, and they know their own situation better than we do.
+  ///
+  /// Always the earliest of [reminderOffsetDays]: the first nudge is the one
+  /// that says "start now", and the status on the list follows it.
   final int renewalLeadDays;
+
+  /// The user's chosen reminder times, in days before expiry.
+  ///
+  /// Null means they never chose, and the conventional set below is used.
+  final List<int>? _chosenOffsets;
 
   /// Relative path to the first encrypted scan, if one was captured.
   final String? imagePath;
@@ -72,7 +80,8 @@ class TrackedDocument {
     this.imagePath,
     this.imageCount = 0,
     this.details = const {},
-  });
+    List<int>? reminderOffsets,
+  }) : _chosenOffsets = reminderOffsets;
 
   /// Days until expiry, measured in whole calendar days from today.
   ///
@@ -114,16 +123,23 @@ class TrackedDocument {
 
   /// Days before expiry at which to fire reminders, longest first.
   ///
-  /// The renewal lead time is always included — that is the notification that
-  /// matters — alongside a conventional tail so the user is nudged again as
-  /// the date closes in.
+  /// Whatever the user picked, or a conventional set when they picked nothing:
+  /// the renewal lead time itself, then a tail so they are nudged again as the
+  /// date closes in.
   List<int> get reminderOffsetDays {
-    final offsets = <int>{renewalLeadDays, 90, 30, 7, 1}
+    final chosen = _chosenOffsets;
+    if (chosen != null && chosen.isNotEmpty) {
+      return chosen.toSet().toList()..sort((a, b) => b.compareTo(a));
+    }
+    return <int>{renewalLeadDays, 90, 30, 7, 1}
         .where((d) => d > 0 && d <= renewalLeadDays)
         .toList()
       ..sort((a, b) => b.compareTo(a));
-    return offsets;
   }
+
+  /// True when the user chose these times rather than taking the default.
+  bool get hasChosenReminders =>
+      _chosenOffsets != null && _chosenOffsets.isNotEmpty;
 
   /// Concrete dates on which to notify, discarding any already in the past.
   List<DateTime> reminderDates({DateTime? now}) {
@@ -146,6 +162,7 @@ class TrackedDocument {
     String? imagePath,
     int? imageCount,
     Map<DocumentDetail, String>? details,
+    List<int>? reminderOffsets,
     DateTime? updatedAt,
   }) {
     return TrackedDocument(
@@ -161,6 +178,7 @@ class TrackedDocument {
       imagePath: imagePath ?? this.imagePath,
       imageCount: imageCount ?? this.imageCount,
       details: details ?? this.details,
+      reminderOffsets: reminderOffsets ?? _chosenOffsets,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

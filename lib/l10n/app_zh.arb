@@ -64,6 +64,8 @@
   "leadExplainFirst": "第一次提醒：{date}，之后随着日子临近再提醒几次。",
   "@leadExplainFirst": { "placeholders": { "date": { "type": "String" } } },
   "leadExplainPassed": "这个时间点已经过了 — 现在就该开始办。",
+  "leadWeeks": "{weeks} 周",
+  "@leadWeeks": { "placeholders": { "weeks": { "type": "int" } } },
   "leadMonths": "{months} 个月",
   "@leadMonths": { "placeholders": { "months": { "type": "int" } } },
   "leadYears": "{years} 年",
@@ -114,6 +116,12 @@
   "detailSensitiveNote": "默认隐藏，加密保存在这台手机里，绝不上传。",
   "detailReveal": "显示",
   "detailHide": "隐藏",
+
+  "sortTitle": "排序",
+  "sortExpiry": "按到期日",
+  "sortAdded": "按添加时间",
+  "sortName": "按名称",
+  "sortType": "按类型",
 
   "settingsTitle": "设置",
   "settingsLanguage": "语言",

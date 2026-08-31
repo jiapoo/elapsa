@@ -64,6 +64,8 @@
   "leadExplainFirst": "First reminder on {date}, then again as the date approaches.",
   "@leadExplainFirst": { "placeholders": { "date": { "type": "String" } } },
   "leadExplainPassed": "That window has already passed — you should start now.",
+  "leadWeeks": "{weeks, plural, =1{1 week} other{{weeks} weeks}}",
+  "@leadWeeks": { "placeholders": { "weeks": { "type": "int" } } },
   "leadMonths": "{months, plural, =1{1 month} other{{months} months}}",
   "@leadMonths": { "placeholders": { "months": { "type": "int" } } },
   "leadYears": "{years, plural, =1{1 year} other{{years} years}}",
@@ -114,6 +116,12 @@
   "detailSensitiveNote": "Hidden by default, encrypted on this device, never uploaded.",
   "detailReveal": "Show",
   "detailHide": "Hide",
+
+  "sortTitle": "Sort",
+  "sortExpiry": "Expiry date",
+  "sortAdded": "Recently added",
+  "sortName": "Name",
+  "sortType": "Type",
 
   "settingsTitle": "Settings",
   "settingsLanguage": "Language",

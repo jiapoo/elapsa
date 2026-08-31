@@ -42,6 +42,10 @@ class Documents extends Table {
   /// field, and a table full of nulls — a bank card has no plate number and a
   /// passport has no security code.
   TextColumn get details => text().nullable()();
+
+  /// The reminder times the user chose, in days before expiry, comma
+  /// separated. Null means they never chose and the conventional set applies.
+  TextColumn get reminderOffsets => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -58,7 +62,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -73,6 +77,11 @@ class AppDatabase extends _$AppDatabase {
           }
           if (from < 3) {
             await m.addColumn(documents, documents.details);
+          }
+          if (from < 4) {
+            // Left null, so every existing document keeps the conventional
+            // set it has been reminding on.
+            await m.addColumn(documents, documents.reminderOffsets);
           }
         },
       );
@@ -130,11 +139,19 @@ Future<void> _discardIfUnreadable(File file, String passphrase) async {
         error.resultCode != sqliteNotADatabase) {
       rethrow;
     }
+    // Set aside rather than deleted. Without the key the contents cannot be
+    // read *now*, but the key may simply be temporarily out of reach — a
+    // changed provisioning profile puts an app's keychain items behind a
+    // different access group, and destroying someone's documents over
+    // something that recoverable is not a trade to make on their behalf.
+    final aside = File('${file.path}.unreadable');
+    if (await aside.exists()) await aside.delete();
+    await file.rename(aside.path);
+
     debugPrint(
-      'Elapsa: database cannot be decrypted with this device key — '
-      'starting a new one.',
+      'Elapsa: database cannot be decrypted with this device key. '
+      'Kept at ${aside.path}; starting a new one.',
     );
-    await file.delete();
   }
 }
 

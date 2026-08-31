@@ -198,6 +198,17 @@ class LEn extends L {
       'That window has already passed — you should start now.';
 
   @override
+  String leadWeeks(int weeks) {
+    String _temp0 = intl.Intl.pluralLogic(
+      weeks,
+      locale: localeName,
+      other: '$weeks weeks',
+      one: '1 week',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String leadMonths(int months) {
     String _temp0 = intl.Intl.pluralLogic(
       months,
@@ -355,6 +366,21 @@ class LEn extends L {
 
   @override
   String get detailHide => 'Hide';
+
+  @override
+  String get sortTitle => 'Sort';
+
+  @override
+  String get sortExpiry => 'Expiry date';
+
+  @override
+  String get sortAdded => 'Recently added';
+
+  @override
+  String get sortName => 'Name';
+
+  @override
+  String get sortType => 'Type';
 
   @override
   String get settingsTitle => 'Settings';

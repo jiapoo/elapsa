@@ -37,6 +37,13 @@ enum AppLanguage {
       };
 }
 
+/// How the wallet is ordered.
+///
+/// Urgency still comes first whatever is chosen here — an expired passport
+/// belongs at the top of the screen, not filed under P — so this orders
+/// documents *within* the two sections rather than across them.
+enum DocumentSort { expiry, added, name, type }
+
 /// Persists the handful of choices the user makes about the app itself.
 class SettingsRepository {
   SettingsRepository(this._prefs);
@@ -44,6 +51,7 @@ class SettingsRepository {
   final SharedPreferences _prefs;
 
   static const _languageKey = 'app_language';
+  static const _sortKey = 'document_sort';
 
   AppLanguage get language {
     final stored = _prefs.getString(_languageKey);
@@ -55,6 +63,17 @@ class SettingsRepository {
 
   Future<void> setLanguage(AppLanguage language) =>
       _prefs.setString(_languageKey, language.name);
+
+  DocumentSort get sort {
+    final stored = _prefs.getString(_sortKey);
+    return DocumentSort.values.firstWhere(
+      (s) => s.name == stored,
+      orElse: () => DocumentSort.expiry,
+    );
+  }
+
+  Future<void> setSort(DocumentSort sort) =>
+      _prefs.setString(_sortKey, sort.name);
 }
 
 /// Overridden in main() once SharedPreferences has loaded, so no screen has to
@@ -77,4 +96,19 @@ class LanguageController extends StateNotifier<AppLanguage> {
 final languageProvider =
     StateNotifierProvider<LanguageController, AppLanguage>((ref) {
   return LanguageController(ref.watch(settingsRepositoryProvider));
+});
+
+class SortController extends StateNotifier<DocumentSort> {
+  SortController(this._settings) : super(_settings.sort);
+
+  final SettingsRepository _settings;
+
+  Future<void> select(DocumentSort sort) async {
+    state = sort;
+    await _settings.setSort(sort);
+  }
+}
+
+final sortProvider = StateNotifierProvider<SortController, DocumentSort>((ref) {
+  return SortController(ref.watch(settingsRepositoryProvider));
 });

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
@@ -23,6 +24,16 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l.appTitle),
         actions: [
+          PopupMenuButton<DocumentSort>(
+            icon: const Icon(Icons.swap_vert),
+            tooltip: l.sortTitle,
+            initialValue: ref.watch(sortProvider),
+            onSelected: (sort) => ref.read(sortProvider.notifier).select(sort),
+            itemBuilder: (context) => [
+              for (final sort in DocumentSort.values)
+                PopupMenuItem(value: sort, child: Text(sort.label(l))),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             tooltip: l.remindersTitle(0),
@@ -40,8 +51,9 @@ class HomeScreen extends ConsumerWidget {
       body: documents.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (docs) =>
-            docs.isEmpty ? const _EmptyState() : _Wallet(documents: docs),
+        data: (docs) => docs.isEmpty
+            ? const _EmptyState()
+            : _Wallet(documents: docs, sort: ref.watch(sortProvider)),
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
@@ -51,8 +63,9 @@ class HomeScreen extends ConsumerWidget {
           FloatingActionButton(
             heroTag: 'add',
             tooltip: l.actionAdd,
-            backgroundColor:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
+            backgroundColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
             foregroundColor: Theme.of(context).colorScheme.onSurface,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -75,9 +88,9 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Future<void> _scan(BuildContext context) async {
-    final session = await Navigator.of(context).push<ScanSession>(
-      MaterialPageRoute(builder: (_) => const ScanScreen()),
-    );
+    final session = await Navigator.of(
+      context,
+    ).push<ScanSession>(MaterialPageRoute(builder: (_) => const ScanScreen()));
     if (session == null || !context.mounted) return;
 
     await Navigator.of(context).push(
@@ -87,7 +100,10 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showPendingReminders(BuildContext context, WidgetRef ref) async {
+  Future<void> _showPendingReminders(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
     final pending = await ref.read(notificationServiceProvider).pending();
     if (!context.mounted) return;
     final l = L.of(context);
@@ -110,11 +126,13 @@ class HomeScreen extends ConsumerWidget {
               Text(
                 pending.isEmpty ? l.remindersEmptyBody : l.remindersBody,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
-              ...pending.take(8).map(
+              ...pending
+                  .take(8)
+                  .map(
                     (p) => Padding(
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Row(
@@ -136,17 +154,47 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _Wallet extends StatelessWidget {
-  const _Wallet({required this.documents});
+  const _Wallet({required this.documents, required this.sort});
 
   final List<TrackedDocument> documents;
+  final DocumentSort sort;
+
+  /// Orders one section.
+  ///
+  /// Expiry is the tie-breaker for every other choice, because two documents
+  /// of the same type or the same age are still not equally urgent.
+  List<TrackedDocument> _ordered(List<TrackedDocument> documents, L l) {
+    final sorted = [...documents];
+    switch (sort) {
+      case DocumentSort.expiry:
+        sorted.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+      case DocumentSort.added:
+        sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      case DocumentSort.name:
+        sorted.sort((a, b) {
+          final byName = a.label.toLowerCase().compareTo(b.label.toLowerCase());
+          return byName != 0 ? byName : a.expiryDate.compareTo(b.expiryDate);
+        });
+      case DocumentSort.type:
+        sorted.sort((a, b) {
+          final byType = a.type.label(l).compareTo(b.type.label(l));
+          return byType != 0 ? byType : a.expiryDate.compareTo(b.expiryDate);
+        });
+    }
+    return sorted;
+  }
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
-    final needsAttention =
-        documents.where((d) => d.status() != DocumentStatus.valid).toList();
-    final rest =
-        documents.where((d) => d.status() == DocumentStatus.valid).toList();
+    final needsAttention = _ordered(
+      documents.where((d) => d.status() != DocumentStatus.valid).toList(),
+      l,
+    );
+    final rest = _ordered(
+      documents.where((d) => d.status() == DocumentStatus.valid).toList(),
+      l,
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
@@ -176,10 +224,10 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          letterSpacing: 1.2,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -225,7 +273,9 @@ class _WalletEntry extends StatelessWidget {
                     bottom: 10,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.55),
                         borderRadius: BorderRadius.circular(5),
@@ -233,8 +283,11 @@ class _WalletEntry extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.collections_outlined,
-                              size: 11, color: Colors.white),
+                          const Icon(
+                            Icons.collections_outlined,
+                            size: 11,
+                            color: Colors.white,
+                          ),
                           const SizedBox(width: 5),
                           Text(
                             '${document.imageCount}',
@@ -257,9 +310,7 @@ class _WalletEntry extends StatelessWidget {
                 document.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
+                style: Theme.of(context).textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),
             ),
@@ -269,8 +320,10 @@ class _WalletEntry extends StatelessWidget {
               child: Row(
                 children: [
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: colour.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(5),
@@ -278,10 +331,10 @@ class _WalletEntry extends StatelessWidget {
                     child: Text(
                       status.label(l).toUpperCase(),
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: colour,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                          ),
+                        color: colour,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -291,9 +344,8 @@ class _WalletEntry extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                 ],
@@ -304,17 +356,19 @@ class _WalletEntry extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 4, top: 8),
                 child: Row(
                   children: [
-                    Icon(Icons.flight_takeoff,
-                        size: 13, color: palette.critical),
+                    Icon(
+                      Icons.flight_takeoff,
+                      size: 13,
+                      color: palette.critical,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         l.travelRuleBadge,
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: palette.critical,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: palette.critical,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -360,9 +414,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               l.homeEmptyBody,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodyMedium
+              style: Theme.of(context).textTheme.bodyMedium
                   ?.copyWith(color: muted, height: 1.5),
             ),
           ],

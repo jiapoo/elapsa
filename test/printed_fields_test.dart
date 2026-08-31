@@ -160,6 +160,38 @@ Signature
     });
   });
 
+  group('the grouping is the evidence', () {
+    test('a number in fours is a card number without any other wording', () {
+      // Requiring the word "bank" meant one bad line of recognition threw the
+      // number away. Nothing else on a document is laid out like this.
+      final fields = parser.parse('4514 6176 5081 6954');
+      expect(fields.documentNumber, '4514617650816954');
+      expect(fields.type, DocumentType.bankCard);
+    });
+
+    test('a nineteen-digit UnionPay number is read whole', () {
+      expect(
+        parser.parse('6217 0033 2000 2856 600').documentNumber,
+        '6217003320002856600',
+      );
+    });
+
+    test('an unbroken run still needs the wording', () {
+      // Sixteen digits with nothing around them could be anything.
+      expect(parser.parse('4514617650816954').documentNumber, isNull);
+      expect(
+        parser.parse('DEBIT 4514617650816954').documentNumber,
+        '4514617650816954',
+      );
+    });
+
+    test('an identity number is not mistaken for a card', () {
+      final fields = parser.parse('居民身份证 44010119900307201X');
+      expect(fields.documentNumber, '44010119900307201X');
+      expect(fields.type, DocumentType.nationalId);
+    });
+  });
+
   group('the back of a card', () {
     const back = '''
 OVERSEAS CALL: +86 400 820 5555

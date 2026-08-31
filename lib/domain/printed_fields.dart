@@ -151,8 +151,13 @@ class PrintedFieldParser {
   /// out as `4514 6176 5081 6954`, so this needs no corroborating wording —
   /// which matters, because requiring the word "bank" meant one bad line of
   /// recognition threw the number away.
+  ///
+  /// Any whitespace separates the groups, newlines included. The digits are
+  /// embossed and set far apart, so a recogniser often returns each group of
+  /// four as its own observation; joined up they arrive on separate lines, and
+  /// insisting on a space between them missed the number entirely.
   static final _groupedCardNumber = RegExp(
-    r'(?<![\d/])(\d{4}[ -]\d{4}[ -]\d{4}[ -]\d{4}(?:[ -]\d{1,3})?)(?![\d/])',
+    r'(?<![\d/])(\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}(?:[\s-]\d{1,3})?)(?![\d/])',
   );
 
   /// An unbroken run of 13 to 19 digits. Could be a card number, could be an
@@ -200,7 +205,10 @@ class PrintedFieldParser {
     // become an excuse to read any `10/28` anywhere as an expiry. The wording
     // is the evidence now: a card says bank, or debit, or 银联, somewhere on
     // its face.
-    final grouped = _groupedCardNumber.firstMatch(normalised)?.group(1);
+    final grouped = _groupedCardNumber
+        .firstMatch(normalised)
+        ?.group(1)
+        ?.replaceAll(RegExp(r'\s+'), ' ');
     final looksLikeCard = grouped != null || _cardWording.hasMatch(normalised);
 
     DateTime? expiry;

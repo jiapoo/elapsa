@@ -169,6 +169,14 @@ Signature
       expect(fields.type, DocumentType.bankCard);
     });
 
+    test('the groups may arrive on separate lines', () {
+      // Embossed digits are set far apart, so the recogniser hands back each
+      // group of four as its own observation. Insisting on a space between
+      // them missed the number on every card it was tried against.
+      final fields = parser.parse('招商银行\n4514\n6176\n5081\n6954\nLIU JIA');
+      expect(fields.documentNumber, '4514617650816954');
+    });
+
     test('a nineteen-digit UnionPay number is read whole', () {
       expect(
         parser.parse('6217 0033 2000 2856 600').documentNumber,

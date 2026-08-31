@@ -120,29 +120,56 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
   /// Offers what to do with a picture the user tapped.
   ///
-  /// Retake replaces it: the old one goes and the scanner opens for its
-  /// successor. Delete simply removes it. Neither is guessable from a
-  /// thumbnail, so both are named.
+  /// A sheet rather than a dialog, showing the picture itself: three unlabelled
+  /// thumbnails in a row look much alike, and being asked "delete this one?"
+  /// over a covered-up strip is a good way to lose the wrong photograph.
   Future<void> _pictureOptions(int index) async {
     final l = L.of(context);
-    final choice = await showDialog<String>(
+    final scheme = Theme.of(context).colorScheme;
+
+    final choice = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.imageOptionsTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l.actionCancel),
+      showDragHandle: true,
+      backgroundColor: scheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: kCardAspectRatio,
+                  child: Image.memory(_images[index], fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _SheetAction(
+                icon: Icons.photo_camera_outlined,
+                label: l.actionRetake,
+                onTap: () => Navigator.of(context).pop('retake'),
+              ),
+              _SheetAction(
+                icon: Icons.delete_outline,
+                label: l.actionDelete,
+                colour: scheme.error,
+                onTap: () => Navigator.of(context).pop('delete'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: Text(l.actionCancel),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('delete'),
-            child: Text(l.actionDelete),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop('retake'),
-            child: Text(l.actionRetake),
-          ),
-        ],
+        ),
       ),
     );
     if (choice == null || !mounted) return;
@@ -179,6 +206,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
   /// Folds a scan into the form.
   ///
+  /// A field the scan read replaces what is there; a field it read nothing for
+  /// is left alone. That one rule covers both cases: retaking a picture fills
+  /// the form in again from the better photograph, while adding the back of a
+  /// card — which carries no number and no dates — cannot wipe what the front
+  /// already gave.
+  ///
   /// Everything stays editable afterwards. The check digits make a validated
   /// code near-certain to be right, but the user's own name for the document
   /// is theirs to choose, and a wrong guess should never be locked in.
@@ -210,21 +243,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         _details[DocumentDetail.securityCode]!.text = printed.securityCode!;
       }
       if (printed.holderName != null) {
-        final cardholder = _details[DocumentDetail.cardholderName]!;
-        if (cardholder.text.trim().isEmpty) {
-          cardholder.text = printed.holderName!;
-        }
-        if (_holder.text.trim().isEmpty) {
-          _holder.text = _titleCase(printed.holderName!);
-        }
+        _details[DocumentDetail.cardholderName]!.text = printed.holderName!;
+        _holder.text = _titleCase(printed.holderName!);
       }
-      if (printed.documentNumber != null &&
-          _documentNumber.text.trim().isEmpty) {
+      if (printed.documentNumber != null) {
         _documentNumber.text = printed.documentNumber!;
       }
-      if (printed.issuer != null && _label.text.trim().isEmpty) {
-        _label.text = printed.issuer!;
-      }
+      if (printed.issuer != null) _label.text = printed.issuer!;
 
       if (mrz == null) {
         if (_label.text.trim().isEmpty) _label.text = _type.label(l);
@@ -246,9 +271,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         _documentNumber.text = mrz.documentNumber;
       }
       if (mrz.issuingState.isNotEmpty) _issuingCountry = mrz.issuingState;
-      if (mrz.fullName.isNotEmpty && _holder.text.trim().isEmpty) {
-        _holder.text = _titleCase(mrz.fullName);
-      }
+      if (mrz.fullName.isNotEmpty) _holder.text = _titleCase(mrz.fullName);
       if (_label.text.trim().isEmpty) _label.text = _type.label(l);
     });
 
@@ -615,7 +638,11 @@ class _CapturedPages extends StatelessWidget {
   final ValueChanged<int> onTapImage;
   final void Function(int oldIndex, int newIndex) onReorder;
 
-  static const _visibleTiles = 1.9;
+  /// Two whole tiles and a slice of the next.
+  ///
+  /// The slice is the point: a strip whose contents end flush with the edge
+  /// gives no sign there is more, so people stopped at whatever fitted.
+  static const _visibleTiles = 2.4;
   static const _gap = 10.0;
 
   @override
@@ -627,35 +654,33 @@ class _CapturedPages extends StatelessWidget {
 
         return SizedBox(
           height: size.height,
-          child: Row(
-            children: [
-              Expanded(
-                child: ReorderableListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  onReorderItem: onReorder,
-                  itemCount: images.length,
-                  // A long press starts the drag, which leaves a plain tap
-                  // free for the retake and delete choices.
-                  itemBuilder: (context, index) => Padding(
-                    key: ValueKey(images[index].hashCode ^ index),
-                    padding: const EdgeInsets.only(right: _gap),
-                    child: GestureDetector(
-                      onTap: () => onTapImage(index),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.memory(
-                          images[index],
-                          width: size.width,
-                          height: size.height,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
+          child: ReorderableListView.builder(
+            scrollDirection: Axis.horizontal,
+            onReorderItem: onReorder,
+            itemCount: images.length,
+            // Scrolls along with the pictures rather than sitting pinned to
+            // the edge, so the row reads as one strip and reaching the add
+            // tile is the same swipe as reaching the last photograph. A footer
+            // is not reorderable, which is what keeps it at the end.
+            footer: _AddPageTile(onTap: onAdd, size: size),
+            // A long press starts the drag, which leaves a plain tap free for
+            // the retake and delete choices.
+            itemBuilder: (context, index) => Padding(
+              key: ValueKey(images[index].hashCode ^ index),
+              padding: const EdgeInsets.only(right: _gap),
+              child: GestureDetector(
+                onTap: () => onTapImage(index),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.memory(
+                    images[index],
+                    width: size.width,
+                    height: size.height,
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
-              _AddPageTile(onTap: onAdd, size: size),
-            ],
+            ),
           ),
         );
       },
@@ -769,6 +794,48 @@ class _DetailField extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+/// One choice in the picture sheet: a glyph, a name, and the whole width to
+/// hit. Destructive actions take the error colour rather than a warning of
+/// their own — the word and the red together are enough.
+class _SheetAction extends StatelessWidget {
+  const _SheetAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.colour,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? colour;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tint = colour ?? scheme.onSurface;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: tint),
+            const SizedBox(width: 16),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: tint, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
       ),
     );
   }

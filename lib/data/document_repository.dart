@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:elapsa/data/database.dart';
 import 'package:elapsa/domain/document.dart' as domain;
+import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_image_store.dart';
@@ -43,6 +44,7 @@ class DocumentRepository {
     String? documentNumber,
     String? issuingCountry,
     DateTime? issueDate,
+    Map<DocumentDetail, String> details = const {},
 
     /// Pictures from a scan, already flattened. Encrypted into the app's own
     /// storage before anything is written to the database.
@@ -65,6 +67,7 @@ class DocumentRepository {
       issueDate: issueDate,
       imagePath: imagePath,
       imageCount: images.length,
+      details: details,
       createdAt: now,
       updatedAt: now,
     );
@@ -127,6 +130,7 @@ class DocumentRepository {
       renewalLeadDays: row.renewalLeadDays,
       imagePath: row.imagePath,
       imageCount: row.imageCount,
+      details: domain.DocumentDetails.decode(row.details),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -145,6 +149,7 @@ class DocumentRepository {
       renewalLeadDays: Value(doc.renewalLeadDays),
       imagePath: Value(doc.imagePath),
       imageCount: Value(doc.imageCount),
+      details: Value(domain.DocumentDetails.encode(doc.details)),
       createdAt: Value(doc.createdAt),
       updatedAt: Value(doc.updatedAt),
     );

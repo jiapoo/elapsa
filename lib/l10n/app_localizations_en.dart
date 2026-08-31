@@ -311,6 +311,46 @@ class LEn extends L {
   String get scanSideBack => 'Back';
 
   @override
+  String get detailCardholderName => 'Name on card';
+
+  @override
+  String get detailSecurityCode => 'Security code';
+
+  @override
+  String get detailNationality => 'Nationality';
+
+  @override
+  String get detailPlaceOfIssue => 'Place of issue';
+
+  @override
+  String get detailIssuingAuthority => 'Issued by';
+
+  @override
+  String get detailLicenceClass => 'Class';
+
+  @override
+  String get detailPolicyNumber => 'Policy number';
+
+  @override
+  String get detailPlateNumber => 'Plate number';
+
+  @override
+  String get detailVehicleIdentification => 'VIN';
+
+  @override
+  String get detailMembershipLevel => 'Level';
+
+  @override
+  String get detailSensitiveNote =>
+      'Hidden by default, encrypted on this device, never uploaded.';
+
+  @override
+  String get detailReveal => 'Show';
+
+  @override
+  String get detailHide => 'Hide';
+
+  @override
   String get settingsTitle => 'Settings';
 
   @override

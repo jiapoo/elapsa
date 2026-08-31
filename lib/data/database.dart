@@ -35,6 +35,13 @@ class Documents extends Table {
   /// documents several pages, so one record owns an ordered set of images
   /// rather than a single face.
   IntColumn get imageCount => integer().withDefault(const Constant(0))();
+
+  /// Type-specific fields, as JSON.
+  ///
+  /// A column each would mean a migration every time a document type gains a
+  /// field, and a table full of nulls — a bank card has no plate number and a
+  /// passport has no security code.
+  TextColumn get details => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -51,7 +58,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -63,6 +70,9 @@ class AppDatabase extends _$AppDatabase {
             await customStatement(
               'UPDATE documents SET image_count = 1 WHERE image_path IS NOT NULL',
             );
+          }
+          if (from < 3) {
+            await m.addColumn(documents, documents.details);
           }
         },
       );

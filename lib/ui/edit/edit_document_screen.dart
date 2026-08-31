@@ -8,6 +8,7 @@ import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
+import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
@@ -35,6 +36,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   DateTime? _expiryDate;
   late int _renewalLeadDays;
   String? _issuingCountry;
+
+  /// One controller per detail, kept for every kind of document rather than
+  /// just the current one. Switching type to look at the options and switching
+  /// back should not quietly discard what was already typed.
+  final _details = <DocumentDetail, TextEditingController>{};
+
+  /// Which sensitive values the user has chosen to reveal, this session only.
+  final _revealed = <DocumentDetail>{};
 
   /// Pictures from this session. Empty on an edit means "leave what is stored
   /// alone" — only a fresh scan replaces them.
@@ -69,6 +78,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _leadDaysIsAuto = existing == null ||
         existing.renewalLeadDays == existing.type.defaultRenewalLeadDays;
 
+    for (final detail in DocumentDetail.values) {
+      _details[detail] =
+          TextEditingController(text: existing?.details[detail] ?? '');
+    }
+
     final session = widget.session;
     if (session != null) {
       // Deferred, because filling the form needs the localisations that are
@@ -83,6 +97,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _label.dispose();
     _holder.dispose();
     _documentNumber.dispose();
+    for (final controller in _details.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -334,6 +351,18 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
               ),
             ],
 
+            if (_type.details.isNotEmpty) ...[
+              const SizedBox(height: 28),
+              ..._type.details.map((detail) => _DetailField(
+                    detail: detail,
+                    controller: _details[detail]!,
+                    revealed: _revealed.contains(detail),
+                    onToggleReveal: () => setState(() {
+                      if (!_revealed.remove(detail)) _revealed.add(detail);
+                    }),
+                  )),
+            ],
+
             const SizedBox(height: 28),
             _Label(l.fieldOptional),
             TextFormField(
@@ -380,6 +409,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final repo = ref.read(documentRepositoryProvider);
     final holder = _holder.text.trim();
     final number = _documentNumber.text.trim();
+    final details = {
+      for (final detail in _type.details)
+        if (_details[detail]!.text.trim().isNotEmpty)
+          detail: _details[detail]!.text.trim(),
+    };
 
     if (_isEditing) {
       final updated = widget.existing!.copyWith(
@@ -390,6 +424,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         issuingCountry: _issuingCountry,
         expiryDate: _expiryDate,
         renewalLeadDays: _renewalLeadDays,
+        details: details,
       );
       if (_images.isEmpty) {
         await repo.save(updated);
@@ -413,6 +448,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
         images: _images,
+        details: details,
       );
     }
 
@@ -585,6 +621,79 @@ class _AddPageTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// One type-specific field.
+///
+/// A security code is masked until asked for. It is the one value here worth
+/// something to someone glancing over a shoulder — a card number on its own
+/// cannot be used online without it — so it is hidden by default and never
+/// appears on a card face.
+class _DetailField extends StatelessWidget {
+  const _DetailField({
+    required this.detail,
+    required this.controller,
+    required this.revealed,
+    required this.onToggleReveal,
+  });
+
+  final DocumentDetail detail;
+  final TextEditingController controller;
+  final bool revealed;
+  final VoidCallback onToggleReveal;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final hidden = detail.isSensitive && !revealed;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Label(detail.label(l)),
+          TextFormField(
+            controller: controller,
+            obscureText: hidden,
+            autocorrect: !detail.isShort,
+            enableSuggestions: !detail.isShort,
+            keyboardType: detail.isShort ? TextInputType.visiblePassword : null,
+            textCapitalization: detail.isShort
+                ? TextCapitalization.characters
+                : TextCapitalization.words,
+            decoration: InputDecoration(
+              suffixIcon: detail.isSensitive
+                  ? TextButton(
+                      onPressed: onToggleReveal,
+                      child: Text(revealed ? l.detailHide : l.detailReveal),
+                    )
+                  : null,
+            ),
+          ),
+          if (detail.isSensitive) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(Icons.lock_outline, size: 13, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l.detailSensitiveNote,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
   }

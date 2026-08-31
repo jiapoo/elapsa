@@ -123,6 +123,17 @@ class $DocumentsTable extends Documents
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _detailsMeta = const VerificationMeta(
+    'details',
+  );
+  @override
+  late final GeneratedColumn<String> details = GeneratedColumn<String>(
+    'details',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -158,6 +169,7 @@ class $DocumentsTable extends Documents
     renewalLeadDays,
     imagePath,
     imageCount,
+    details,
     createdAt,
     updatedAt,
   ];
@@ -247,6 +259,12 @@ class $DocumentsTable extends Documents
         imageCount.isAcceptableOrUnknown(data['image_count']!, _imageCountMeta),
       );
     }
+    if (data.containsKey('details')) {
+      context.handle(
+        _detailsMeta,
+        details.isAcceptableOrUnknown(data['details']!, _detailsMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -318,6 +336,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.int,
         data['${effectivePrefix}image_count'],
       )!,
+      details: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}details'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -354,6 +376,13 @@ class Document extends DataClass implements Insertable<Document> {
   /// documents several pages, so one record owns an ordered set of images
   /// rather than a single face.
   final int imageCount;
+
+  /// Type-specific fields, as JSON.
+  ///
+  /// A column each would mean a migration every time a document type gains a
+  /// field, and a table full of nulls — a bank card has no plate number and a
+  /// passport has no security code.
+  final String? details;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Document({
@@ -368,6 +397,7 @@ class Document extends DataClass implements Insertable<Document> {
     required this.renewalLeadDays,
     this.imagePath,
     required this.imageCount,
+    this.details,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -397,6 +427,9 @@ class Document extends DataClass implements Insertable<Document> {
       map['image_path'] = Variable<String>(imagePath);
     }
     map['image_count'] = Variable<int>(imageCount);
+    if (!nullToAbsent || details != null) {
+      map['details'] = Variable<String>(details);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -425,6 +458,9 @@ class Document extends DataClass implements Insertable<Document> {
           ? const Value.absent()
           : Value(imagePath),
       imageCount: Value(imageCount),
+      details: details == null && nullToAbsent
+          ? const Value.absent()
+          : Value(details),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -449,6 +485,7 @@ class Document extends DataClass implements Insertable<Document> {
       renewalLeadDays: serializer.fromJson<int>(json['renewalLeadDays']),
       imagePath: serializer.fromJson<String?>(json['imagePath']),
       imageCount: serializer.fromJson<int>(json['imageCount']),
+      details: serializer.fromJson<String?>(json['details']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -470,6 +507,7 @@ class Document extends DataClass implements Insertable<Document> {
       'renewalLeadDays': serializer.toJson<int>(renewalLeadDays),
       'imagePath': serializer.toJson<String?>(imagePath),
       'imageCount': serializer.toJson<int>(imageCount),
+      'details': serializer.toJson<String?>(details),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -487,6 +525,7 @@ class Document extends DataClass implements Insertable<Document> {
     int? renewalLeadDays,
     Value<String?> imagePath = const Value.absent(),
     int? imageCount,
+    Value<String?> details = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Document(
@@ -505,6 +544,7 @@ class Document extends DataClass implements Insertable<Document> {
     renewalLeadDays: renewalLeadDays ?? this.renewalLeadDays,
     imagePath: imagePath.present ? imagePath.value : this.imagePath,
     imageCount: imageCount ?? this.imageCount,
+    details: details.present ? details.value : this.details,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -531,6 +571,7 @@ class Document extends DataClass implements Insertable<Document> {
       imageCount: data.imageCount.present
           ? data.imageCount.value
           : this.imageCount,
+      details: data.details.present ? data.details.value : this.details,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -550,6 +591,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('renewalLeadDays: $renewalLeadDays, ')
           ..write('imagePath: $imagePath, ')
           ..write('imageCount: $imageCount, ')
+          ..write('details: $details, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -569,6 +611,7 @@ class Document extends DataClass implements Insertable<Document> {
     renewalLeadDays,
     imagePath,
     imageCount,
+    details,
     createdAt,
     updatedAt,
   );
@@ -587,6 +630,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.renewalLeadDays == this.renewalLeadDays &&
           other.imagePath == this.imagePath &&
           other.imageCount == this.imageCount &&
+          other.details == this.details &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -603,6 +647,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<int> renewalLeadDays;
   final Value<String?> imagePath;
   final Value<int> imageCount;
+  final Value<String?> details;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -618,6 +663,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.renewalLeadDays = const Value.absent(),
     this.imagePath = const Value.absent(),
     this.imageCount = const Value.absent(),
+    this.details = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -634,6 +680,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     required int renewalLeadDays,
     this.imagePath = const Value.absent(),
     this.imageCount = const Value.absent(),
+    this.details = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -656,6 +703,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<int>? renewalLeadDays,
     Expression<String>? imagePath,
     Expression<int>? imageCount,
+    Expression<String>? details,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -672,6 +720,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (renewalLeadDays != null) 'renewal_lead_days': renewalLeadDays,
       if (imagePath != null) 'image_path': imagePath,
       if (imageCount != null) 'image_count': imageCount,
+      if (details != null) 'details': details,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -690,6 +739,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<int>? renewalLeadDays,
     Value<String?>? imagePath,
     Value<int>? imageCount,
+    Value<String?>? details,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -706,6 +756,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       renewalLeadDays: renewalLeadDays ?? this.renewalLeadDays,
       imagePath: imagePath ?? this.imagePath,
       imageCount: imageCount ?? this.imageCount,
+      details: details ?? this.details,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -750,6 +801,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     if (imageCount.present) {
       map['image_count'] = Variable<int>(imageCount.value);
     }
+    if (details.present) {
+      map['details'] = Variable<String>(details.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -776,6 +830,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('renewalLeadDays: $renewalLeadDays, ')
           ..write('imagePath: $imagePath, ')
           ..write('imageCount: $imageCount, ')
+          ..write('details: $details, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -808,6 +863,7 @@ typedef $$DocumentsTableCreateCompanionBuilder =
       required int renewalLeadDays,
       Value<String?> imagePath,
       Value<int> imageCount,
+      Value<String?> details,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -825,6 +881,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder =
       Value<int> renewalLeadDays,
       Value<String?> imagePath,
       Value<int> imageCount,
+      Value<String?> details,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -892,6 +949,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<int> get imageCount => $composableBuilder(
     column: $table.imageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get details => $composableBuilder(
+    column: $table.details,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -970,6 +1032,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get details => $composableBuilder(
+    column: $table.details,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1033,6 +1100,9 @@ class $$DocumentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get details =>
+      $composableBuilder(column: $table.details, builder: (column) => column);
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -1079,6 +1149,7 @@ class $$DocumentsTableTableManager
                 Value<int> renewalLeadDays = const Value.absent(),
                 Value<String?> imagePath = const Value.absent(),
                 Value<int> imageCount = const Value.absent(),
+                Value<String?> details = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1094,6 +1165,7 @@ class $$DocumentsTableTableManager
                 renewalLeadDays: renewalLeadDays,
                 imagePath: imagePath,
                 imageCount: imageCount,
+                details: details,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -1111,6 +1183,7 @@ class $$DocumentsTableTableManager
                 required int renewalLeadDays,
                 Value<String?> imagePath = const Value.absent(),
                 Value<int> imageCount = const Value.absent(),
+                Value<String?> details = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -1126,6 +1199,7 @@ class $$DocumentsTableTableManager
                 renewalLeadDays: renewalLeadDays,
                 imagePath: imagePath,
                 imageCount: imageCount,
+                details: details,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

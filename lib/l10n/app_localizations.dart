@@ -566,6 +566,84 @@ abstract class L {
   /// **'Back'**
   String get scanSideBack;
 
+  /// No description provided for @detailCardholderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name on card'**
+  String get detailCardholderName;
+
+  /// No description provided for @detailSecurityCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Security code'**
+  String get detailSecurityCode;
+
+  /// No description provided for @detailNationality.
+  ///
+  /// In en, this message translates to:
+  /// **'Nationality'**
+  String get detailNationality;
+
+  /// No description provided for @detailPlaceOfIssue.
+  ///
+  /// In en, this message translates to:
+  /// **'Place of issue'**
+  String get detailPlaceOfIssue;
+
+  /// No description provided for @detailIssuingAuthority.
+  ///
+  /// In en, this message translates to:
+  /// **'Issued by'**
+  String get detailIssuingAuthority;
+
+  /// No description provided for @detailLicenceClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Class'**
+  String get detailLicenceClass;
+
+  /// No description provided for @detailPolicyNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Policy number'**
+  String get detailPolicyNumber;
+
+  /// No description provided for @detailPlateNumber.
+  ///
+  /// In en, this message translates to:
+  /// **'Plate number'**
+  String get detailPlateNumber;
+
+  /// No description provided for @detailVehicleIdentification.
+  ///
+  /// In en, this message translates to:
+  /// **'VIN'**
+  String get detailVehicleIdentification;
+
+  /// No description provided for @detailMembershipLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Level'**
+  String get detailMembershipLevel;
+
+  /// No description provided for @detailSensitiveNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden by default, encrypted on this device, never uploaded.'**
+  String get detailSensitiveNote;
+
+  /// No description provided for @detailReveal.
+  ///
+  /// In en, this message translates to:
+  /// **'Show'**
+  String get detailReveal;
+
+  /// No description provided for @detailHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide'**
+  String get detailHide;
+
   /// No description provided for @settingsTitle.
   ///
   /// In en, this message translates to:

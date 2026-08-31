@@ -1,4 +1,5 @@
 import 'package:elapsa/domain/document.dart';
+import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 
@@ -20,6 +21,21 @@ extension DocumentTypeLabel on DocumentType {
         DocumentType.membership => l.typeMembership,
         DocumentType.bankCard => l.typeBankCard,
         DocumentType.other => l.typeOther,
+      };
+}
+
+extension DocumentDetailLabel on DocumentDetail {
+  String label(L l) => switch (this) {
+        DocumentDetail.cardholderName => l.detailCardholderName,
+        DocumentDetail.securityCode => l.detailSecurityCode,
+        DocumentDetail.nationality => l.detailNationality,
+        DocumentDetail.placeOfIssue => l.detailPlaceOfIssue,
+        DocumentDetail.issuingAuthority => l.detailIssuingAuthority,
+        DocumentDetail.licenceClass => l.detailLicenceClass,
+        DocumentDetail.policyNumber => l.detailPolicyNumber,
+        DocumentDetail.plateNumber => l.detailPlateNumber,
+        DocumentDetail.vehicleIdentification => l.detailVehicleIdentification,
+        DocumentDetail.membershipLevel => l.detailMembershipLevel,
       };
 }
 

@@ -268,6 +268,45 @@ class LZh extends L {
   String get scanSideBack => '反面';
 
   @override
+  String get detailCardholderName => '持卡人姓名';
+
+  @override
+  String get detailSecurityCode => '安全码';
+
+  @override
+  String get detailNationality => '国籍';
+
+  @override
+  String get detailPlaceOfIssue => '签发地';
+
+  @override
+  String get detailIssuingAuthority => '签发机关';
+
+  @override
+  String get detailLicenceClass => '准驾车型';
+
+  @override
+  String get detailPolicyNumber => '保单号';
+
+  @override
+  String get detailPlateNumber => '车牌号';
+
+  @override
+  String get detailVehicleIdentification => '车架号';
+
+  @override
+  String get detailMembershipLevel => '等级';
+
+  @override
+  String get detailSensitiveNote => '默认隐藏，加密保存在这台手机里，绝不上传。';
+
+  @override
+  String get detailReveal => '显示';
+
+  @override
+  String get detailHide => '隐藏';
+
+  @override
   String get settingsTitle => '设置';
 
   @override
@@ -584,6 +623,45 @@ class LZhHant extends LZh {
 
   @override
   String get scanSideBack => '背面';
+
+  @override
+  String get detailCardholderName => '持卡人姓名';
+
+  @override
+  String get detailSecurityCode => '安全碼';
+
+  @override
+  String get detailNationality => '國籍';
+
+  @override
+  String get detailPlaceOfIssue => '簽發地';
+
+  @override
+  String get detailIssuingAuthority => '簽發機關';
+
+  @override
+  String get detailLicenceClass => '駕駛車型';
+
+  @override
+  String get detailPolicyNumber => '保單號碼';
+
+  @override
+  String get detailPlateNumber => '車牌號碼';
+
+  @override
+  String get detailVehicleIdentification => '車身號碼';
+
+  @override
+  String get detailMembershipLevel => '等級';
+
+  @override
+  String get detailSensitiveNote => '預設隱藏，加密保存在這台手機裡，絕不上傳。';
+
+  @override
+  String get detailReveal => '顯示';
+
+  @override
+  String get detailHide => '隱藏';
 
   @override
   String get settingsTitle => '設定';

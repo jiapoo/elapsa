@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 
 /// How urgently a document needs attention.
@@ -47,6 +50,10 @@ class TrackedDocument {
   /// documents run to several pages.
   final int imageCount;
 
+  /// The type-specific fields the user filled in: a security code on a bank
+  /// card, a plate number on a vehicle registration.
+  final Map<DocumentDetail, String> details;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -64,6 +71,7 @@ class TrackedDocument {
     this.issueDate,
     this.imagePath,
     this.imageCount = 0,
+    this.details = const {},
   });
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -137,6 +145,7 @@ class TrackedDocument {
     int? renewalLeadDays,
     String? imagePath,
     int? imageCount,
+    Map<DocumentDetail, String>? details,
     DateTime? updatedAt,
   }) {
     return TrackedDocument(
@@ -151,12 +160,45 @@ class TrackedDocument {
       renewalLeadDays: renewalLeadDays ?? this.renewalLeadDays,
       imagePath: imagePath ?? this.imagePath,
       imageCount: imageCount ?? this.imageCount,
+      details: details ?? this.details,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
   }
 
   static DateTime _startOfDay(DateTime d) => DateTime(d.year, d.month, d.day);
+}
+
+/// Reads and writes the detail map as JSON for storage.
+///
+/// Unknown keys are dropped rather than carried: they can only come from a
+/// newer build, and silently keeping a field the app no longer understands is
+/// how stale data outlives the code that made sense of it.
+class DocumentDetails {
+  const DocumentDetails._();
+
+  static Map<DocumentDetail, String> decode(String? json) {
+    if (json == null || json.isEmpty) return const {};
+    try {
+      final raw = jsonDecode(json);
+      if (raw is! Map) return const {};
+      return {
+        for (final detail in DocumentDetail.values)
+          if (raw[detail.name] is String && (raw[detail.name] as String).isNotEmpty)
+            detail: raw[detail.name] as String,
+      };
+    } on FormatException {
+      return const {};
+    }
+  }
+
+  static String? encode(Map<DocumentDetail, String> details) {
+    final populated = {
+      for (final entry in details.entries)
+        if (entry.value.trim().isNotEmpty) entry.key.name: entry.value.trim(),
+    };
+    return populated.isEmpty ? null : jsonEncode(populated);
+  }
 }
 
 /// Orders documents by urgency: expired first, then soonest to expire.

@@ -168,10 +168,7 @@ class LEn extends L {
   String get fieldImages => 'Pictures';
 
   @override
-  String get fieldImagesHint => 'Swipe for more — most cards have two sides.';
-
-  @override
-  String get editSave => 'Save changes';
+  String get editSave => 'Save';
 
   @override
   String get editDeleteTitle => 'Delete this document?';

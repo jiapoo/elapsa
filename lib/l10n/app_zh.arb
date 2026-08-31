@@ -53,7 +53,6 @@
   "fieldNumberHint": "证件号码",
   "fieldNumberLabel": "证件号码",
   "fieldImages": "照片",
-  "fieldImagesHint": "向右滑动可以继续添加 — 一张卡通常有两面。",
   "editSave": "保存",
   "editDeleteTitle": "删除这个证件？",
   "editDeleteBody": "它的提醒和照片也会一并删除。",

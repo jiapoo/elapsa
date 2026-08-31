@@ -332,8 +332,13 @@ enum VisionHandler {
     // and table edges produce.
     request.minimumAspectRatio = 0.45
     request.maximumAspectRatio = 0.95
-    request.minimumSize = 0.25
-    request.minimumConfidence = 0.7
+    request.minimumSize = 0.20
+    // Deliberately forgiving. Frames are scaled down before they get here, and
+    // a smaller picture carries less for the detector to be sure about — at
+    // 0.7 it was finding cards and then throwing them away. A loose threshold
+    // costs an occasional wrong quad, which the flatness gate and the crop's
+    // own sanity check both catch; a strict one costs every detection.
+    request.minimumConfidence = 0.45
     request.maximumObservations = 1
     // How far from square the corners may be. Loose enough for a card held at
     // an angle, tight enough to reject arbitrary quadrilaterals.

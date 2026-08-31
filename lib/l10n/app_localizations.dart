@@ -350,16 +350,10 @@ abstract class L {
   /// **'Pictures'**
   String get fieldImages;
 
-  /// No description provided for @fieldImagesHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Swipe for more — most cards have two sides.'**
-  String get fieldImagesHint;
-
   /// No description provided for @editSave.
   ///
   /// In en, this message translates to:
-  /// **'Save changes'**
+  /// **'Save'**
   String get editSave;
 
   /// No description provided for @editDeleteTitle.

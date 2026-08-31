@@ -53,8 +53,7 @@
   "fieldNumberHint": "Document number",
   "fieldNumberLabel": "Card number",
   "fieldImages": "Pictures",
-  "fieldImagesHint": "Swipe for more — most cards have two sides.",
-  "editSave": "Save changes",
+  "editSave": "Save",
   "editDeleteTitle": "Delete this document?",
   "editDeleteBody": "Its reminders and pictures will be deleted too.",
 

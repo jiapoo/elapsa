@@ -9,6 +9,7 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/services/frame_downsampler.dart';
 import 'package:elapsa/services/mrz_scanner.dart';
 import 'package:elapsa/services/vision_channel.dart';
 
@@ -61,10 +62,14 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   ///
   /// A 1280x720 luma plane is close to a megabyte, and sending one six times a
   /// second saturates the platform channel — which is what made the preview
-  /// feel heavy. Rectangle detection needs edges, not detail, and the card has
-  /// to fill a quarter of the frame anyway, so a ninth of the pixels finds it
-  /// just as well and costs a ninth as much to move.
-  static const _detectWidth = 420;
+  /// feel heavy. Detection wants edges rather than detail, so a quarter of the
+  /// pixels still finds the card and costs a quarter as much to move.
+  ///
+  /// Not smaller than this. Shrinking further did cut the traffic again, but
+  /// it also cut the detector's confidence in what it found, and the card
+  /// stopped being recognised at all — fast and blind is not a trade worth
+  /// making.
+  static const _detectWidth = 640;
 
   /// How square-on the card must be before the shutter arms.
   ///
@@ -80,6 +85,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   Size? _frameSize;
   DateTime _lastDetect = DateTime.fromMillisecondsSinceEpoch(0);
   bool _detecting = false;
+
+  /// Whether frames are currently being delivered.
+  ///
+  /// Tracked because the stream has to be stopped around a still capture and
+  /// started again afterwards, and asking the plugin to do either twice throws.
+  bool _streaming = false;
 
   final _pages = <Uint8List>[];
   MrzResult? _bestMrz;
@@ -102,9 +113,45 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
+    // Stop delivering frames before tearing the session down, or AVFoundation
+    // complains about a source that vanished mid-flight.
+    final controller = _controller;
+    if (controller != null && _streaming) {
+      controller.stopImageStream().catchError((_) {});
+    }
+    _streaming = false;
+    controller?.dispose();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     super.dispose();
+  }
+
+  /// Pauses frame delivery.
+  ///
+  /// AVFoundation will not run a still capture while a video data output is
+  /// feeding the same source; asking it to fails with a Fig assert and no
+  /// photo. So the stream stops for the length of the shot and starts again
+  /// after.
+  Future<void> _pauseStream() async {
+    final controller = _controller;
+    if (controller == null || !_streaming) return;
+    _streaming = false;
+    try {
+      await controller.stopImageStream();
+    } catch (_) {
+      // Already stopped; nothing to undo.
+    }
+  }
+
+  Future<void> _resumeStream() async {
+    final controller = _controller;
+    if (controller == null || _streaming || !mounted) return;
+    if (!controller.value.isInitialized) return;
+    try {
+      await controller.startImageStream(_onFrame);
+      _streaming = true;
+    } catch (_) {
+      // The screen is going away; the next launch starts a fresh session.
+    }
   }
 
   @override
@@ -153,6 +200,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       }
 
       await controller.startImageStream(_onFrame);
+      _streaming = true;
       setState(() {
         _controller = controller;
         _stage = _Stage.ready;
@@ -173,11 +221,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     _lastDetect = DateTime.now();
     try {
       final plane = image.planes.first;
-      final small = _shrink(
+      final small = downsampleLuma(
         plane.bytes,
-        image.width,
-        image.height,
-        plane.bytesPerRow,
+        width: image.width,
+        height: image.height,
+        bytesPerRow: plane.bytesPerRow,
+        targetWidth: _detectWidth,
       );
       final found = await _vision.detectCard(
         luma: small.bytes,
@@ -203,35 +252,6 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     }
   }
 
-  /// Takes every nth pixel of the luminance plane.
-  ///
-  /// Nearest-neighbour on purpose: averaging would soften precisely the edges
-  /// the rectangle detector is looking for, and cost more to do it.
-  static ({Uint8List bytes, int width, int height}) _shrink(
-    Uint8List source,
-    int width,
-    int height,
-    int bytesPerRow,
-  ) {
-    final step = (width / _detectWidth).floor().clamp(1, 8);
-    if (step == 1) {
-      return (bytes: source, width: width, height: height);
-    }
-
-    final outWidth = width ~/ step;
-    final outHeight = height ~/ step;
-    final out = Uint8List(outWidth * outHeight);
-
-    var target = 0;
-    for (var y = 0; y < outHeight; y++) {
-      final row = y * step * bytesPerRow;
-      for (var x = 0; x < outWidth; x++) {
-        out[target++] = source[row + x * step];
-      }
-    }
-    return (bytes: out, width: outWidth, height: outHeight);
-  }
-
   /// How square-on the card currently is, or null when none is detected.
   double? get _flatness {
     final quad = _quad;
@@ -251,6 +271,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     HapticFeedback.mediumImpact();
 
     try {
+      await _pauseStream();
       final shot = await controller.takePicture();
       // Cut the card out along the corners the user actually saw, turned the
       // way they were holding the phone. Re-detecting on the still can find a
@@ -264,6 +285,8 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     } catch (error, stack) {
       debugPrint('Elapsa: capture failed: $error\n$stack');
       _restore();
+    } finally {
+      await _resumeStream();
     }
   }
 
@@ -277,6 +300,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
   Future<void> _pickFromLibrary() async {
     setState(() => _stage = _Stage.working);
+    await _pauseStream();
     try {
       final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
       if (picked == null) {
@@ -287,6 +311,8 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     } catch (error, stack) {
       debugPrint('Elapsa: scan from library failed: $error\n$stack');
       _restore();
+    } finally {
+      await _resumeStream();
     }
   }
 

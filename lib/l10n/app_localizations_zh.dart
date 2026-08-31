@@ -150,9 +150,6 @@ class LZh extends L {
   String get fieldImages => '照片';
 
   @override
-  String get fieldImagesHint => '向右滑动可以继续添加 — 一张卡通常有两面。';
-
-  @override
   String get editSave => '保存';
 
   @override
@@ -469,9 +466,6 @@ class LZhHant extends LZh {
 
   @override
   String get fieldImages => '照片';
-
-  @override
-  String get fieldImagesHint => '向右滑動可以繼續新增 — 一張卡通常有兩面。';
 
   @override
   String get editSave => '儲存';

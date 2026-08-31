@@ -207,14 +207,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             if (_images.isNotEmpty) ...[
               _Label(l.fieldImages),
               _CapturedPages(images: _images, onAdd: _scan),
-              const SizedBox(height: 8),
-              _PagesHint(text: l.fieldImagesHint),
               const SizedBox(height: 24),
             ] else if (_isEditing && widget.existing!.imageCount > 0) ...[
               _Label(l.fieldImages),
               _StoredPages(document: widget.existing!, onRescan: _scan),
-              const SizedBox(height: 8),
-              _PagesHint(text: l.fieldImagesHint),
               const SizedBox(height: 24),
             ] else ...[
               OutlinedButton.icon(
@@ -352,7 +348,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             const SizedBox(height: 32),
             FilledButton(
               onPressed: _save,
-              child: Text(_isEditing ? l.editSave : l.actionAdd),
+              child: Text(l.editSave),
             ),
           ],
         ),
@@ -449,6 +445,42 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   }
 }
 
+/// Lays out a row of card-shaped tiles.
+///
+/// Sized so the next tile always breaks the right edge. A strip whose contents
+/// fit exactly gives no sign that it scrolls, which is why a card looked like
+/// it could hold only the two pictures that happened to fit — leaving the next
+/// one half off the edge says "there is more" without a line of text.
+class _PageStrip extends StatelessWidget {
+  const _PageStrip({required this.count, required this.tile});
+
+  final int count;
+  final Widget Function(BuildContext context, int index, Size size) tile;
+
+  static const _visibleTiles = 1.9;
+  static const _gap = 10.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = (constraints.maxWidth - _gap) / _visibleTiles;
+        final size = Size(width, width / kCardAspectRatio);
+
+        return SizedBox(
+          height: size.height,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: count,
+            separatorBuilder: (_, _) => const SizedBox(width: _gap),
+            itemBuilder: (context, index) => tile(context, index, size),
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// Pictures captured in this session, not yet saved.
 class _CapturedPages extends StatelessWidget {
   const _CapturedPages({required this.images, required this.onAdd});
@@ -458,25 +490,22 @@ class _CapturedPages extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 108,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: images.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          if (index == images.length) return _AddPageTile(onTap: onAdd);
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.memory(
-              images[index],
-              width: 108 * kCardAspectRatio,
-              height: 108,
-              fit: BoxFit.cover,
-            ),
-          );
-        },
-      ),
+    return _PageStrip(
+      count: images.length + 1,
+      tile: (context, index, size) {
+        if (index == images.length) {
+          return _AddPageTile(onTap: onAdd, size: size);
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Image.memory(
+            images[index],
+            width: size.width,
+            height: size.height,
+            fit: BoxFit.cover,
+          ),
+        );
+      },
     );
   }
 }
@@ -490,78 +519,44 @@ class _StoredPages extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return SizedBox(
-      height: 108,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: document.imageCount + 1,
-        separatorBuilder: (_, _) => const SizedBox(width: 10),
-        itemBuilder: (context, index) {
-          if (index == document.imageCount) {
-            return _AddPageTile(onTap: onRescan);
-          }
-          final bytes = ref
-              .watch(documentImageProvider(DocumentImageRef(document.id, index)))
-              .asData
-              ?.value;
-          return ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: bytes == null
-                ? Container(
-                    width: 108 * kCardAspectRatio,
-                    height: 108,
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  )
-                : Image.memory(
-                    bytes,
-                    width: 108 * kCardAspectRatio,
-                    height: 108,
-                    fit: BoxFit.cover,
+    return _PageStrip(
+      count: document.imageCount + 1,
+      tile: (context, index, size) {
+        if (index == document.imageCount) {
+          return _AddPageTile(onTap: onRescan, size: size);
+        }
+        final bytes = ref
+            .watch(documentImageProvider(DocumentImageRef(document.id, index)))
+            .asData
+            ?.value;
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: bytes == null
+              ? SizedBox(
+                  width: size.width,
+                  height: size.height,
+                  child: ColoredBox(
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest,
                   ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-/// Tells the user the strip scrolls.
-///
-/// A row of thumbnails that runs off the edge gives no sign it continues, so
-/// people stop at whatever fits — which is why a two-sided card looked like it
-/// could only hold two pictures.
-class _PagesHint extends StatelessWidget {
-  const _PagesHint({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
-    return Padding(
-      padding: const EdgeInsets.only(left: 2),
-      child: Row(
-        children: [
-          Icon(Icons.swipe_left_outlined, size: 14, color: muted),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: muted),
-            ),
-          ),
-        ],
-      ),
+                )
+              : Image.memory(
+                  bytes,
+                  width: size.width,
+                  height: size.height,
+                  fit: BoxFit.cover,
+                ),
+        );
+      },
     );
   }
 }
 
 class _AddPageTile extends StatelessWidget {
-  const _AddPageTile({required this.onTap});
+  const _AddPageTile({required this.onTap, required this.size});
+
   final VoidCallback onTap;
+  final Size size;
 
   @override
   Widget build(BuildContext context) {
@@ -570,8 +565,8 @@ class _AddPageTile extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        width: 108 * kCardAspectRatio,
-        height: 108,
+        width: size.width,
+        height: size.height,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: scheme.outlineVariant),

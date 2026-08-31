@@ -53,7 +53,6 @@
   "fieldNumberHint": "證件號碼",
   "fieldNumberLabel": "證件號碼",
   "fieldImages": "照片",
-  "fieldImagesHint": "向右滑動可以繼續新增 — 一張卡通常有兩面。",
   "editSave": "儲存",
   "editDeleteTitle": "刪除這張證件？",
   "editDeleteBody": "它的提醒和照片也會一併刪除。",

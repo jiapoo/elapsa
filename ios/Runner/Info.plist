@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Elapsa uses the camera to read the code printed on your document. The image is processed on this device and is never uploaded.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Elapsa can read the code from a photo of a document you already have. The photo is processed on this device and is never uploaded.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Elapsa</string>
 	<key>CFBundleExecutable</key>

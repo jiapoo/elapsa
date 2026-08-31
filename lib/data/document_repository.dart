@@ -5,7 +5,9 @@ import 'package:uuid/uuid.dart';
 import 'package:elapsa/data/database.dart';
 import 'package:elapsa/domain/document.dart' as domain;
 import 'package:elapsa/domain/document_type.dart';
+import 'package:elapsa/services/document_image_store.dart';
 import 'package:elapsa/services/notification_service.dart';
+import 'package:elapsa/services/secure_store.dart';
 
 const _uuid = Uuid();
 
@@ -15,10 +17,11 @@ const _uuid = Uuid();
 /// it is a handful of rows and it is the only way to respect the iOS pending
 /// limit correctly — see [NotificationService.rescheduleAll].
 class DocumentRepository {
-  DocumentRepository(this._db, this._notifications);
+  DocumentRepository(this._db, this._notifications, this._images);
 
   final AppDatabase _db;
   final NotificationService _notifications;
+  final DocumentImageStore _images;
 
   Stream<List<domain.TrackedDocument>> watchAll() =>
       _db.watchAll().map((rows) => rows.map(_toDomain).toList());
@@ -35,11 +38,21 @@ class DocumentRepository {
     String? documentNumber,
     String? issuingCountry,
     DateTime? issueDate,
-    String? imagePath,
+
+    /// Card face from a scan, already cropped to the guide. Encrypted into the
+    /// app's own storage before anything is written to the database.
+    Uint8List? cardImage,
   }) async {
     final now = DateTime.now();
+    final id = _uuid.v4();
+
+    String? imagePath;
+    if (cardImage != null) {
+      imagePath = await _images.save(id, cardImage);
+    }
+
     final doc = domain.TrackedDocument(
-      id: _uuid.v4(),
+      id: id,
       type: type,
       label: label,
       expiryDate: expiryDate,
@@ -63,6 +76,9 @@ class DocumentRepository {
 
   Future<void> delete(String id) async {
     await _db.deleteById(id);
+    // The encrypted scan goes with the record. Leaving an orphaned image of
+    // someone's passport behind after they deleted it would be indefensible.
+    await _images.delete(id);
     await _resync();
   }
 
@@ -112,8 +128,14 @@ class DocumentRepository {
 
 // ------------------------------------------------------------------ providers
 
+final secureStoreProvider = Provider<SecureStore>((ref) => SecureStore());
+
+final documentImageStoreProvider = Provider<DocumentImageStore>((ref) {
+  return DocumentImageStore(ref.watch(secureStoreProvider));
+});
+
 final databaseProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
+  final db = AppDatabase(ref.watch(secureStoreProvider));
   ref.onDispose(db.close);
   return db;
 });
@@ -126,6 +148,7 @@ final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
   return DocumentRepository(
     ref.watch(databaseProvider),
     ref.watch(notificationServiceProvider),
+    ref.watch(documentImageStoreProvider),
   );
 });
 

@@ -68,11 +68,39 @@ Android reminders deliberately use *inexact* alarms. A renewal notice does not
 need second accuracy, and requesting `SCHEDULE_EXACT_ALARM` invites a Play
 Store policy review for no benefit.
 
+### Why OCR is a platform channel, not a package
+
+ML Kit's iOS SDK ships as legacy fat `.framework` bundles whose arm64 slice is
+device-only, which forces `EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64` onto
+the whole app and makes it uninstallable on an Apple Silicon simulator. So
+text recognition goes over `cc.elapsa/text_recognition` instead: Apple Vision
+on iOS, ML Kit via Gradle on Android. Vision is a system framework, costs
+nothing in app size, and reads Chinese better than ML Kit's Latin model.
+
+The channel is registered in `didInitializeImplicitFlutterEngine`, not off the
+root view controller — this app uses the scene lifecycle, so `window` is nil in
+`didFinishLaunchingWithOptions` and registering there silently does nothing.
+
+### Encryption at rest
+
+One AES-256 key in the Keychain / Android Keystore, non-syncing, protects both
+the SQLCipher database and the card images (AES-GCM, random nonce per write).
+Deleting a document deletes its encrypted image with it.
+
+### Card faces
+
+The scanner shows a card-shaped guide and crops the capture to exactly that
+rectangle, so composition is settled at capture time rather than guessed at
+render time. A real card image is shown clean, with no overlay — the document
+prints its own details, and Elapsa's read on it goes in the status line
+underneath. Hand-entered documents get a designed gradient face instead. Elapsa
+never synthesises a replica of official document artwork.
+
 ## Not built yet
 
-- Camera capture + on-device OCR feeding the MRZ parser (parser is done)
+- **Android half of the OCR channel** — the Dart and iOS sides are done
+- **Android in general** — no SDK on this machine, nothing built or tested
+- **Camera on hardware** — the scanner has only run against the photo library,
+  because no simulator has a camera
 - NFC passport chip reading (`flutter_nfc_kit` + `dmrtd`)
-- SQLCipher — the database is currently unencrypted; swapping
-  `sqlite3_flutter_libs` for `sqlcipher_flutter_libs` encrypts it with no
-  schema change
-- Biometric lock, document photos, localisation, family accounts
+- Biometric lock, localisation, family accounts

@@ -5,6 +5,7 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
+import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -27,29 +28,21 @@ class HomeScreen extends ConsumerWidget {
       body: documents.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Could not load documents.\n$e')),
-        data: (docs) => docs.isEmpty
-            ? const _EmptyState()
-            : _DocumentList(documents: docs),
+        data: (docs) =>
+            docs.isEmpty ? const _EmptyState() : _Wallet(documents: docs),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openEditor(context),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(builder: (_) => const EditDocumentScreen()),
+        ),
         icon: const Icon(Icons.add),
         label: const Text('Add document'),
       ),
     );
   }
 
-  void _openEditor(BuildContext context, {TrackedDocument? existing}) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => EditDocumentScreen(existing: existing),
-      ),
-    );
-  }
-
   Future<void> _showPendingReminders(BuildContext context, WidgetRef ref) async {
-    final pending =
-        await ref.read(notificationServiceProvider).pending();
+    final pending = await ref.read(notificationServiceProvider).pending();
     if (!context.mounted) return;
 
     showModalBottomSheet<void>(
@@ -97,31 +90,29 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _DocumentList extends ConsumerWidget {
-  const _DocumentList({required this.documents});
+class _Wallet extends StatelessWidget {
+  const _Wallet({required this.documents});
 
   final List<TrackedDocument> documents;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final needsAttention = documents
-        .where((d) => d.status() != DocumentStatus.valid)
-        .toList();
-    final rest = documents
-        .where((d) => d.status() == DocumentStatus.valid)
-        .toList();
+  Widget build(BuildContext context) {
+    final needsAttention =
+        documents.where((d) => d.status() != DocumentStatus.valid).toList();
+    final rest =
+        documents.where((d) => d.status() == DocumentStatus.valid).toList();
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
       children: [
         if (needsAttention.isNotEmpty) ...[
           const _SectionHeader('Needs attention'),
-          ...needsAttention.map((d) => _DocumentCard(document: d)),
-          const SizedBox(height: 24),
+          ...needsAttention.map((d) => _WalletEntry(document: d)),
+          const SizedBox(height: 20),
         ],
         if (rest.isNotEmpty) ...[
           const _SectionHeader('Everything else'),
-          ...rest.map((d) => _DocumentCard(document: d)),
+          ...rest.map((d) => _WalletEntry(document: d)),
         ],
       ],
     );
@@ -148,149 +139,115 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _DocumentCard extends ConsumerWidget {
-  const _DocumentCard({required this.document});
+/// One document: its card face, with the urgency read underneath.
+///
+/// The status line sits below the card rather than on it. The card is the
+/// document as it exists in the world; the countdown is Elapsa's opinion about
+/// it, and conflating the two makes the card look like something official it
+/// is not.
+class _WalletEntry extends StatelessWidget {
+  const _WalletEntry({required this.document});
 
   final TrackedDocument document;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final palette = StatusPalette.from(context);
     final status = document.status();
     final colour = palette.of(status);
     final days = document.daysRemaining();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Card(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => EditDocumentScreen(existing: document),
-            ),
+      padding: const EdgeInsets.only(bottom: 22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => EditDocumentScreen(existing: document),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colour.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(document.type.icon, color: colour, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        document.label,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        _subtitle(),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color:
-                                  Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                      ),
-                      if (document.isTravelRestricted()) ...[
-                        const SizedBox(height: 6),
-                        _Badge(
-                          icon: Icons.flight_takeoff,
-                          label: 'Below 6-month travel rule',
-                          colour: palette.critical,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      days < 0 ? '${-days}' : '$days',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            DocumentCardFace(document: document, compact: true),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                document.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: colour.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      statusLabel(status).toUpperCase(),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                             color: colour,
                             fontWeight: FontWeight.w700,
-                            height: 1,
+                            letterSpacing: 0.8,
                           ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      days < 0 ? 'days ago' : 'days left',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      _statusLine(days),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color:
                                 Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+            if (document.isTravelRestricted())
+              Padding(
+                padding: const EdgeInsets.only(left: 4, top: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.flight_takeoff,
+                        size: 13, color: palette.critical),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Below the 6-month travel rule',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: palette.critical,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  String _subtitle() {
-    final parts = <String>[document.type.label];
-    if (document.holder != null && document.holder!.isNotEmpty) {
-      parts.add(document.holder!);
-    }
+  String _statusLine(int days) {
+    if (days < 0) return '${-days} days ago';
     if (document.status() == DocumentStatus.actionNeeded) {
-      parts.add('start renewing now');
+      return '$days days left · start renewing now';
     }
-    return parts.join(' · ');
-  }
-}
-
-class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.icon,
-    required this.label,
-    required this.colour,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color colour;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: colour.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: colour),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colour,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-        ],
-      ),
-    );
+    return '$days days left';
   }
 }
 

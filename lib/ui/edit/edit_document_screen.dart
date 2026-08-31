@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,6 +8,7 @@ import 'package:elapsa/core/lead_time.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_type.dart';
+import 'package:elapsa/ui/scan/scan_screen.dart';
 
 final _dateFormat = DateFormat('d MMMM yyyy');
 
@@ -27,6 +30,17 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   late TextEditingController _documentNumber;
   DateTime? _expiryDate;
   late int _renewalLeadDays;
+  String? _issuingCountry;
+
+  /// Photo from a scan, still in a temp directory. It is encrypted into the
+  /// app's own storage on save — not before, because the document needs an id
+  /// first and an abandoned form should leave nothing behind.
+  Uint8List? _cardImage;
+
+  /// Set when the fields came from a scan rather than being typed, so the UI
+  /// can say so — people are reasonably suspicious of a form that filled
+  /// itself in with their passport number.
+  bool _fromScan = false;
 
   /// True until the user edits the lead time by hand, after which changing the
   /// document type no longer overwrites their choice.
@@ -44,6 +58,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _holder = TextEditingController(text: existing?.holder ?? '');
     _documentNumber = TextEditingController(text: existing?.documentNumber ?? '');
     _expiryDate = existing?.expiryDate;
+    _issuingCountry = existing?.issuingCountry;
     _renewalLeadDays = existing?.renewalLeadDays ?? _type.defaultRenewalLeadDays;
     _leadDaysIsAuto = existing == null ||
         existing.renewalLeadDays == existing.type.defaultRenewalLeadDays;
@@ -79,6 +94,44 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
           children: [
+            if (!_isEditing) ...[
+              OutlinedButton.icon(
+                onPressed: _scan,
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: const Text('Scan document'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  side: BorderSide(color: scheme.outlineVariant),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text(
+                  'Reads the code on a passport, ID card or visa',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                ),
+              ),
+              const SizedBox(height: 28),
+            ],
+
+            if (_fromScan) ...[
+              _InfoNote(
+                icon: Icons.verified_outlined,
+                text: 'Filled in from the document code. Every field is still '
+                    'yours to change.',
+              ),
+              const SizedBox(height: 24),
+            ],
+
             _Label('Type'),
             DropdownButtonFormField<DocumentType>(
               initialValue: _type,
@@ -183,6 +236,78 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     );
   }
 
+  /// Opens the scanner and folds any result into the form.
+  ///
+  /// Everything stays editable afterwards. The check digits make a validated
+  /// MRZ near-certain to be right, but the user's own name for the document is
+  /// theirs to choose, and a wrong guess should never be locked in.
+  Future<void> _scan() async {
+    final capture = await Navigator.of(context).push<ScanCapture>(
+      MaterialPageRoute(builder: (_) => const ScanScreen()),
+    );
+    if (capture == null || !mounted) return;
+
+    final result = capture.mrz;
+
+    setState(() {
+      _fromScan = true;
+      _cardImage = capture.cardImage;
+
+      final scannedType = _typeFromDocumentCode(result.documentCode);
+      if (scannedType != null) {
+        _type = scannedType;
+        if (_leadDaysIsAuto) {
+          _renewalLeadDays = scannedType.defaultRenewalLeadDays;
+        }
+      }
+
+      if (result.expiryDate != null) _expiryDate = result.expiryDate;
+      if (result.documentNumber.isNotEmpty) {
+        _documentNumber.text = result.documentNumber;
+      }
+      if (result.issuingState.isNotEmpty) {
+        _issuingCountry = result.issuingState;
+      }
+      if (result.fullName.isNotEmpty && _holder.text.trim().isEmpty) {
+        _holder.text = _titleCase(result.fullName);
+      }
+      if (_label.text.trim().isEmpty) {
+        _label.text = _type.label;
+      }
+    });
+
+    if (result.wasRepaired && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Scanned — the code was a little blurry, so please '
+              'check the details.'),
+        ),
+      );
+    }
+  }
+
+  /// Maps the ICAO document code to a type we track.
+  ///
+  /// Returns null rather than guessing when the code is unfamiliar, leaving
+  /// whatever the user already picked in place.
+  static DocumentType? _typeFromDocumentCode(String code) {
+    if (code.isEmpty) return null;
+    return switch (code[0]) {
+      'P' => DocumentType.passport,
+      'V' => DocumentType.visa,
+      'A' || 'C' || 'I' => DocumentType.nationalId,
+      _ => null,
+    };
+  }
+
+  /// MRZ names are upper case by definition; "ANNA MARIA ERIKSSON" shouted at
+  /// the user in a form field looks like a bug.
+  static String _titleCase(String value) => value
+      .split(' ')
+      .where((w) => w.isNotEmpty)
+      .map((w) => w[0] + w.substring(1).toLowerCase())
+      .join(' ');
+
   String _leadTimeExplanation() {
     if (_expiryDate == null) {
       return 'Elapsa will remind you ${leadTimeLabel(_renewalLeadDays)} before '
@@ -216,6 +341,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           label: _label.text.trim(),
           holder: holder.isEmpty ? null : holder,
           documentNumber: number.isEmpty ? null : number,
+          issuingCountry: _issuingCountry,
           expiryDate: _expiryDate,
           renewalLeadDays: _renewalLeadDays,
         ),
@@ -235,6 +361,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         renewalLeadDays: _renewalLeadDays,
         holder: holder.isEmpty ? null : holder,
         documentNumber: number.isEmpty ? null : number,
+        issuingCountry: _issuingCountry,
+        cardImage: _cardImage,
       );
     }
 

@@ -22,13 +22,36 @@ dependencies:
   # plain sqlite3 libs are swapped for sqlcipher_flutter_libs once the vertical
   # slice runs, which encrypts the same database with no schema change.
   drift: ^2.20.0
-  sqlite3_flutter_libs: ^0.5.24
+  sqlcipher_flutter_libs: ^0.6.0
+  # Direct dependency because database.dart overrides which sqlite library
+  # loads on Android — see _openConnection.
+  sqlite3: ^2.4.0
   path_provider: ^2.1.4
   path: ^1.9.0
+
+  # Encryption at rest. One key, held in the Keychain / Android Keystore,
+  # protects both the database and the document photos — a scan of a passport
+  # is more sensitive than the passport number typed beside it.
+  flutter_secure_storage: ^9.2.2
+  cryptography: ^2.7.0
 
   # Reminders
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
+
+  # Scanning.
+  #
+  # Text recognition is deliberately *not* a Dart package. ML Kit's iOS SDK
+  # ships legacy fat .framework bundles whose arm64 slice is device-only, which
+  # forces EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64 on the whole app and
+  # makes it uninstallable on an Apple Silicon simulator. So OCR goes over a
+  # platform channel instead: Apple Vision on iOS (native, arm64, and better on
+  # Chinese script), ML Kit via Gradle on Android.
+  camera: ^0.11.0
+  image_picker: ^1.1.2
+  # Crops the capture to the on-screen guide so the stored card face is the
+  # card, not an arbitrary rectangle of whatever was behind it.
+  image: ^4.2.0
 
   # Formatting
   intl: ^0.20.2

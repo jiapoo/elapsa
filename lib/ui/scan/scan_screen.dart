@@ -67,15 +67,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
 
-    // Landscape only. A card is a landscape object, so holding the phone that
-    // way fills the frame with document instead of desk — which is what makes
-    // the small print legible. Locking it also removes the quarter-turn
-    // between the sensor and the screen, so the guide lines up with what the
-    // camera actually sees.
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
+    // Portrait only while scanning. A fixed orientation means the controls
+    // never move under the user's thumb mid-scan, and it removes a whole class
+    // of overlay bug: the guide only ever has to account for one rotation
+    // between the sensor and the screen instead of four.
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
     _startCamera();
   }
@@ -305,38 +301,43 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                     ),
                   ),
 
-                if (_pages.isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: _PageStrip(pages: _pages),
-                  ),
-
-                // Controls hug the right edge, where a thumb rests when the
-                // phone is held in landscape.
+                // Controls along the bottom, where a thumb rests when the
+                // phone is held upright.
                 Align(
-                  alignment: Alignment.centerRight,
+                  alignment: Alignment.bottomCenter,
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 18),
+                    padding: const EdgeInsets.only(bottom: 16),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        _GlyphButton(
-                          icon: Icons.photo_library_outlined,
-                          semantic: l.scanChoosePhoto,
-                          onTap: busy ? null : _pickFromLibrary,
-                        ),
-                        const SizedBox(height: 14),
-                        _Shutter(
-                          armed: _armed,
-                          enabled: hasCamera && !busy,
-                          semantic: l.actionScan,
-                          onTap: _capture,
-                        ),
-                        const SizedBox(height: 14),
-                        _GlyphButton(
-                          icon: Icons.keyboard_outlined,
-                          semantic: l.scanEnterByHand,
-                          onTap: busy ? null : () => Navigator.of(context).pop(),
+                        if (_pages.isNotEmpty) ...[
+                          _PageStrip(pages: _pages),
+                          const SizedBox(height: 18),
+                        ],
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            _GlyphButton(
+                              icon: Icons.photo_library_outlined,
+                              semantic: l.scanChoosePhoto,
+                              onTap: busy ? null : _pickFromLibrary,
+                            ),
+                            const SizedBox(width: 26),
+                            _Shutter(
+                              armed: _armed,
+                              enabled: hasCamera && !busy,
+                              semantic: l.actionScan,
+                              onTap: _capture,
+                            ),
+                            const SizedBox(width: 26),
+                            _GlyphButton(
+                              icon: Icons.keyboard_outlined,
+                              semantic: l.scanEnterByHand,
+                              onTap:
+                                  busy ? null : () => Navigator.of(context).pop(),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -359,13 +360,13 @@ class _CameraLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preview = controller.value.previewSize;
-    // Locked to landscape, the sensor buffer and the screen agree, so the
-    // preview is shown at the sensor's own dimensions.
+    // The sensor delivers landscape while the screen is portrait, so the
+    // preview's dimensions are swapped before being fitted.
     return FittedBox(
       fit: BoxFit.cover,
       child: SizedBox(
-        width: preview?.width ?? 1,
-        height: preview?.height ?? 1,
+        width: preview?.height ?? 1,
+        height: preview?.width ?? 1,
         child: CameraPreview(controller),
       ),
     );
@@ -427,9 +428,9 @@ class _CornerGuide extends StatelessWidget {
 
   /// Degrees the sensor image must be rotated to match what is on screen.
   ///
-  /// Locked to landscape this is normally 0 or 180, but it is derived rather
-  /// than assumed: sensor mounting differs between devices, and a hard-coded
-  /// guess is exactly how an overlay ends up square to nothing.
+  /// Locked to portrait this is normally a quarter turn, but it is derived
+  /// rather than assumed: sensor mounting differs between devices, and a
+  /// hard-coded guess is exactly how an overlay ends up square to nothing.
   static int _rotationDegrees(CameraController controller) {
     const deviceDegrees = {
       DeviceOrientation.portraitUp: 0,
@@ -542,7 +543,10 @@ class _CornerPainter extends CustomPainter {
   /// Where the brackets rest before anything is detected — a card-shaped hint
   /// in the middle of the frame.
   List<Offset> _restingFrame(Size size) {
-    final width = math.min(size.width * 0.7, size.height * 0.8 * kCardAspectRatio);
+    // A card is a landscape object even when the phone is upright, so the
+    // resting guide is wide and shallow — it shows how to hold the document,
+    // not how to hold the phone.
+    final width = math.min(size.width * 0.86, size.height * 0.7 * kCardAspectRatio);
     final height = width / kCardAspectRatio;
     final left = (size.width - width) / 2;
     final top = (size.height - height) / 2;
@@ -654,22 +658,21 @@ class _PageStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 14),
-      child: SizedBox(
-        width: 62,
-        child: ListView.separated(
-          shrinkWrap: true,
-          itemCount: pages.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, index) => ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: Image.memory(
-              pages[index],
-              width: 62,
-              height: 62 / kCardAspectRatio,
-              fit: BoxFit.cover,
-            ),
+    return SizedBox(
+      height: 54,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: pages.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (context, index) => ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: Image.memory(
+            pages[index],
+            width: 54 * kCardAspectRatio,
+            height: 54,
+            fit: BoxFit.cover,
           ),
         ),
       ),

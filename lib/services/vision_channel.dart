@@ -176,19 +176,10 @@ class VisionChannel {
   ///
   /// Returns null when no card is found, and the caller falls back to a centre
   /// crop.
-  Future<Uint8List?> extractCard(
-    String path, {
-    CardQuad? quad,
-    int deviceTurns = 0,
-  }) async {
+  Future<Uint8List?> extractCard(String path, {CardQuad? quad}) async {
     try {
       return await _channel.invokeMethod<Uint8List>('extractCard', {
         'path': path,
-        // How the phone was held. Four rotations line a card up with the axes
-        // and geometry cannot choose between them — a rectangle turned by θ
-        // and by θ+180° has the same bounding box — so the card's up is taken
-        // from the device's up, which is what the user framed it against.
-        'deviceTurns': deviceTurns,
         // The corners the scanner had locked on when the shutter fired. Sent
         // so the cut matches what the user was shown — re-detecting on the
         // still can settle on a different rectangle entirely.

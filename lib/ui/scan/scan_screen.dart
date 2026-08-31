@@ -265,11 +265,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       // way they were holding the phone. Re-detecting on the still can find a
       // different rectangle, and geometry alone cannot tell upright from
       // upside down.
-      _absorb(await _scanner.scanFile(
-        shot.path,
-        quad: framed,
-        deviceTurns: _deviceTurns(controller.value.deviceOrientation),
-      ));
+      _absorb(await _scanner.scanFile(shot.path, quad: framed));
     } catch (error, stack) {
       debugPrint('Elapsa: capture failed: $error\n$stack');
       _restore();
@@ -277,14 +273,6 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
       await _resumeStream();
     }
   }
-
-  /// Quarter turns from portrait, matching the sense the native crop uses.
-  static int _deviceTurns(DeviceOrientation device) => switch (device) {
-        DeviceOrientation.portraitUp => 0,
-        DeviceOrientation.landscapeLeft => 1,
-        DeviceOrientation.portraitDown => 2,
-        DeviceOrientation.landscapeRight => 3,
-      };
 
   Future<void> _pickFromLibrary() async {
     setState(() => _stage = _Stage.working);

@@ -52,7 +52,6 @@ enum VisionHandler {
         extractCard(
           path: path,
           corners: args["corners"] as? [String: [String: NSNumber]],
-          deviceTurns: (args["deviceTurns"] as? NSNumber)?.intValue ?? 0,
           result: result
         )
 
@@ -82,14 +81,12 @@ enum VisionHandler {
       return
     }
 
-    // Accurate recognition across three languages is the single most expensive
-    // thing the app does, and its cost scales with the pixel count. A capture
-    // arrives at whatever the sensor produced — often many times more detail
-    // than the text needs. At 1600 across, a card's machine-readable zone
-    // still gets around thirty pixels per character, which is far more than
-    // the recogniser requires, and the wait after the shutter drops sharply.
+    // Full resolution, deliberately. Scaling the capture down before reading
+    // it did cut the wait after the shutter, but it also cost the card number
+    // and the expiry date — the two fields the whole app exists to capture.
+    // Small print on a card needs every pixel the sensor gave it.
     let started = CFAbsoluteTimeGetCurrent()
-    let cgImage = downscaled(full, longestSide: 1600)
+    let cgImage = full
 
     let request = VNRecognizeTextRequest { request, error in
       if let error = error {
@@ -125,35 +122,6 @@ enum VisionHandler {
     }
     let usable = wanted.filter { available.contains($0) }
     return usable.isEmpty ? ["en-US"] : usable
-  }
-
-  /// Scales an image down so its longest side is at most [longestSide].
-  ///
-  /// Returns the original when it is already small enough, so this costs
-  /// nothing on images that do not need it.
-  private static func downscaled(_ image: CGImage, longestSide: CGFloat) -> CGImage {
-    let width = CGFloat(image.width)
-    let height = CGFloat(image.height)
-    let longest = max(width, height)
-    guard longest > longestSide else { return image }
-
-    let scale = longestSide / longest
-    let newWidth = Int((width * scale).rounded())
-    let newHeight = Int((height * scale).rounded())
-
-    guard let context = CGContext(
-      data: nil,
-      width: newWidth,
-      height: newHeight,
-      bitsPerComponent: 8,
-      bytesPerRow: 0,
-      space: CGColorSpaceCreateDeviceRGB(),
-      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-    ) else { return image }
-
-    context.interpolationQuality = .medium
-    context.draw(image, in: CGRect(x: 0, y: 0, width: newWidth, height: newHeight))
-    return context.makeImage() ?? image
   }
 
   /// Loads the recognition models before the user needs them.
@@ -247,11 +215,17 @@ enum VisionHandler {
   private static func extractCard(
     path: String,
     corners: [String: [String: NSNumber]]?,
-    deviceTurns: Int,
     result: @escaping FlutterResult
   ) {
+    // Off the platform thread: choosing an orientation runs Vision
+    // synchronously, and doing that here would stall the interface.
+    let reply: (Any?) -> Void = { value in
+      DispatchQueue.main.async { result(value) }
+    }
+
+    DispatchQueue.global(qos: .userInitiated).async {
     guard let image = UIImage(contentsOfFile: path), let cgImage = image.cgImage else {
-      result(nil); return
+      reply(nil); return
     }
 
     let orientation = cgOrientation(from: image.imageOrientation)
@@ -289,41 +263,54 @@ enum VisionHandler {
               rotation)
     }
 
+    /// The card cut out and turned upright, or nil when the result is not
+    /// plausibly a whole document.
     func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
       // The card's angle in the frame, taken from its top edge.
       let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
 
-      // Four rotations line the card up with the axes — the edge angle plus
-      // each quarter turn — and geometry cannot choose between them. A
-      // rectangle turned by θ and by θ+180° has exactly the same bounding box,
-      // so picking on shape alone lands upside down half the time.
-      //
-      // What breaks the tie is how the phone was being held. The user framed
-      // the card so it looked upright *to them*, so the card's own up matches
-      // the device's up. Turning by the angle nearest that resolves all four
-      // at once, including the 180° the shape check could never see.
-      //
-      // The sense of this matters and was wrong the first time. Portrait is
-      // zero turns, so a sign error there cancels and portrait captures came
-      // out correct — while every landscape one landed a half turn out, which
-      // is exactly the upside-down card that was reported. Turning with the
-      // device rather than against it is what makes the two agree.
-      let deviceAngle = CGFloat(deviceTurns) * .pi / 2
-
-      func distanceFromDevice(_ candidate: CGFloat) -> CGFloat {
-        var delta = candidate - deviceAngle
-        while delta > .pi { delta -= 2 * .pi }
-        while delta < -.pi { delta += 2 * .pi }
-        return abs(delta)
+      // Lay the card down first. Every document tracked here is wider than it
+      // is tall, so a box that comes out portrait means the detector called
+      // the short side the top.
+      var landscape = angle
+      if let upright = boxed(quad, turnedBy: angle), upright.rect.height > upright.rect.width {
+        landscape = angle + .pi / 2
       }
 
-      let best = (0..<4)
-        .map { angle + CGFloat($0) * .pi / 2 }
-        .min { distanceFromDevice($0) < distanceFromDevice($1) }
+      // That leaves one question geometry cannot answer: a rectangle turned by
+      // θ and by θ+180° has exactly the same bounding box, so the card may be
+      // the right way up or upside down and the shape is identical either way.
+      //
+      // Two attempts to settle it from the device's orientation both failed —
+      // the conventions for which way a phone is "turned" did not line up with
+      // the sensor's. So it is settled from the card instead: a document has
+      // text, text has a right way up, and the recogniser reads far more of it
+      // one way round than the other. That needs no convention to be correct.
+      let candidates = [landscape, landscape + .pi]
+      var best: (image: CIImage, score: Int)?
 
-      guard let chosen = best, let box = boxed(quad, turnedBy: chosen) else {
-        return nil
+      for candidate in candidates {
+        guard let cropped = crop(quad, turnedBy: candidate) else { continue }
+        let score = legibility(of: cropped)
+        if best == nil || score > best!.score {
+          best = (cropped, score)
+        }
+        // Nothing beats reading plenty of text; stop looking.
+        if score > 40 { break }
       }
+
+      guard let winner = best else { return nil }
+      return ciContext.jpegRepresentation(
+        of: winner.image,
+        colorSpace: CGColorSpaceCreateDeviceRGB(),
+        options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
+      )
+    }
+
+    /// The cropped card at one candidate rotation, validated for size.
+    func crop(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint),
+              turnedBy angle: CGFloat) -> CIImage? {
+      guard let box = boxed(quad, turnedBy: angle) else { return nil }
 
       // A hair of margin. Vision's corners sit on the card's edge, and a crop
       // exactly on that line shaves the border off every card.
@@ -346,13 +333,31 @@ enum VisionHandler {
       else { return nil }
 
       let cropped = turnedImage.cropped(to: rect)
-      guard !cropped.extent.isEmpty else { return nil }
+      return cropped.extent.isEmpty ? nil : cropped
+    }
 
-      return ciContext.jpegRepresentation(
-        of: cropped,
-        colorSpace: CGColorSpaceCreateDeviceRGB(),
-        options: [kCGImageDestinationLossyCompressionQuality as CIImageRepresentationOption: 0.9]
-      )
+    /// How much text reads out of an image — the measure of which way is up.
+    ///
+    /// Deliberately cheap: a fast pass over a small copy, because this only
+    /// has to tell two orientations apart, not read anything properly. Digits
+    /// count, so it works on a Chinese identity card whose only Latin
+    /// characters are the dates.
+    func legibility(of image: CIImage) -> Int {
+      let side = max(image.extent.width, image.extent.height)
+      let scale = side > 900 ? 900 / side : 1
+      let small = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+
+      guard let cg = ciContext.createCGImage(small, from: small.extent) else { return 0 }
+
+      let request = VNRecognizeTextRequest()
+      request.recognitionLevel = .fast
+      request.usesLanguageCorrection = false
+
+      try? VNImageRequestHandler(cgImage: cg, options: [:]).perform([request])
+      let observations = request.results as? [VNRecognizedTextObservation] ?? []
+      return observations
+        .compactMap { $0.topCandidates(1).first?.string.count }
+        .reduce(0, +)
     }
 
     // First choice: the corners the user actually saw.
@@ -370,7 +375,7 @@ enum VisionHandler {
       if let tl = supplied("topLeft"), let tr = supplied("topRight"),
          let br = supplied("bottomRight"), let bl = supplied("bottomLeft"),
          let jpeg = cut((tl: tl, tr: tr, br: br, bl: bl)) {
-        result(FlutterStandardTypedData(bytes: jpeg))
+        reply(FlutterStandardTypedData(bytes: jpeg))
         return
       }
     }
@@ -386,12 +391,13 @@ enum VisionHandler {
           bl: point(observation.bottomLeft)
         ))
       else {
-        result(nil); return
+        reply(nil); return
       }
-      result(FlutterStandardTypedData(bytes: jpeg))
+      reply(FlutterStandardTypedData(bytes: jpeg))
     }
 
-    perform([request], on: cgImage, orientation: orientation) { _ in result(nil) }
+    perform([request], on: cgImage, orientation: orientation) { _ in reply(nil) }
+    }
   }
 
   private static func makeRectangleRequest(

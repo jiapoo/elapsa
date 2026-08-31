@@ -534,9 +534,35 @@ class _CornerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final corners = _screenCorners(size);
-    final colour = quad == null
+    final found = quad != null;
+    final colour = !found
         ? Colors.white
-        : (armed ? kBrand : const Color(0xFFFFB300));
+        : (armed ? kBrand : const Color(0xFFFFC24D));
+
+    // Dim everything outside the card, so the eye goes to the document rather
+    // than the desk it is lying on. Only once something has been found — a
+    // scrim around a guess would be worse than none.
+    if (found) {
+      final outside = Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Offset.zero & size),
+        Path()..addPolygon(corners, true),
+      );
+      canvas.drawPath(outside, Paint()..color = Colors.black.withValues(alpha: 0.38));
+    }
+
+    // A hairline along the full outline ties the four brackets together into
+    // one shape. Kept faint: the corners carry the message, this only says
+    // where the edges run.
+    if (found) {
+      canvas.drawPath(
+        Path()..addPolygon(corners, true),
+        Paint()
+          ..color = colour.withValues(alpha: 0.35)
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke,
+      );
+    }
 
     for (var i = 0; i < 4; i++) {
       final corner = corners[i];
@@ -545,22 +571,42 @@ class _CornerPainter extends CustomPainter {
 
       // Dim the two corners on the edge that is furthest away, so the shape
       // itself says "bring this side closer".
-      final onFarEdge = !armed && quad != null && _touchesFarEdge(i);
-      final paint = Paint()
-        ..color = colour.withValues(alpha: onFarEdge ? 0.3 : 1)
-        ..strokeWidth = armed ? 5 : 4
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
+      final onFarEdge = !armed && found && _touchesFarEdge(i);
+      final alpha = onFarEdge ? 0.28 : 1.0;
+      final width = armed ? 5.0 : 3.5;
 
-      // Bracket arms are a fraction of each edge, so they scale with the card
-      // rather than looking oversized when it is far away.
+      // Arms are a fraction of each edge, so they scale with the card rather
+      // than looking oversized when it is far away. Rounded joins turn the
+      // corner in one sweep instead of two lines meeting at a point.
+      final start = _along(corner, previous, 0.2);
+      final end = _along(corner, next, 0.2);
+      final elbow = Path()
+        ..moveTo(start.dx, start.dy)
+        ..lineTo(corner.dx, corner.dy)
+        ..lineTo(end.dx, end.dy);
+
+      // A soft halo under each bracket keeps it legible over a pale document
+      // as well as a dark desk, without the hard drop shadow that would make
+      // it look pasted on.
       canvas.drawPath(
-        Path()
-          ..moveTo(_along(corner, previous, 0.22).dx,
-              _along(corner, previous, 0.22).dy)
-          ..lineTo(corner.dx, corner.dy)
-          ..lineTo(_along(corner, next, 0.22).dx, _along(corner, next, 0.22).dy),
-        paint,
+        elbow,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.22 * alpha)
+          ..strokeWidth = width + 4
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+
+      canvas.drawPath(
+        elbow,
+        Paint()
+          ..color = colour.withValues(alpha: alpha)
+          ..strokeWidth = width
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round
+          ..style = PaintingStyle.stroke,
       );
     }
   }

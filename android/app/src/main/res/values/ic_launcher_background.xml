@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Elapsa's brand crimson, behind the launcher mark. -->
+    <color name="ic_launcher_background">#DD1B3F</color>
+</resources>

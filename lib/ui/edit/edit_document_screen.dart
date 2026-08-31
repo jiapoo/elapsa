@@ -125,6 +125,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           _documentNumber.text.trim().isEmpty) {
         _documentNumber.text = printed.documentNumber!;
       }
+      if (printed.issuer != null && _label.text.trim().isEmpty) {
+        _label.text = printed.issuer!;
+      }
 
       if (mrz == null) {
         if (_label.text.trim().isEmpty) _label.text = _type.label(l);
@@ -204,10 +207,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             if (_images.isNotEmpty) ...[
               _Label(l.fieldImages),
               _CapturedPages(images: _images, onAdd: _scan),
+              const SizedBox(height: 8),
+              _PagesHint(text: l.fieldImagesHint),
               const SizedBox(height: 24),
             ] else if (_isEditing && widget.existing!.imageCount > 0) ...[
               _Label(l.fieldImages),
               _StoredPages(document: widget.existing!, onRescan: _scan),
+              const SizedBox(height: 8),
+              _PagesHint(text: l.fieldImagesHint),
               const SizedBox(height: 24),
             ] else ...[
               OutlinedButton.icon(
@@ -288,6 +295,17 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             ),
             const SizedBox(height: 20),
 
+            _Label(l.fieldNumberLabel),
+            TextFormField(
+              controller: _documentNumber,
+              textCapitalization: TextCapitalization.characters,
+              decoration: InputDecoration(
+                hintText: l.fieldNumberHint,
+                prefixIcon: const Icon(Icons.tag),
+              ),
+            ),
+            const SizedBox(height: 20),
+
             _Label(l.fieldExpiry),
             _DateField(
               value: _expiryDate,
@@ -328,15 +346,6 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
               decoration: InputDecoration(
                 hintText: l.fieldHolderHint,
                 prefixIcon: const Icon(Icons.person_outline),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _documentNumber,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                hintText: l.fieldNumberHint,
-                prefixIcon: const Icon(Icons.tag),
               ),
             ),
 
@@ -511,6 +520,40 @@ class _StoredPages extends ConsumerWidget {
                   ),
           );
         },
+      ),
+    );
+  }
+}
+
+/// Tells the user the strip scrolls.
+///
+/// A row of thumbnails that runs off the edge gives no sign it continues, so
+/// people stop at whatever fits — which is why a two-sided card looked like it
+/// could only hold two pictures.
+class _PagesHint extends StatelessWidget {
+  const _PagesHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Row(
+        children: [
+          Icon(Icons.swipe_left_outlined, size: 14, color: muted),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: muted),
+            ),
+          ),
+        ],
       ),
     );
   }

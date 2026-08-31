@@ -201,25 +201,51 @@ enum VisionHandler {
     /// always transfer to the other. When they do not, the crop comes out as a
     /// shifted sliver, and a sliver of someone's card is worse than falling
     /// back to a rougher cut of the whole thing.
-    func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
-      // The card's own angle in the frame, taken from its top edge. Undoing
-      // just this leaves the document upright without touching its geometry.
-      let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
+    /// The bounding box of the quad once the image is turned by [angle].
+    func boxed(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint),
+               turnedBy angle: CGFloat) -> (rect: CGRect, transform: CGAffineTransform)? {
       let rotation = CGAffineTransform(rotationAngle: -angle)
-
       let rotated = [quad.tl, quad.tr, quad.br, quad.bl].map { $0.applying(rotation) }
       let xs = rotated.map(\.x)
       let ys = rotated.map(\.y)
       guard
         let minX = xs.min(), let maxX = xs.max(),
-        let minY = ys.min(), let maxY = ys.max()
+        let minY = ys.min(), let maxY = ys.max(),
+        maxX > minX, maxY > minY
       else { return nil }
+      return (CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY),
+              rotation)
+    }
 
-      let rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
+      // The card's own angle in the frame, taken from its top edge. Undoing
+      // just this leaves the document upright without touching its geometry.
+      let angle = atan2(quad.tr.y - quad.tl.y, quad.tr.x - quad.tl.x)
+      guard var box = boxed(quad, turnedBy: angle) else { return nil }
+
+      // Every document Elapsa tracks is wider than it is tall. Coming out
+      // portrait means the detector called the short side the top — which is
+      // what happens when the phone is held sideways — so a further quarter
+      // turn lays the card down. Which way to turn is decided here by the
+      // shape that came out, not assumed from the device.
+      if box.rect.height > box.rect.width {
+        guard let turned = boxed(quad, turnedBy: angle + .pi / 2) else { return nil }
+        box = turned
+      }
+
+      // A hair of margin. Vision's corners sit on the card's edge, and a crop
+      // exactly on that line shaves the border off every card.
+      let margin = min(box.rect.width, box.rect.height) * 0.02
+      let generous = box.rect.insetBy(dx: -margin, dy: -margin)
+
+      let turnedImage = ciImage.transformed(by: box.transform)
+      let rect = generous.intersection(turnedImage.extent)
+      guard !rect.isNull, !rect.isEmpty else { return nil }
 
       // A real document fills a meaningful share of a frame the user framed it
-      // in. These bounds are loose enough for a card held well back, tight
-      // enough to reject a sliver.
+      // in. Loose enough for a card held well back, tight enough to reject the
+      // sliver you get when corners measured on the preview do not transfer to
+      // a still of a different shape.
       let longestSide = max(extent.width, extent.height)
       guard
         rect.width > longestSide * 0.10,
@@ -227,7 +253,7 @@ enum VisionHandler {
         rect.width * rect.height > extent.width * extent.height * 0.04
       else { return nil }
 
-      let cropped = ciImage.transformed(by: rotation).cropped(to: rect)
+      let cropped = turnedImage.cropped(to: rect)
       guard !cropped.extent.isEmpty else { return nil }
 
       return ciContext.jpegRepresentation(

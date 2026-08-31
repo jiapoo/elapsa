@@ -11,6 +11,12 @@ class PrintedFields {
   final String? documentNumber;
   final DocumentType? type;
 
+  /// Who issued it — the bank on a payment card, the authority on an ID.
+  ///
+  /// Becomes the document's name, because "China Construction Bank" is what
+  /// someone calls that card. "Bank card" is what a filing cabinet calls it.
+  final String? issuer;
+
   /// True when the document says it never expires — a Chinese ID issued to
   /// someone over 46 reads `2015.01.01-长期`. Recording that as "no expiry" is
   /// right; recording it as "expired" would be badly wrong.
@@ -20,6 +26,7 @@ class PrintedFields {
     this.expiryDate,
     this.documentNumber,
     this.type,
+    this.issuer,
     this.neverExpires = false,
   });
 
@@ -27,6 +34,7 @@ class PrintedFields {
       expiryDate == null &&
       documentNumber == null &&
       type == null &&
+      issuer == null &&
       !neverExpires;
 
   static const empty = PrintedFields();
@@ -81,6 +89,17 @@ class PrintedFieldParser {
     r'(?<![\d/])((?:\d[ -]?){12,18}\d)(?![\d/])',
   );
 
+  /// The line naming the institution that issued the card.
+  ///
+  /// Chinese banks print their name in full and follow it with the English,
+  /// so the Chinese line is matched first and used as-is: it is what the
+  /// cardholder actually calls the card.
+  static final _issuerLine = RegExp(
+    r'([\u4e00-\u9fff]{2,10}(?:银行|銀行|信用社|保险|保險))'
+    r'|([A-Z][A-Za-z.\-]*(?:[ ][A-Z][A-Za-z.\-]*){0,4}[ ](?:Bank|BANK))'
+    r'|((?:Bank|BANK)[ ]of[ ][A-Z][A-Za-z.\-]*(?:[ ][A-Z][A-Za-z.\-]*){0,3})',
+  );
+
   /// Wording that marks the document as a payment card.
   static final _cardWording = RegExp(
     r'银联|銀聯|储蓄卡|儲蓄卡|信用卡|借记卡|'
@@ -132,10 +151,13 @@ class PrintedFieldParser {
         : null;
     final number = chineseId ?? card?.replaceAll(RegExp(r'[ -]'), '');
 
+    final issuer = _issuerLine.firstMatch(normalised);
+
     return PrintedFields(
       expiryDate: expiry,
       documentNumber: number?.toUpperCase(),
       type: _typeFrom(normalised, hasChineseId: chineseId != null),
+      issuer: (issuer?.group(1) ?? issuer?.group(2) ?? issuer?.group(3))?.trim(),
       neverExpires: permanent,
     );
   }

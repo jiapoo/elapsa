@@ -85,6 +85,20 @@ UnionPay 银联
       expect(parser.parse('6217 0033 07/35').expiryDate, isNull);
     });
 
+    test('names the bank that issued it', () {
+      // "China Construction Bank" is what someone calls this card. "Bank card"
+      // is what a filing cabinet calls it.
+      expect(parser.parse(card).issuer, '中国建设银行');
+    });
+
+    test('falls back to the English name when there is no Chinese line', () {
+      expect(
+        parser.parse('China Construction Bank\nVALID THRU 07/35').issuer,
+        'China Construction Bank',
+      );
+      expect(parser.parse('Bank of China\nUnionPay').issuer, 'Bank of China');
+    });
+
     test('an identity number wins over a card number', () {
       // Both patterns can match 18 digits; the ID is the more specific claim.
       final fields = parser.parse('居民身份证 44010119900307201X');

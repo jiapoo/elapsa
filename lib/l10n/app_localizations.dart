@@ -338,11 +338,23 @@ abstract class L {
   /// **'Document number'**
   String get fieldNumberHint;
 
+  /// No description provided for @fieldNumberLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Card number'**
+  String get fieldNumberLabel;
+
   /// No description provided for @fieldImages.
   ///
   /// In en, this message translates to:
   /// **'Pictures'**
   String get fieldImages;
+
+  /// No description provided for @fieldImagesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe for more — most cards have two sides.'**
+  String get fieldImagesHint;
 
   /// No description provided for @editSave.
   ///

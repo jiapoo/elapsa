@@ -162,7 +162,13 @@ class LEn extends L {
   String get fieldNumberHint => 'Document number';
 
   @override
+  String get fieldNumberLabel => 'Card number';
+
+  @override
   String get fieldImages => 'Pictures';
+
+  @override
+  String get fieldImagesHint => 'Swipe for more — most cards have two sides.';
 
   @override
   String get editSave => 'Save changes';

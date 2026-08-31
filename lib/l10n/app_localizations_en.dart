@@ -150,6 +150,9 @@ class LEn extends L {
   String get fieldExpiryRequired => 'Pick an expiry date';
 
   @override
+  String get fieldIssueDate => 'Valid from';
+
+  @override
   String get fieldRemindMe => 'Start reminding me';
 
   @override
@@ -163,6 +166,9 @@ class LEn extends L {
 
   @override
   String get fieldNumberLabel => 'Card number';
+
+  @override
+  String get imageOptionsTitle => 'Retake or delete this picture?';
 
   @override
   String get fieldImages => 'Pictures';

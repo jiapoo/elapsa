@@ -8,8 +8,20 @@ import 'package:elapsa/domain/document_type.dart';
 /// simply needs reading.
 class PrintedFields {
   final DateTime? expiryDate;
+
+  /// When the document became valid. Most cards print it beside the expiry —
+  /// `VALID FROM` against `VALID THRU` — and a Chinese identity card prints
+  /// both ends of its range.
+  final DateTime? issueDate;
+
   final String? documentNumber;
   final DocumentType? type;
+
+  /// The three-digit code on the signature panel.
+  final String? securityCode;
+
+  /// The name embossed on the card.
+  final String? holderName;
 
   /// Who issued it — the bank on a payment card, the authority on an ID.
   ///
@@ -24,17 +36,39 @@ class PrintedFields {
 
   const PrintedFields({
     this.expiryDate,
+    this.issueDate,
     this.documentNumber,
     this.type,
     this.issuer,
+    this.securityCode,
+    this.holderName,
     this.neverExpires = false,
   });
 
+  /// Fills this in from [other] wherever it has nothing.
+  ///
+  /// A card is two photographs: the front carries the number, the name and the
+  /// dates, the back carries the security code. Keeping only the first page
+  /// that yielded anything threw the other half away.
+  PrintedFields mergedWith(PrintedFields other) => PrintedFields(
+        expiryDate: expiryDate ?? other.expiryDate,
+        issueDate: issueDate ?? other.issueDate,
+        documentNumber: documentNumber ?? other.documentNumber,
+        type: type ?? other.type,
+        issuer: issuer ?? other.issuer,
+        securityCode: securityCode ?? other.securityCode,
+        holderName: holderName ?? other.holderName,
+        neverExpires: neverExpires || other.neverExpires,
+      );
+
   bool get isEmpty =>
       expiryDate == null &&
+      issueDate == null &&
       documentNumber == null &&
       type == null &&
       issuer == null &&
+      securityCode == null &&
+      holderName == null &&
       !neverExpires;
 
   static const empty = PrintedFields();
@@ -68,16 +102,42 @@ class PrintedFieldParser {
     caseSensitive: false,
   );
 
-  /// A bank card's `MM/YY`, introduced by the label printed beside it.
+  /// Every `MM/YY` on a payment card.
   ///
-  /// Anchored to a label on purpose: two digits, a slash and two digits also
-  /// describes part of a card number, a sort code and a date of issue. The
-  /// label is what makes it an expiry.
-  static final _monthYearExpiry = RegExp(
-    r'(?:valid\s*thru|valid\s*through|month\s*/\s*year|expires?\s*end|good\s*thru|有效期(?:至|限)?)'
-    r'[\s:：]*'
-    r'(\d{1,2})\s*[/\-.]\s*(\d{2}|\d{4})',
-    caseSensitive: false,
+  /// Deliberately *not* anchored to a label. A card carries two of them —
+  /// `VALID FROM 10/23` beside `VALID THRU 10/28`, each under its own
+  /// `MONTH/YEAR` caption — and a recogniser returns those captions and
+  /// figures as separate lines in an order that follows the layout, not the
+  /// meaning. Anchoring to the caption matched whichever came first, which on
+  /// a card laid out this way is the date it was *issued*: a live card
+  /// recorded as two years expired.
+  ///
+  /// So every one is collected and the latest wins. Between an issue date and
+  /// an expiry the expiry is always the later, and that holds whatever order
+  /// the lines arrive in and whichever captions the recogniser dropped.
+  static final _monthYear = RegExp(r'(?<![\d/])(\d{1,2})\s*/\s*(\d{2})(?![\d/])');
+
+  /// A three-digit security code, printed after the last four of the card
+  /// number on the signature panel.
+  ///
+  /// That pairing is what makes it findable at all. Three digits on their own
+  /// are hopeless — the back of a card is covered in service numbers — but
+  /// four digits followed by three is the signature strip and very little
+  /// else.
+  static final _securityCode = RegExp(r'(?<!\d)\d{4}\s+(\d{3})(?!\d)');
+
+  /// A line that is plausibly the cardholder's name: embossed in capitals,
+  /// letters only, a word or three.
+  static final _nameLine = RegExp(
+    r'^([A-Z][A-Z.\-]{1,20}(?: [A-Z][A-Z.\-]{0,20}){0,3})$',
+    multiLine: true,
+  );
+
+  /// Everything else printed on a card in capitals.
+  static final _notAName = RegExp(
+    r'BANK|VALID|THRU|FROM|MONTH|YEAR|SIGNATURE|AUTHORIZED|AUTHORISED|DEBIT|'
+    r'CREDIT|UNIONPAY|VISA|MASTERCARD|EXPRESS|CARD|ATM|CUSTOMER|SERVICE|'
+    r'HOTLINE|OVERSEAS|CALL|SIGNED|HTTP|WWW',
   );
 
   /// Mainland Chinese national identity number: 17 digits and a check
@@ -101,9 +161,17 @@ class PrintedFieldParser {
   );
 
   /// Wording that marks the document as a payment card.
+  ///
+  /// `VALID THRU` and `MONTH/YEAR` earn their place here: they are captions
+  /// printed on payment cards and almost nowhere else, so finding one is
+  /// evidence of what the document is even when the bank's own name did not
+  /// survive recognition. That matters because the dates are only read once
+  /// something here matches — a bare `10/28` on any other piece of paper must
+  /// not become an expiry.
   static final _cardWording = RegExp(
     r'银联|銀聯|储蓄卡|儲蓄卡|信用卡|借记卡|'
-    r'unionpay|\bdebit\b|\bcredit\b|\bbank\b|\bcard\b',
+    r'unionpay|\bdebit\b|\bcredit\b|\bbank\b|\bcard\b|'
+    r'valid\s*thru|valid\s*through|good\s*thru|month\s*/\s*year',
     caseSensitive: false,
   );
 
@@ -112,11 +180,23 @@ class PrintedFieldParser {
 
     final normalised = text.replaceAll(RegExp(r'[ \t]+'), ' ');
 
+    // Whether this is a payment card at all, judged only on its wording.
+    //
+    // Dropping the label anchor from the date pattern was necessary — the
+    // captions do not survive recognition in a usable order — but it must not
+    // become an excuse to read any `10/28` anywhere as an expiry. The wording
+    // is the evidence now: a card says bank, or debit, or 银联, somewhere on
+    // its face.
+    final looksLikeCard = _cardWording.hasMatch(normalised);
+
     DateTime? expiry;
     var permanent = false;
 
+    DateTime? issued;
+
     final range = _validityRange.firstMatch(normalised);
     if (range != null) {
+      issued = _date(range.group(1), range.group(2), range.group(3));
       if (range.group(7) != null) {
         permanent = true;
       } else {
@@ -131,10 +211,12 @@ class PrintedFieldParser {
       if (labelled != null) {
         expiry = _date(labelled.group(1), labelled.group(2), labelled.group(3));
       }
-      // A payment card prints MM/YY and nothing else.
-      final monthYear = _monthYearExpiry.firstMatch(normalised);
-      if (expiry == null && monthYear != null) {
-        expiry = _endOfMonth(monthYear.group(1), monthYear.group(2));
+      // A payment card prints MM/YY and nothing else. The later of the pair
+      // is when it expires; the earlier is when it was issued.
+      if (looksLikeCard) {
+        final months = _allMonthYears(normalised);
+        if (expiry == null && months.isNotEmpty) expiry = months.last;
+        if (months.length > 1) issued = months.first;
       }
     }
 
@@ -142,9 +224,6 @@ class PrintedFieldParser {
     // document says "card". Bare, it could as easily be an IMEI, a policy
     // number or a serial — and inventing a document number is the same failure
     // as inventing a date.
-    final looksLikeCard = _cardWording.hasMatch(normalised) ||
-        _monthYearExpiry.hasMatch(normalised);
-
     final chineseId = _chineseIdNumber.firstMatch(normalised)?.group(1);
     final card = (chineseId == null && looksLikeCard)
         ? _cardNumber.firstMatch(normalised)?.group(1)
@@ -155,9 +234,13 @@ class PrintedFieldParser {
 
     return PrintedFields(
       expiryDate: expiry,
+      issueDate: issued,
       documentNumber: number?.toUpperCase(),
       type: _typeFrom(normalised, hasChineseId: chineseId != null),
       issuer: (issuer?.group(1) ?? issuer?.group(2) ?? issuer?.group(3))?.trim(),
+      securityCode:
+          looksLikeCard ? _securityCode.firstMatch(normalised)?.group(1) : null,
+      holderName: looksLikeCard ? _holderName(normalised, issuer) : null,
       neverExpires: permanent,
     );
   }
@@ -189,8 +272,32 @@ class PrintedFieldParser {
         RegExp(r'residence\s*permit', caseSensitive: false).hasMatch(text)) {
       return DocumentType.residencePermit;
     }
-    if (_cardWording.hasMatch(text) || _monthYearExpiry.hasMatch(text)) {
+    if (_cardWording.hasMatch(text)) {
       return DocumentType.bankCard;
+    }
+    return null;
+  }
+
+  /// Every `MM/YY` in the text, earliest first, each as the month's last day.
+  static List<DateTime> _allMonthYears(String text) {
+    final dates = <DateTime>[];
+    for (final match in _monthYear.allMatches(text)) {
+      final date = _endOfMonth(match.group(1), match.group(2));
+      if (date != null && !dates.contains(date)) dates.add(date);
+    }
+    dates.sort();
+    return dates;
+  }
+
+  /// The line most likely to be the name embossed on the card.
+  static String? _holderName(String text, RegExpMatch? issuer) {
+    final issuerText = issuer?.group(0);
+    for (final match in _nameLine.allMatches(text)) {
+      final candidate = match.group(1)!.trim();
+      if (candidate.length < 4) continue;
+      if (_notAName.hasMatch(candidate)) continue;
+      if (issuerText != null && issuerText.contains(candidate)) continue;
+      return candidate;
     }
     return null;
   }

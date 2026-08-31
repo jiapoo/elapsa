@@ -304,9 +304,11 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
     setState(() {
       if (result.cardImage != null) _pages.add(result.cardImage!);
       if (result.hasTrustedCode && _bestMrz == null) _bestMrz = result.mrz;
-      if (_printed.isEmpty && !result.printed.isEmpty) {
-        _printed = result.printed;
-      }
+      // Merged, not replaced. A card is two photographs — the front carries
+      // the number, the name and the dates, the back carries the security
+      // code — and keeping only the first page that yielded anything threw
+      // the other half away.
+      _printed = _printed.mergedWith(result.printed);
       _stage = _controller != null ? _Stage.ready : _Stage.noCamera;
     });
   }

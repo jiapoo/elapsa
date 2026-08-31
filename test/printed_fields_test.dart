@@ -107,6 +107,112 @@ UnionPay 银联
     });
   });
 
+  group('a card printing both of its dates', () {
+    // A China Merchants Bank Visa, which prints VALID FROM beside VALID THRU,
+    // each under its own MONTH/YEAR caption. Recognition returns the captions
+    // and the figures as separate lines in layout order, not reading order.
+    const front = '''
+招商银行
+CHINA MERCHANTS BANK
+全币种国际信用卡
+4514 6176 5081 6954
+VALID
+MONTH/YEAR
+FROM
+10/23
+VALID
+MONTH/YEAR
+THRU
+10/28
+LIU JIA
+VISA
+Signature
+''';
+
+    test('takes the later date as the expiry, never the earlier', () {
+      // Anchoring to the MONTH/YEAR caption matched the issue date first and
+      // recorded a live card as two years expired.
+      expect(parser.parse(front).expiryDate, DateTime(2028, 10, 31));
+    });
+
+    test('keeps the earlier date as when it became valid', () {
+      expect(parser.parse(front).issueDate, DateTime(2023, 10, 31));
+    });
+
+    test('reads the name embossed on it', () {
+      expect(parser.parse(front).holderName, 'LIU JIA');
+    });
+
+    test('does not mistake the bank or the scheme for the holder', () {
+      final holder = parser.parse(front).holderName;
+      expect(holder, isNot(contains('BANK')));
+      expect(holder, isNot('VISA'));
+    });
+
+    test('names the card after the bank', () {
+      expect(parser.parse(front).issuer, '招商银行');
+    });
+
+    test('a single date is still the expiry', () {
+      expect(parser.parse('UnionPay VALID THRU 07/35').expiryDate,
+          DateTime(2035, 7, 31));
+      expect(parser.parse('UnionPay VALID THRU 07/35').issueDate, isNull);
+    });
+  });
+
+  group('the back of a card', () {
+    const back = '''
+OVERSEAS CALL: +86 400 820 5555
+AUTHORIZED SIGNATURE NOT VALID UNLESS SIGNED
+6954 774
+24 Hours Hotline 400-820-5555
+招商银行 信用卡
+http://www.8008205555.com
+''';
+
+    test('reads the security code that follows the last four digits', () {
+      expect(parser.parse(back).securityCode, '774');
+    });
+
+    test('is not fooled by the service numbers around it', () {
+      // The panel is surrounded by hotlines; only four digits then three is
+      // the signature strip.
+      expect(parser.parse(back).securityCode, isNot('555'));
+      expect(parser.parse(back).securityCode, isNot('820'));
+    });
+  });
+
+  group('merging what each side gave', () {
+    test('the front and the back together make one card', () {
+      // Front has number, dates and name; back has the security code. Keeping
+      // only the first page that read anything threw the other half away.
+      const front = PrintedFields(
+        documentNumber: '4514617650816954',
+        holderName: 'LIU JIA',
+        type: DocumentType.bankCard,
+      );
+      const back = PrintedFields(securityCode: '774', issuer: '招商银行');
+
+      final merged = front.mergedWith(back);
+      expect(merged.documentNumber, '4514617650816954');
+      expect(merged.holderName, 'LIU JIA');
+      expect(merged.securityCode, '774');
+      expect(merged.issuer, '招商银行');
+    });
+
+    test('what is already known is never overwritten', () {
+      const first = PrintedFields(securityCode: '111');
+      const second = PrintedFields(securityCode: '222');
+      expect(first.mergedWith(second).securityCode, '111');
+    });
+
+    test('merging with nothing changes nothing', () {
+      const fields = PrintedFields(holderName: 'LIU JIA');
+      expect(fields.mergedWith(PrintedFields.empty).holderName, 'LIU JIA');
+      expect(PrintedFields.empty.mergedWith(fields).holderName, 'LIU JIA');
+    });
+  });
+
   group('labelled expiry dates', () {
     test('reads a Chinese label', () {
       expect(

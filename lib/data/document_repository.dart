@@ -88,6 +88,16 @@ class DocumentRepository {
     await _resync();
   }
 
+  /// Removes one stored picture from a document.
+  Future<void> removeImage(domain.TrackedDocument doc, int index) async {
+    await _images.removeAt(doc.id, index, doc.imageCount);
+    final remaining = doc.imageCount - 1;
+    await save(doc.copyWith(
+      imagePath: remaining > 0 ? '${doc.id}_0.enc' : null,
+      imageCount: remaining < 0 ? 0 : remaining,
+    ));
+  }
+
   /// Adds pictures to an existing document, keeping the ones already stored.
   ///
   /// A user photographing the back of a card expects to end up with both

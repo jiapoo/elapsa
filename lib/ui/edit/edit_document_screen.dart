@@ -34,6 +34,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   late TextEditingController _holder;
   late TextEditingController _documentNumber;
   DateTime? _expiryDate;
+  DateTime? _issueDate;
   late int _renewalLeadDays;
   String? _issuingCountry;
 
@@ -70,25 +71,31 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _type = existing?.type ?? DocumentType.passport;
     _label = TextEditingController(text: existing?.label ?? '');
     _holder = TextEditingController(text: existing?.holder ?? '');
-    _documentNumber =
-        TextEditingController(text: existing?.documentNumber ?? '');
+    _documentNumber = TextEditingController(
+      text: existing?.documentNumber ?? '',
+    );
     _expiryDate = existing?.expiryDate;
+    _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
-    _renewalLeadDays = existing?.renewalLeadDays ?? _type.defaultRenewalLeadDays;
-    _leadDaysIsAuto = existing == null ||
+    _renewalLeadDays =
+        existing?.renewalLeadDays ?? _type.defaultRenewalLeadDays;
+    _leadDaysIsAuto =
+        existing == null ||
         existing.renewalLeadDays == existing.type.defaultRenewalLeadDays;
 
     for (final detail in DocumentDetail.values) {
-      _details[detail] =
-          TextEditingController(text: existing?.details[detail] ?? '');
+      _details[detail] = TextEditingController(
+        text: existing?.details[detail] ?? '',
+      );
     }
 
     final session = widget.session;
     if (session != null) {
       // Deferred, because filling the form needs the localisations that are
       // only available once there is a context.
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => _applySession(session));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _applySession(session),
+      );
     }
   }
 
@@ -103,10 +110,58 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     super.dispose();
   }
 
-  Future<void> _scan() async {
-    final session = await Navigator.of(context).push<ScanSession>(
-      MaterialPageRoute(builder: (_) => const ScanScreen()),
+  /// Offers what to do with a picture the user tapped.
+  ///
+  /// Retake replaces it: the old one goes and the scanner opens for its
+  /// successor. Delete simply removes it. Neither is guessable from a
+  /// thumbnail, so both are named.
+  Future<void> _pictureOptions(int index, {required bool stored}) async {
+    final l = L.of(context);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.imageOptionsTitle),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l.actionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('delete'),
+            child: Text(l.actionDelete),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('retake'),
+            child: Text(l.actionRetake),
+          ),
+        ],
+      ),
     );
+    if (choice == null || !mounted) return;
+
+    if (stored) {
+      await ref
+          .read(documentRepositoryProvider)
+          .removeImage(widget.existing!, index);
+      if (!mounted) return;
+      // The stored set changed underneath this screen, so leave rather than
+      // show a form built from a document that no longer matches.
+      if (choice == 'delete') {
+        Navigator.of(context).pop();
+        return;
+      }
+    } else {
+      setState(() => _images.removeAt(index));
+      if (choice == 'delete') return;
+    }
+
+    await _scan();
+  }
+
+  Future<void> _scan() async {
+    final session = await Navigator.of(
+      context,
+    ).push<ScanSession>(MaterialPageRoute(builder: (_) => const ScanScreen()));
     if (session != null) _applySession(session);
   }
 
@@ -138,6 +193,19 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         }
       }
       if (printed.expiryDate != null) _expiryDate = printed.expiryDate;
+      if (printed.issueDate != null) _issueDate = printed.issueDate;
+      if (printed.securityCode != null) {
+        _details[DocumentDetail.securityCode]!.text = printed.securityCode!;
+      }
+      if (printed.holderName != null) {
+        final cardholder = _details[DocumentDetail.cardholderName]!;
+        if (cardholder.text.trim().isEmpty) {
+          cardholder.text = printed.holderName!;
+        }
+        if (_holder.text.trim().isEmpty) {
+          _holder.text = _titleCase(printed.holderName!);
+        }
+      }
       if (printed.documentNumber != null &&
           _documentNumber.text.trim().isEmpty) {
         _documentNumber.text = printed.documentNumber!;
@@ -223,11 +291,19 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           children: [
             if (_images.isNotEmpty) ...[
               _Label(l.fieldImages),
-              _CapturedPages(images: _images, onAdd: _scan),
+              _CapturedPages(
+                images: _images,
+                onAdd: _scan,
+                onTapImage: (index) => _pictureOptions(index, stored: false),
+              ),
               const SizedBox(height: 24),
             ] else if (_isEditing && widget.existing!.imageCount > 0) ...[
               _Label(l.fieldImages),
-              _StoredPages(document: widget.existing!, onRescan: _scan),
+              _StoredPages(
+                document: widget.existing!,
+                onRescan: _scan,
+                onTapImage: (index) => _pictureOptions(index, stored: true),
+              ),
               const SizedBox(height: 24),
             ] else ...[
               OutlinedButton.icon(
@@ -251,9 +327,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                 child: Text(
                   l.editScanHelp,
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
+                  style: Theme.of(context).textTheme.bodySmall
                       ?.copyWith(color: scheme.onSurfaceVariant),
                 ),
               ),
@@ -263,7 +337,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             if (_fromScan) ...[
               _InfoNote(
                 icon: Icons.verified_outlined,
-                text: _readAnything ? l.editFromScanNote : l.editScanNothingRead,
+                text: _readAnything
+                    ? l.editFromScanNote
+                    : l.editScanNothingRead,
               ),
               const SizedBox(height: 24),
             ],
@@ -301,8 +377,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             TextFormField(
               controller: _label,
               textCapitalization: TextCapitalization.sentences,
-              decoration:
-                  InputDecoration(hintText: l.fieldNameHint(_type.label(l))),
+              decoration: InputDecoration(
+                hintText: l.fieldNameHint(_type.label(l)),
+              ),
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? l.fieldNameRequired : null,
             ),
@@ -326,6 +403,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             ),
             const SizedBox(height: 20),
 
+            _Label(l.fieldIssueDate),
+            _DateField(
+              value: _issueDate,
+              onChanged: (d) => setState(() => _issueDate = d),
+            ),
+            const SizedBox(height: 20),
+
             _Label(l.fieldRemindMe),
             _LeadTimeField(
               days: _renewalLeadDays,
@@ -337,30 +421,27 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             const SizedBox(height: 6),
             Text(
               _leadTimeExplanation(l),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.4,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
             ),
 
             if (_type.hasSixMonthTravelRule) ...[
               const SizedBox(height: 14),
-              _InfoNote(
-                icon: Icons.flight_takeoff,
-                text: l.sixMonthRuleNote,
-              ),
+              _InfoNote(icon: Icons.flight_takeoff, text: l.sixMonthRuleNote),
             ],
 
             if (_type.details.isNotEmpty) ...[
               const SizedBox(height: 28),
-              ..._type.details.map((detail) => _DetailField(
-                    detail: detail,
-                    controller: _details[detail]!,
-                    revealed: _revealed.contains(detail),
-                    onToggleReveal: () => setState(() {
-                      if (!_revealed.remove(detail)) _revealed.add(detail);
-                    }),
-                  )),
+              ..._type.details.map(
+                (detail) => _DetailField(
+                  detail: detail,
+                  controller: _details[detail]!,
+                  revealed: _revealed.contains(detail),
+                  onToggleReveal: () => setState(() {
+                    if (!_revealed.remove(detail)) _revealed.add(detail);
+                  }),
+                ),
+              ),
             ],
 
             const SizedBox(height: 28),
@@ -375,10 +456,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
             ),
 
             const SizedBox(height: 32),
-            FilledButton(
-              onPressed: _save,
-              child: Text(l.editSave),
-            ),
+            FilledButton(onPressed: _save, child: Text(l.editSave)),
           ],
         ),
       ),
@@ -423,6 +501,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
         expiryDate: _expiryDate,
+        issueDate: _issueDate,
         renewalLeadDays: _renewalLeadDays,
         details: details,
       );
@@ -447,6 +526,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         holder: holder.isEmpty ? null : holder,
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
+        issueDate: _issueDate,
         images: _images,
         details: details,
       );
@@ -519,10 +599,15 @@ class _PageStrip extends StatelessWidget {
 
 /// Pictures captured in this session, not yet saved.
 class _CapturedPages extends StatelessWidget {
-  const _CapturedPages({required this.images, required this.onAdd});
+  const _CapturedPages({
+    required this.images,
+    required this.onAdd,
+    required this.onTapImage,
+  });
 
   final List<Uint8List> images;
   final VoidCallback onAdd;
+  final ValueChanged<int> onTapImage;
 
   @override
   Widget build(BuildContext context) {
@@ -532,13 +617,16 @@ class _CapturedPages extends StatelessWidget {
         if (index == images.length) {
           return _AddPageTile(onTap: onAdd, size: size);
         }
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: Image.memory(
-            images[index],
-            width: size.width,
-            height: size.height,
-            fit: BoxFit.cover,
+        return GestureDetector(
+          onTap: () => onTapImage(index),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Image.memory(
+              images[index],
+              width: size.width,
+              height: size.height,
+              fit: BoxFit.cover,
+            ),
           ),
         );
       },
@@ -548,10 +636,15 @@ class _CapturedPages extends StatelessWidget {
 
 /// Pictures already stored against a saved document.
 class _StoredPages extends ConsumerWidget {
-  const _StoredPages({required this.document, required this.onRescan});
+  const _StoredPages({
+    required this.document,
+    required this.onRescan,
+    required this.onTapImage,
+  });
 
   final TrackedDocument document;
   final VoidCallback onRescan;
+  final ValueChanged<int> onTapImage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -565,23 +658,27 @@ class _StoredPages extends ConsumerWidget {
             .watch(documentImageProvider(DocumentImageRef(document.id, index)))
             .asData
             ?.value;
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: bytes == null
-              ? SizedBox(
-                  width: size.width,
-                  height: size.height,
-                  child: ColoredBox(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
+        return GestureDetector(
+          onTap: () => onTapImage(index),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: bytes == null
+                ? SizedBox(
+                    width: size.width,
+                    height: size.height,
+                    child: ColoredBox(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
+                    ),
+                  )
+                : Image.memory(
+                    bytes,
+                    width: size.width,
+                    height: size.height,
+                    fit: BoxFit.cover,
                   ),
-                )
-              : Image.memory(
-                  bytes,
-                  width: size.width,
-                  height: size.height,
-                  fit: BoxFit.cover,
-                ),
+          ),
         );
       },
     );
@@ -614,9 +711,7 @@ class _AddPageTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               L.of(context).scanAddAnother,
-              style: Theme.of(context)
-                  .textTheme
-                  .labelSmall
+              style: Theme.of(context).textTheme.labelSmall
                   ?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
@@ -679,14 +774,16 @@ class _DetailField extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                Icon(Icons.lock_outline, size: 13, color: scheme.onSurfaceVariant),
+                Icon(
+                  Icons.lock_outline,
+                  size: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     l.detailSensitiveNote,
-                    style: Theme.of(context)
-                        .textTheme
-                        .bodySmall
+                    style: Theme.of(context).textTheme.bodySmall
                         ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
@@ -710,10 +807,10 @@ class _Label extends StatelessWidget {
       child: Text(
         text.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-              letterSpacing: 1.1,
-              fontWeight: FontWeight.w700,
-            ),
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          letterSpacing: 1.1,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -812,10 +909,8 @@ class _InfoNote extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSecondaryContainer,
-                    height: 1.45,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSecondaryContainer, height: 1.45),
             ),
           ),
         ],

@@ -314,6 +314,12 @@ abstract class L {
   /// **'Pick an expiry date'**
   String get fieldExpiryRequired;
 
+  /// No description provided for @fieldIssueDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Valid from'**
+  String get fieldIssueDate;
+
   /// No description provided for @fieldRemindMe.
   ///
   /// In en, this message translates to:
@@ -343,6 +349,12 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Card number'**
   String get fieldNumberLabel;
+
+  /// No description provided for @imageOptionsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Retake or delete this picture?'**
+  String get imageOptionsTitle;
 
   /// No description provided for @fieldImages.
   ///

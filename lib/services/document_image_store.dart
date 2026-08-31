@@ -71,6 +71,23 @@ class DocumentImageStore {
     return images;
   }
 
+  /// Removes one picture and closes the gap behind it.
+  ///
+  /// Indices have to stay contiguous: everything reads them as 0 up to the
+  /// stored count, so a hole would silently truncate the set at the gap.
+  Future<void> removeAt(String documentId, int index, int count) async {
+    final dir = await _directory();
+    final file = _fileFor(dir, documentId, index);
+    if (await file.exists()) await file.delete();
+
+    for (var i = index + 1; i < count; i++) {
+      final from = _fileFor(dir, documentId, i);
+      if (await from.exists()) {
+        await from.rename(_fileFor(dir, documentId, i - 1).path);
+      }
+    }
+  }
+
   /// Removes every picture belonging to a document.
   ///
   /// Scans the directory rather than trusting a stored count, so a crash

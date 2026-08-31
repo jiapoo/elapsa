@@ -132,6 +132,9 @@ class LZh extends L {
   String get fieldExpiryRequired => '请选择到期日';
 
   @override
+  String get fieldIssueDate => '有效期起始';
+
+  @override
   String get fieldRemindMe => '提前多久提醒';
 
   @override
@@ -145,6 +148,9 @@ class LZh extends L {
 
   @override
   String get fieldNumberLabel => '证件号码';
+
+  @override
+  String get imageOptionsTitle => '重拍或删除这张照片？';
 
   @override
   String get fieldImages => '照片';
@@ -489,6 +495,9 @@ class LZhHant extends LZh {
   String get fieldExpiryRequired => '請選擇到期日';
 
   @override
+  String get fieldIssueDate => '有效期起始';
+
+  @override
   String get fieldRemindMe => '提前多久提醒';
 
   @override
@@ -502,6 +511,9 @@ class LZhHant extends LZh {
 
   @override
   String get fieldNumberLabel => '證件號碼';
+
+  @override
+  String get imageOptionsTitle => '重拍或刪除這張照片？';
 
   @override
   String get fieldImages => '照片';

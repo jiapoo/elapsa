@@ -35,6 +35,20 @@ class ScanScreen extends StatefulWidget {
 
 enum _Stage { starting, ready, noCamera, working }
 
+/// How far to turn a glyph so it reads upright in the user's hand.
+///
+/// The scanner's layout is pinned to portrait, so turning the phone sideways
+/// moves nothing on screen. Only the glyphs rotate, which is how every camera
+/// app behaves: the controls stay under the same thumb while their icons stay
+/// the right way up. Every button here is a circle, so rotating the glyph
+/// alone leaves the button itself looking identical.
+double _glyphTurns(DeviceOrientation device) => switch (device) {
+      DeviceOrientation.portraitUp => 0,
+      DeviceOrientation.landscapeLeft => 0.25,
+      DeviceOrientation.portraitDown => 0.5,
+      DeviceOrientation.landscapeRight => -0.25,
+    };
+
 class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   static const _scanner = MrzScanner();
   static const _vision = VisionChannel();
@@ -307,7 +321,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 16),
-                    child: Column(
+                    child: _RotatingGlyphs(
+                      controller: _controller,
+                      child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (_pages.isNotEmpty) ...[
@@ -340,6 +356,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
                           ],
                         ),
                       ],
+                      ),
                     ),
                   ),
                 ),
@@ -348,6 +365,66 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Supplies the current glyph rotation to everything beneath it.
+///
+/// The camera plugin already tracks the physical device orientation and
+/// publishes it on its own notifier, so the glyphs can follow the phone
+/// without a second sensor listener or an extra dependency.
+class _RotatingGlyphs extends StatelessWidget {
+  const _RotatingGlyphs({required this.controller, required this.child});
+
+  final CameraController? controller;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = this.controller;
+    if (controller == null) {
+      return _GlyphRotation(turns: 0, child: child);
+    }
+    return ValueListenableBuilder<CameraValue>(
+      valueListenable: controller,
+      builder: (context, value, _) => _GlyphRotation(
+        turns: _glyphTurns(value.deviceOrientation),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Inherited so each glyph can turn itself, rather than the whole control bar
+/// rotating and moving the buttons out from under the user's thumb.
+class _GlyphRotation extends InheritedWidget {
+  const _GlyphRotation({required this.turns, required super.child});
+
+  final double turns;
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_GlyphRotation>()?.turns ?? 0;
+
+  @override
+  bool updateShouldNotify(_GlyphRotation old) => old.turns != turns;
+}
+
+/// A glyph that keeps itself upright as the phone turns.
+class _UprightIcon extends StatelessWidget {
+  const _UprightIcon(this.icon, {required this.color, required this.size});
+
+  final IconData icon;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedRotation(
+      turns: _GlyphRotation.of(context),
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      child: Icon(icon, color: color, size: size),
     );
   }
 }
@@ -428,19 +505,17 @@ class _CornerGuide extends StatelessWidget {
 
   /// Degrees the sensor image must be rotated to match what is on screen.
   ///
-  /// Locked to portrait this is normally a quarter turn, but it is derived
-  /// rather than assumed: sensor mounting differs between devices, and a
-  /// hard-coded guess is exactly how an overlay ends up square to nothing.
+  /// Measured against the *interface* orientation, which this screen locks to
+  /// portrait — not the physical one. The two now differ: turn the phone
+  /// sideways and the device reports landscape while the layout stays upright,
+  /// so reading the physical orientation here would swing the guide away from
+  /// a card that had not moved.
+  ///
+  /// Sensor mounting differs between devices, so that part is still read from
+  /// the camera rather than assumed.
   static int _rotationDegrees(CameraController controller) {
-    const deviceDegrees = {
-      DeviceOrientation.portraitUp: 0,
-      DeviceOrientation.landscapeLeft: 90,
-      DeviceOrientation.portraitDown: 180,
-      DeviceOrientation.landscapeRight: 270,
-    };
-    final device = deviceDegrees[controller.value.deviceOrientation] ?? 0;
-    final sensor = controller.description.sensorOrientation;
-    return (sensor - device + 360) % 360;
+    // The interface is pinned to portraitUp, whose compensation is zero.
+    return controller.description.sensorOrientation % 360;
   }
 }
 
@@ -603,7 +678,7 @@ class _Shutter extends StatelessWidget {
               width: 4,
             ),
           ),
-          child: Icon(
+          child: _UprightIcon(
             Icons.photo_camera_outlined,
             color: Colors.white.withValues(alpha: armed ? 1 : 0.6),
             size: 30,
@@ -643,7 +718,7 @@ class _GlyphButton extends StatelessWidget {
               shape: BoxShape.circle,
               color: filled ? kBrand : Colors.black.withValues(alpha: 0.4),
             ),
-            child: Icon(icon, color: Colors.white, size: 21),
+            child: _UprightIcon(icon, color: Colors.white, size: 21),
           ),
         ),
       ),

@@ -532,5 +532,21 @@
   "scanAdjust": "Adjust the crop",
   "@scanAdjust": {
     "description": "Adjust the crop"
+  },
+  "scanAutoOn": "Automatic detection on",
+  "@scanAutoOn": {
+    "description": "Automatic detection on"
+  },
+  "scanAutoOff": "Automatic detection off",
+  "@scanAutoOff": {
+    "description": "Automatic detection off"
+  },
+  "scanAutoStuck": "Can't find the document?",
+  "@scanAutoStuck": {
+    "description": "Can't find the document?"
+  },
+  "scanAutoStuckAction": "Take it yourself",
+  "@scanAutoStuckAction": {
+    "description": "Take it yourself"
   }
 }

@@ -602,6 +602,18 @@ class LZh extends L {
 
   @override
   String get scanAdjust => '调整裁剪';
+
+  @override
+  String get scanAutoOn => '已开启自动识别';
+
+  @override
+  String get scanAutoOff => '已关闭自动识别';
+
+  @override
+  String get scanAutoStuck => '找不到证件？';
+
+  @override
+  String get scanAutoStuckAction => '手动拍摄';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1201,4 +1213,16 @@ class LZhHant extends LZh {
 
   @override
   String get scanAdjust => '調整裁切';
+
+  @override
+  String get scanAutoOn => '已開啟自動辨識';
+
+  @override
+  String get scanAutoOff => '已關閉自動辨識';
+
+  @override
+  String get scanAutoStuck => '找不到證件？';
+
+  @override
+  String get scanAutoStuckAction => '手動拍攝';
 }

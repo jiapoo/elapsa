@@ -292,5 +292,9 @@
   "cropTitle": "拖动四角",
   "cropBody": "把四个角分别对准证件的四角。",
   "cropReset": "重置",
-  "scanAdjust": "调整裁剪"
+  "scanAdjust": "调整裁剪",
+  "scanAutoOn": "已开启自动识别",
+  "scanAutoOff": "已关闭自动识别",
+  "scanAutoStuck": "找不到证件？",
+  "scanAutoStuckAction": "手动拍摄"
 }

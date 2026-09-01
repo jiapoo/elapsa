@@ -1165,6 +1165,30 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Adjust the crop'**
   String get scanAdjust;
+
+  /// Automatic detection on
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic detection on'**
+  String get scanAutoOn;
+
+  /// Automatic detection off
+  ///
+  /// In en, this message translates to:
+  /// **'Automatic detection off'**
+  String get scanAutoOff;
+
+  /// Can't find the document?
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t find the document?'**
+  String get scanAutoStuck;
+
+  /// Take it yourself
+  ///
+  /// In en, this message translates to:
+  /// **'Take it yourself'**
+  String get scanAutoStuckAction;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

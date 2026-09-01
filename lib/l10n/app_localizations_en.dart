@@ -701,4 +701,16 @@ class LEn extends L {
 
   @override
   String get scanAdjust => 'Adjust the crop';
+
+  @override
+  String get scanAutoOn => 'Automatic detection on';
+
+  @override
+  String get scanAutoOff => 'Automatic detection off';
+
+  @override
+  String get scanAutoStuck => 'Can\'t find the document?';
+
+  @override
+  String get scanAutoStuckAction => 'Take it yourself';
 }

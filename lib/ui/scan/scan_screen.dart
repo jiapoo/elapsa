@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -86,6 +87,28 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// The teardown of the previous controller, while it is still running.
   Future<void>? _releasing;
 
+  /// Whether the app is looking for the document itself.
+  ///
+  /// Off, this is a plain camera: no brackets, no waiting for a lock, and the
+  /// corners are placed by hand afterwards. That is the escape hatch for every
+  /// document the detector cannot see — a book that will not lie flat, a card
+  /// on a patterned desk — and it has to be a control on the screen, because a
+  /// fallback nobody can find is not a fallback.
+  bool _autoDetect = true;
+
+  /// Set when detection has been failing long enough to be worth mentioning.
+  bool _detectionStuck = false;
+
+  /// Restarted on every successful detection; fires when none has arrived in a
+  /// while.
+  Timer? _stuckTimer;
+
+  /// Long enough that someone still lining the document up is not nagged,
+  /// short enough to arrive before they give up. A lock normally happens
+  /// inside two seconds, so six means six seconds of genuinely finding
+  /// nothing.
+  static const _stuckAfter = Duration(seconds: 6);
+
   final _pages = <Uint8List>[];
 
   /// The untouched photograph behind each page, kept for as long as the
@@ -117,6 +140,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
   @override
   void dispose() {
+    _stuckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // Stop delivering frames before tearing the session down, or AVFoundation
     // complains about a source that vanished mid-flight.
@@ -154,6 +178,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     try {
       await controller.startImageStream(_onFrame);
       _streaming = true;
+      _armStuckTimer();
     } catch (_) {
       // The screen is going away; the next launch starts a fresh session.
     }
@@ -231,6 +256,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
       await controller.startImageStream(_onFrame);
       _streaming = true;
+      _armStuckTimer();
       setState(() {
         _controller = controller;
         _stage = _Stage.ready;
@@ -244,7 +270,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   }
 
   Future<void> _onFrame(CameraImage image) async {
-    if (_detecting || _stage == _Stage.working) return;
+    if (!_autoDetect || _detecting || _stage == _Stage.working) return;
     if (DateTime.now().difference(_lastDetect) < _detectInterval) return;
 
     _detecting = true;
@@ -263,6 +289,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       );
       if (!mounted) return;
 
+      if (found != null) _foundSomething();
+
       setState(() {
         _frameSize = Size(image.width.toDouble(), image.height.toDouble());
         final previous = _quad;
@@ -277,6 +305,44 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     } finally {
       _detecting = false;
     }
+  }
+
+  /// Notes that the detector is working, and restarts the patience clock.
+  void _foundSomething() {
+    _stuckTimer?.cancel();
+    _stuckTimer = null;
+    if (_detectionStuck && mounted) setState(() => _detectionStuck = false);
+    _armStuckTimer();
+  }
+
+  void _armStuckTimer() {
+    _stuckTimer?.cancel();
+    if (!_autoDetect) return;
+    _stuckTimer = Timer(_stuckAfter, () {
+      if (mounted && _autoDetect && _quad == null) {
+        setState(() => _detectionStuck = true);
+      }
+    });
+  }
+
+  void _toggleAuto() {
+    setState(() {
+      _autoDetect = !_autoDetect;
+      _detectionStuck = false;
+      if (!_autoDetect) _quad = null;
+    });
+    HapticFeedback.selectionClick();
+    _armStuckTimer();
+
+    final l = L.of(context);
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(_autoDetect ? l.scanAutoOn : l.scanAutoOff),
+          duration: const Duration(seconds: 2),
+        ),
+      );
   }
 
   /// How square-on the card currently is, or null when none is detected.
@@ -304,14 +370,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       // way they were holding the phone. Re-detecting on the still can find a
       // different rectangle, and geometry alone cannot tell upright from
       // upside down.
+      if (!_autoDetect) {
+        // A plain camera, so the corners come next. Asked for before anything
+        // is cropped rather than after: with detection off there is no guess
+        // to correct, and showing a bad crop first only to replace it would be
+        // two answers to a question with one.
+        await _captureByHand(shot.path);
+        return;
+      }
+
       final result = await _scanner.scanFile(shot.path, quad: framed);
       _absorb(result, original: shot.path);
 
-      // Ask for the corners when the app has run out of ideas of its own.
-      // That is the honest moment for it: automatic detection is right most of
-      // the time and wrong in ways nobody can argue with from outside — a book
-      // that will not lie flat, a laminated card throwing back the ceiling
-      // light — and a scanner with no manual override simply fails sometimes.
+      // And when the app cropped without conviction, the corners are offered
+      // rather than demanded — that is the honest moment for it, because it is
+      // exactly when it has run out of ideas of its own.
       if (!result.croppedConfidently && result.cardImage != null && mounted) {
         await _adjust(_pages.length - 1);
       }
@@ -369,6 +442,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       _printed = _printed.mergedWith(result.printed);
       _stage = _controller != null ? _Stage.ready : _Stage.noCamera;
     });
+  }
+
+  /// The manual path: photograph first, then place the corners.
+  Future<void> _captureByHand(String path) async {
+    if (!mounted) return;
+    final quad = await Navigator.of(context).push<CardQuad>(
+      MaterialPageRoute(builder: (_) => CropScreen(imagePath: path)),
+    );
+    if (!mounted) return;
+
+    setState(() => _stage = _Stage.working);
+    // Cancelling keeps the photograph and lets the app cut it as best it can.
+    // Losing a capture because someone changed their mind about cropping it
+    // would be a poor trade.
+    _absorb(await _scanner.scanFile(path, quad: quad), original: path);
   }
 
   /// Lets the user place the corners on one page by hand.
@@ -429,7 +517,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
           else
             const Center(child: CircularProgressIndicator(color: Colors.white)),
 
-          if (hasCamera)
+          if (hasCamera && _autoDetect)
             _CornerGuide(
               quad: _quad,
               frameSize: _frameSize,
@@ -481,6 +569,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          if (_detectionStuck && !busy) ...[
+                            _StuckHint(onTap: _toggleAuto),
+                            const SizedBox(height: 16),
+                          ],
                           if (_pages.isNotEmpty) ...[
                             _PageStrip(pages: _pages, onTap: _adjust),
                             const SizedBox(height: 18),
@@ -502,12 +594,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                                 onTap: _capture,
                               ),
                               const SizedBox(width: 26),
+                              // Where typing a document in by hand used to
+                              // be. That is still one tap away on the home
+                              // screen, and this is the control the scanner
+                              // itself was missing.
                               _GlyphButton(
-                                icon: Icons.keyboard_outlined,
-                                semantic: l.scanEnterByHand,
-                                onTap: busy
-                                    ? null
-                                    : () => Navigator.of(context).pop(),
+                                icon: _autoDetect
+                                    ? Icons.auto_fix_high
+                                    : Icons.auto_fix_off,
+                                semantic: _autoDetect
+                                    ? l.scanAutoOn
+                                    : l.scanAutoOff,
+                                filled: !_autoDetect,
+                                onTap: busy ? null : _toggleAuto,
                               ),
                             ],
                           ),
@@ -956,6 +1055,60 @@ class _PageStrip extends StatelessWidget {
               width: 54 * kCardAspectRatio,
               height: 54,
               fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown when the detector has spent a while finding nothing.
+///
+/// The point is not to apologise but to hand over the way out. Somebody
+/// holding a passport that will not lie flat has no way of knowing the app has
+/// a manual mode, and every second spent waving it about is a second they are
+/// deciding the app does not work.
+class _StuckHint extends StatelessWidget {
+  const _StuckHint({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 14, 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.auto_fix_off, size: 17, color: Colors.white70),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    l.scanAutoStuck,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  l.scanAutoStuckAction,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ),

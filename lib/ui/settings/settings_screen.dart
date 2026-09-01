@@ -29,6 +29,14 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
         children: [
+          // First, because it is the only thing on this page anyone arrives
+          // with an errand for. Everything below it is a preference, and a
+          // preference is something you go looking for; moving a library to a
+          // new phone is something you came here to do.
+          _SectionLabel(l.settingsTransfer),
+          const TransferSection(),
+
+          const SizedBox(height: 28),
           _SectionLabel(l.settingsWallet),
           _DisplayChoice(
             selected: ref.watch(displayProvider),
@@ -71,10 +79,6 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           _SectionLabel(l.settingsRemindersTitle),
           const _DefaultReminders(),
-
-          const SizedBox(height: 28),
-          _SectionLabel(l.settingsTransfer),
-          const TransferSection(),
 
           const SizedBox(height: 28),
           _SectionLabel(l.settingsDiagnostics),

@@ -17,10 +17,10 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
-import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/services/nearby_transfer.dart';
 import 'package:elapsa/services/vision_channel.dart';
 import 'package:elapsa/ui/scan/crop_screen.dart';
+import 'package:elapsa/ui/settings/nearby_screen.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
@@ -497,10 +497,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     return PopScope(
-      // Intercepted rather than confirmed afterwards, because the swipe back
-      // is a gesture people make without deciding anything, and it was quietly
-      // throwing away a scan and every correction typed after it.
-      canPop: false,
+      // Only while there is something to lose.
+      //
+      // Blocking the pop unconditionally also disabled the swipe back, which
+      // is how people actually leave a screen on this platform — so a document
+      // with nothing unsaved became one you could only escape by aiming at a
+      // small arrow. Now the gesture works exactly as it always did, and only
+      // an edited document interrupts it to ask.
+      canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         if (await _mayLeave()) {
@@ -514,8 +518,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           actions: [
             if (_isEditing)
               IconButton(
-                icon: const Icon(Icons.ios_share),
-                tooltip: l.actionShare,
+                // Not the system share glyph: this sends to a device in the
+                // room, and offering the sheet that writes files would be
+                // promising the wrong thing.
+                icon: const Icon(Icons.wifi_tethering),
+                tooltip: l.nearbyTitle,
                 onPressed: _share,
               ),
             if (_isEditing)
@@ -783,111 +790,36 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     return false;
   }
 
-  /// Hands this one document to whatever the phone can send things with.
+  /// Hands this one document straight to another phone.
   ///
-  /// The same archive the whole library travels in, holding a single
-  /// document — so what arrives at the other end is imported by the same code
-  /// that imports everything else, and there is no second format to keep
-  /// working.
+  /// The nearby transfer rather than a file: the whole point of sharing a
+  /// single document is that somebody is standing there — lending a colleague
+  /// an insurance card, giving a spouse a copy of a passport — and a file to
+  /// carry it in would only be something for both of them to have to delete
+  /// afterwards. Nothing is left on either phone this way, which is also why
+  /// there is no passphrase to type.
   Future<void> _share() async {
     final existing = widget.existing;
     if (existing == null) return;
+    final l = L.of(context);
 
-    // What is on the screen is what gets shared. Sending the stored copy while
-    // the form holds unsaved corrections would hand somebody the version the
-    // user has just finished disagreeing with.
+    if (!NearbyTransfer.isAvailable) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l.nearbyUnavailable)));
+      return;
+    }
+
+    // What is on the screen is what gets sent. Handing over the stored copy
+    // while the form holds unsaved corrections would give somebody the version
+    // the user has just finished disagreeing with.
     if (_dirty) {
       await _save(close: false);
       if (!mounted || _dirty) return;
     }
 
-    final l = L.of(context);
-    final protect = await showModalBottomSheet<bool>(
-      context: context,
-      showDragHandle: true,
-      builder: (context) => _ShareSheet(label: existing.label),
-    );
-    if (protect == null || !mounted) return;
-
-    final passphrase = protect ? await _askPassphrase() : null;
-    if (protect && (passphrase == null || !mounted)) return;
-
-    File? file;
-    try {
-      final documents = await ref
-          .read(documentRepositoryProvider)
-          .exportDocuments({existing.id});
-      final bytes = await const DocumentArchive().pack(
-        documents,
-        passphrase: passphrase,
-      );
-
-      final dir = await getTemporaryDirectory();
-      final safe = existing.label.replaceAll(
-        RegExp(r'[^\w\u4e00-\u9fff]+'),
-        '-',
-      );
-      file = File(p.join(dir.path, '$safe.elapsa'));
-      await file.writeAsBytes(bytes);
-
-      if (!mounted) return;
-      await Share.shareXFiles([XFile(file.path)]);
-    } catch (error, stack) {
-      debugPrint('Elapsa: sharing failed: $error\n$stack');
-    }
-    if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(l.transferExported(1))));
-  }
-
-  /// Asks for a passphrase, twice, the way the export does.
-  Future<String?> _askPassphrase() {
-    final l = L.of(context);
-    final first = TextEditingController();
-    final second = TextEditingController();
-
-    return showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.transferPassphraseNew),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l.transferPassphraseNewBody,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: first,
-              autofocus: true,
-              obscureText: true,
-              decoration: InputDecoration(labelText: l.transferPassphrase),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: second,
-              obscureText: true,
-              decoration: InputDecoration(labelText: l.transferPassphrase),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l.actionCancel),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (first.text.length < 8 || first.text != second.text) return;
-              Navigator.of(context).pop(first.text);
-            },
-            child: Text(l.actionContinue),
-          ),
-        ],
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NearbyScreen(selected: {existing.id}, sending: true),
       ),
     );
   }
@@ -901,71 +833,43 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     final choice = await showDialog<String>(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scheme.primary.withValues(alpha: 0.12),
-                ),
-                child: Icon(Icons.edit_note, size: 28, color: scheme.primary),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                l.editUnsavedTitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                l.editUnsavedBody,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
-              ),
-              const SizedBox(height: 22),
-
-              // Stacked, not squeezed into a row. Three actions along one
-              // edge give each a third of the width and a truncated label,
-              // and the one that destroys work ends up the same size and
-              // weight as the one that does nothing.
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop('save'),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                ),
-                child: Text(l.editSave),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).pop('discard'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
-                  foregroundColor: scheme.error,
-                  side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
-                ),
-                child: Text(l.editDiscard),
-              ),
-              const SizedBox(height: 4),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                style: TextButton.styleFrom(
-                  minimumSize: const Size.fromHeight(44),
-                  foregroundColor: scheme.onSurfaceVariant,
-                ),
-                child: Text(l.actionCancel),
-              ),
-            ],
+      builder: (context) => _Ask(
+        icon: Icons.edit_note,
+        tint: scheme.primary,
+        title: l.editUnsavedTitle,
+        body: l.editUnsavedBody,
+        children: [
+          // Stacked, not squeezed along one edge, where three answers each get
+          // a third of the width and a truncated label — and the one that
+          // destroys work ends up the same size and weight as the one that
+          // does nothing.
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('save'),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: Text(l.editSave),
           ),
-        ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => Navigator.of(context).pop('discard'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              foregroundColor: scheme.error,
+              side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+            ),
+            child: Text(l.editDiscard),
+          ),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
+              foregroundColor: scheme.onSurfaceVariant,
+            ),
+            child: Text(l.actionCancel),
+          ),
+        ],
       ),
     );
 
@@ -1102,19 +1006,40 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
   Future<void> _confirmDelete() async {
     final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.editDeleteTitle),
-        content: Text(l.editDeleteBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l.actionCancel),
-          ),
+      builder: (context) => _Ask(
+        icon: Icons.delete_outline,
+        tint: scheme.error,
+        title: l.editDeleteTitle,
+        body: l.editDeleteBody,
+        children: [
+          // Filled in the error colour, not the brand one. It was the primary
+          // button in Elapsa's own red, which is the shape and weight this app
+          // uses for "yes, do the thing you came here for" — on a dialog
+          // asking whether to destroy a document, that is the wrong promise.
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+              backgroundColor: scheme.error,
+              foregroundColor: scheme.onError,
+            ),
             child: Text(l.actionDelete),
+          ),
+          const SizedBox(height: 4),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(
+              minimumSize: const Size.fromHeight(46),
+              foregroundColor: scheme.onSurface,
+            ),
+            child: Text(
+              l.actionCancel,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),
@@ -1577,65 +1502,63 @@ class _InfoNote extends StatelessWidget {
   }
 }
 
-/// What sharing one document asks before it happens.
-class _ShareSheet extends StatefulWidget {
-  const _ShareSheet({required this.label});
+/// The shape every question in this screen is asked in.
+///
+/// A glyph, what is being asked, why it matters, then the answers stacked at
+/// full width. One shell rather than three hand-built dialogs, so a
+/// destructive answer looks the same wherever it appears — which is what makes
+/// it recognisable at the speed people actually read a dialog.
+class _Ask extends StatelessWidget {
+  const _Ask({
+    required this.icon,
+    required this.tint,
+    required this.title,
+    required this.body,
+    required this.children,
+  });
 
-  final String label;
-
-  @override
-  State<_ShareSheet> createState() => _ShareSheetState();
-}
-
-class _ShareSheetState extends State<_ShareSheet> {
-  bool _protect = true;
+  final IconData icon;
+  final Color tint;
+  final String title;
+  final String body;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
-    final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
 
-    return SafeArea(
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: tint.withValues(alpha: 0.12),
+              ),
+              child: Icon(icon, size: 28, color: tint),
+            ),
+            const SizedBox(height: 16),
             Text(
-              l.shareCardTitle,
+              title,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium
                   ?.copyWith(fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
-              widget.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
+              body,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.45),
             ),
-            const SizedBox(height: 8),
-            SwitchListTile(
-              value: _protect,
-              contentPadding: EdgeInsets.zero,
-              title: Text(l.transferProtect),
-              subtitle: Text(
-                l.transferProtectBody,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.35),
-              ),
-              onChanged: (on) => setState(() => _protect = on),
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: () => Navigator.of(context).pop(_protect),
-              icon: const Icon(Icons.ios_share, size: 18),
-              label: Text(l.actionShare),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(50),
-              ),
-            ),
+            const SizedBox(height: 22),
+            ...children,
           ],
         ),
       ),

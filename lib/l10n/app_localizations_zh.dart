@@ -714,9 +714,6 @@ class LZh extends L {
   String get nearbyWantsToSend => '想向你发送证件';
 
   @override
-  String get shareCardTitle => '分享此证件';
-
-  @override
   String get actionShare => '分享';
 }
 
@@ -1427,9 +1424,6 @@ class LZhHant extends LZh {
 
   @override
   String get nearbyWantsToSend => '想向你傳送證件';
-
-  @override
-  String get shareCardTitle => '分享此證件';
 
   @override
   String get actionShare => '分享';

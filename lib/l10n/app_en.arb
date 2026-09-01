@@ -689,10 +689,6 @@
   "@nearbyWantsToSend": {
     "description": "wants to send you documents"
   },
-  "shareCardTitle": "Share this document",
-  "@shareCardTitle": {
-    "description": "Share this document"
-  },
   "actionShare": "Share",
   "@actionShare": {
     "description": "Share"

@@ -820,8 +820,5 @@ class LEn extends L {
   String get nearbyWantsToSend => 'wants to send you documents';
 
   @override
-  String get shareCardTitle => 'Share this document';
-
-  @override
   String get actionShare => 'Share';
 }

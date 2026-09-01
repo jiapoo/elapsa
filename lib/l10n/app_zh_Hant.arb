@@ -327,6 +327,5 @@
   "nearbyRoleReceiveBody": "等待另一台裝置傳送。收到之前會先詢問你。",
   "nearbyWaitingToReceive": "等待其他裝置傳送…",
   "nearbyWantsToSend": "想向你傳送證件",
-  "shareCardTitle": "分享此證件",
   "actionShare": "分享"
 }

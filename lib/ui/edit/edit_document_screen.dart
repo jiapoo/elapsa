@@ -338,6 +338,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       final cut = await const VisionChannel().extractCard(
         temp.path,
         quad: quad,
+        byHand: true,
       );
       if (cut == null || !mounted) return;
 

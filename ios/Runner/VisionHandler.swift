@@ -64,6 +64,7 @@ enum VisionHandler {
         extractCard(
           path: path,
           corners: args["corners"] as? [String: [String: NSNumber]],
+          byHand: args["byHand"] as? Bool ?? false,
           result: result
         )
 
@@ -316,6 +317,7 @@ enum VisionHandler {
   private static func extractCard(
     path: String,
     corners: [String: [String: NSNumber]]?,
+    byHand: Bool,
     result: @escaping FlutterResult
   ) {
     // Off the platform thread: choosing an orientation runs Vision
@@ -455,9 +457,10 @@ enum VisionHandler {
         x: (quad.tl.x + quad.tr.x + quad.br.x + quad.bl.x) / 4,
         y: (quad.tl.y + quad.tr.y + quad.br.y + quad.bl.y) / 4
       )
+      let spread: CGFloat = byHand ? 1.0 : 1.02
       func out(_ p: CGPoint) -> CIVector {
-        CIVector(x: centre.x + (p.x - centre.x) * 1.02,
-                 y: centre.y + (p.y - centre.y) * 1.02)
+        CIVector(x: centre.x + (p.x - centre.x) * spread,
+                 y: centre.y + (p.y - centre.y) * spread)
       }
 
       // A quarter turn is a relabelling of which corner becomes the output's
@@ -498,9 +501,16 @@ enum VisionHandler {
               turnedBy angle: CGFloat) -> CIImage? {
       guard let box = boxed(quad, turnedBy: angle) else { return nil }
 
-      // A hair of margin. Vision's corners sit on the card's edge, and a crop
-      // exactly on that line shaves the border off every card.
-      let margin = min(box.rect.width, box.rect.height) * 0.02
+      // A hair of margin, but only around corners the *detector* found:
+      // Vision puts them on the card's edge, and a crop exactly on that line
+      // shaves the border off every card.
+      //
+      // None at all around corners a person placed. They put them where they
+      // wanted the picture to end, and quietly widening that meant a crop
+      // drawn tight against a card still came back with a rim of desk around
+      // it — so the only way to get rid of the margin was to crop inside the
+      // card and lose part of it.
+      let margin = byHand ? 0 : min(box.rect.width, box.rect.height) * 0.02
       let generous = box.rect.insetBy(dx: -margin, dy: -margin)
 
       let turnedImage = ciImage.transformed(by: box.transform)

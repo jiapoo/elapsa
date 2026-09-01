@@ -163,7 +163,7 @@ class MrzScanner {
     // both.
     final (read, cut) = await (
       _vision.recognize(path),
-      _vision.extractCard(path, quad: quad),
+      _vision.extractCard(path, quad: quad, byHand: byHand),
     ).wait;
     final text = read.text;
 

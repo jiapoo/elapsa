@@ -65,7 +65,12 @@ class _CropScreenState extends State<CropScreen> {
   /// A comfortable inset, for when there is nothing to start from.
   static const _defaultInset = 0.10;
 
-  static const _handleRadius = 14.0;
+  /// How far from a handle a touch still counts as reaching for it.
+  ///
+  /// Far more generous than the handle looks, because a fingertip is about
+  /// this wide and lands where it cannot see. Nothing else on this screen
+  /// responds to a touch, so a generous catch costs nothing.
+  static const _grabWithin = 52.0;
 
   List<Offset> _startingCorners() {
     final quad = widget.initial;
@@ -191,7 +196,7 @@ class _CropScreenState extends State<CropScreen> {
 
     // Generously, because a fingertip is far wider than the handle it is
     // aiming at and the corner is usually the last thing still on screen.
-    if (best <= _handleRadius * 3) {
+    if (best <= _grabWithin) {
       setState(() {
         _dragging = nearest;
         _grabbedAt = local;
@@ -348,11 +353,20 @@ class _CanvasState extends State<_Canvas> {
     return SizedBox(
       width: box.width,
       height: box.height,
-      child: GestureDetector(
+      // A raw pointer listener, not a pan gesture.
+      //
+      // A pan is not recognised until the finger has travelled far enough to
+      // prove it is a drag, and only then is the starting point reported — by
+      // which time the finger has left the handle it was aiming at, so the
+      // grab misses and the whole drag is spent on nothing. That is the "I
+      // have to try several times" of it. A pointer-down happens the instant
+      // the screen is touched, which is when the handle is still under it.
+      child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPanStart: (d) => widget.onDragStart(d.localPosition, box),
-        onPanUpdate: (d) => widget.onDragUpdate(d.localPosition, box),
-        onPanEnd: (_) => widget.onDragEnd(),
+        onPointerDown: (event) => widget.onDragStart(event.localPosition, box),
+        onPointerMove: (event) => widget.onDragUpdate(event.localPosition, box),
+        onPointerUp: (_) => widget.onDragEnd(),
+        onPointerCancel: (_) => widget.onDragEnd(),
         child: Stack(
           fit: StackFit.expand,
           children: [

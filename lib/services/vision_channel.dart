@@ -230,12 +230,24 @@ class VisionChannel {
   ///
   /// Returns null when no card is found, and the caller falls back to a centre
   /// crop.
-  Future<CardCut?> extractCard(String path, {CardQuad? quad}) async {
+  /// Cuts the document out of the photo at [path].
+  ///
+  /// [byHand] says the corners were placed by a person. Corners the detector
+  /// found sit *on* the card's edge and are widened slightly so the border
+  /// survives; corners a finger placed are exactly where the picture was meant
+  /// to end, and widening those puts back the rim of desk the user had just
+  /// finished removing.
+  Future<CardCut?> extractCard(
+    String path, {
+    CardQuad? quad,
+    bool byHand = false,
+  }) async {
     try {
       final reply = await _channel.invokeMapMethod<String, dynamic>(
         'extractCard',
         {
           'path': path,
+          'byHand': byHand,
           // The corners the scanner had locked on when the shutter fired. Sent
           // so the cut matches what the user was shown — re-detecting on the
           // still can settle on a different rectangle entirely.

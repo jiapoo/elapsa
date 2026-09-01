@@ -18,17 +18,18 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// protection than the passport number typed next to it.
 class SecureStore {
   SecureStore([FlutterSecureStorage? storage])
-      : _storage = storage ??
-            const FlutterSecureStorage(
-              iOptions: IOSOptions(
-                // Never leaves this device and never goes to iCloud Keychain.
-                // A synced key would silently widen the blast radius of the
-                // "nothing leaves your device" promise.
-                accessibility: KeychainAccessibility.first_unlock_this_device,
-                synchronizable: false,
-              ),
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-            );
+    : _storage =
+          storage ??
+          const FlutterSecureStorage(
+            iOptions: IOSOptions(
+              // Never leaves this device and never goes to iCloud Keychain.
+              // A synced key would silently widen the blast radius of the
+              // "nothing leaves your device" promise.
+              accessibility: KeychainAccessibility.first_unlock_this_device,
+              synchronizable: false,
+            ),
+            aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          );
 
   final FlutterSecureStorage _storage;
 
@@ -60,8 +61,7 @@ class SecureStore {
   ///
   /// SQLCipher wants a string, so this is the key in base64 rather than a
   /// second independent secret.
-  Future<String> databasePassphrase() async =>
-      base64Encode(await masterKey());
+  Future<String> databasePassphrase() async => base64Encode(await masterKey());
 
   /// Encrypts [plaintext] and writes it to [file].
   ///

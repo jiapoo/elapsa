@@ -17,7 +17,7 @@ import 'package:elapsa/l10n/app_localizations.dart';
 /// gets scheduled on a later pass, long before it is due.
 class NotificationService {
   NotificationService([FlutterLocalNotificationsPlugin? plugin])
-      : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+    : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
 
@@ -57,8 +57,10 @@ class NotificationService {
   /// before showing any value, gets denied — and a denied Elapsa is a useless
   /// Elapsa.
   Future<bool> requestPermission() async {
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
       final granted = await ios.requestPermissions(
         alert: true,
@@ -68,8 +70,10 @@ class NotificationService {
       return granted ?? false;
     }
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
       return granted ?? false;
@@ -192,6 +196,5 @@ class _PendingReminder {
     return l.notifyPlainBody(when);
   }
 
-  String _formatDate(DateTime d) =>
-      DateFormat.yMMMMd(l.localeName).format(d);
+  String _formatDate(DateTime d) => DateFormat.yMMMMd(l.localeName).format(d);
 }

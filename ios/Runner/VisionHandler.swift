@@ -110,8 +110,31 @@ enum VisionHandler {
       NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)%@",
             observations.count, elapsed, cgImage.width, cgImage.height,
             boost ? " boosted" : "")
-      result(observations.compactMap { $0.topCandidates(1).first?.string }
-        .joined(separator: "\n"))
+
+      // Where the writing is, as well as what it says.
+      //
+      // Not every document is a rectangle the detector can find. An open
+      // passport is a curved spread with no closed outline — the data page
+      // runs into the facing page across the fold — so nothing squares up, and
+      // the only reliable statement about where the document *is* comes from
+      // where its text is.
+      let text = observations.compactMap { $0.topCandidates(1).first?.string }
+        .joined(separator: "\n")
+      var payload: [String: Any] = ["text": text]
+
+      let boxes = observations.map(\.boundingBox)
+      if let first = boxes.first {
+        let union = boxes.dropFirst().reduce(first) { $0.union($1) }
+        // Vision measures from the bottom left; Dart works from the top left.
+        payload["bounds"] = [
+          "x": union.minX,
+          "y": 1.0 - union.maxY,
+          "width": union.width,
+          "height": union.height,
+        ]
+      }
+
+      result(payload)
     }
 
     request.recognitionLevel = .accurate
@@ -465,26 +488,38 @@ enum VisionHandler {
     }
 
     // Otherwise find the card again in the still itself.
-    let request = makeRectangleRequest { observation in
-      guard
-        let observation = observation,
-        let jpeg = cut((
-          tl: point(observation.topLeft),
-          tr: point(observation.topRight),
-          br: point(observation.bottomRight),
-          bl: point(observation.bottomLeft)
-        ))
-      else {
-        reply(nil); return
+    func find(relaxed: Bool, then next: @escaping () -> Void) {
+      let request = makeRectangleRequest(relaxed: relaxed) { observation in
+        guard
+          let observation = observation,
+          let jpeg = cut((
+            tl: point(observation.topLeft),
+            tr: point(observation.topRight),
+            br: point(observation.bottomRight),
+            bl: point(observation.bottomLeft)
+          ))
+        else {
+          next(); return
+        }
+        reply(FlutterStandardTypedData(bytes: jpeg))
       }
-      reply(FlutterStandardTypedData(bytes: jpeg))
+      perform([request], on: cgImage, orientation: orientation) { _ in next() }
     }
 
-    perform([request], on: cgImage, orientation: orientation) { _ in reply(nil) }
+    // Strict first, then loose. The tight thresholds are what keep a table
+    // edge or a windowsill from being mistaken for a card, so they stay in
+    // charge of the first look. But a document that is not flat — an open
+    // passport, whose pages curve away towards the fold — has no square
+    // corners to offer, and failing it outright is worse than accepting a
+    // rougher quadrilateral.
+    find(relaxed: false) {
+      find(relaxed: true) { reply(nil) }
+    }
     }
   }
 
   private static func makeRectangleRequest(
+    relaxed: Bool = false,
     _ completion: @escaping (VNRectangleObservation?) -> Void
   ) -> VNDetectRectanglesRequest {
     let request = VNDetectRectanglesRequest { request, _ in
@@ -496,14 +531,15 @@ enum VisionHandler {
     // is 0.63 and a passport data page about 0.70, so this window covers the
     // documents we track while rejecting the long thin shapes that windowsills
     // and table edges produce.
-    request.minimumAspectRatio = 0.45
-    request.maximumAspectRatio = 0.95
-    request.minimumSize = 0.25
-    request.minimumConfidence = 0.7
+    request.minimumAspectRatio = relaxed ? 0.30 : 0.45
+    request.maximumAspectRatio = relaxed ? 1.0 : 0.95
+    request.minimumSize = relaxed ? 0.15 : 0.25
+    request.minimumConfidence = relaxed ? 0.4 : 0.7
     request.maximumObservations = 1
     // How far from square the corners may be. Loose enough for a card held at
-    // an angle, tight enough to reject arbitrary quadrilaterals.
-    request.quadratureTolerance = 28
+    // an angle, tight enough to reject arbitrary quadrilaterals — and looser
+    // still on the second look, for a page that is curved rather than flat.
+    request.quadratureTolerance = relaxed ? 45 : 28
     return request
   }
 

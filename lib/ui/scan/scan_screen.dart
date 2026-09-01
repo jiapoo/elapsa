@@ -150,13 +150,29 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) return;
-    if (state == AppLifecycleState.inactive) {
-      controller.dispose();
-      _controller = null;
-    } else if (state == AppLifecycleState.resumed) {
-      _startCamera();
+    // The guard used to sit above this switch, testing the controller for
+    // null — which is exactly what it always is by the time the app comes
+    // back, because going away is what set it to null. So the camera was
+    // released on the way out and never restarted on the way in, and the
+    // scanner returned as a black screen with the brackets still drawn on it.
+    switch (state) {
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        final controller = _controller;
+        if (controller == null) return;
+        // Cleared before disposing: the preview must stop reading from the
+        // controller in the same frame the controller stops being valid.
+        setState(() {
+          _controller = null;
+          _stage = _Stage.working;
+        });
+        _streaming = false;
+        controller.dispose();
+
+      case AppLifecycleState.resumed:
+        if (_controller == null) _startCamera();
     }
   }
 

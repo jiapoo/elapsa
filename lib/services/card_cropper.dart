@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
@@ -47,6 +48,53 @@ class CardCropper {
       return Uint8List.fromList(img.encodeJpg(scaled, quality: 88));
     } catch (error, stack) {
       debugPrint('Elapsa: card crop failed: $error\n$stack');
+      return null;
+    }
+  }
+
+  /// Crops to [region], given in normalised coordinates with a top-left
+  /// origin, plus a margin.
+  ///
+  /// The fallback for a document the rectangle detector cannot find. Falling
+  /// back to a card-shaped centre crop was actively destructive there: on an
+  /// open passport, the machine-readable zone runs along the bottom of the
+  /// page, and a centre crop at card proportions cuts it off — throwing away
+  /// the one part of a passport that can be read with certainty.
+  Future<Uint8List?> cropToRegion(String path, Rect region) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return null;
+      final upright = img.bakeOrientation(decoded);
+
+      // Text sits inside the document, not at its edge, so the box is opened
+      // out to take in the page around it.
+      const margin = 0.06;
+      final left = ((region.left - margin) * upright.width).round();
+      final top = ((region.top - margin) * upright.height).round();
+      final right = ((region.right + margin) * upright.width).round();
+      final bottom = ((region.bottom + margin) * upright.height).round();
+
+      final x = left.clamp(0, upright.width - 1);
+      final y = top.clamp(0, upright.height - 1);
+      final width = (right.clamp(1, upright.width) - x);
+      final height = (bottom.clamp(1, upright.height) - y);
+      if (width < 16 || height < 16) return null;
+
+      final cropped = img.copyCrop(
+        upright,
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+      );
+      final scaled = cropped.width > _maxEdge
+          ? img.copyResize(cropped, width: _maxEdge)
+          : cropped;
+
+      return Uint8List.fromList(img.encodeJpg(scaled, quality: 88));
+    } catch (error, stack) {
+      debugPrint('Elapsa: region crop failed: $error\n$stack');
       return null;
     }
   }

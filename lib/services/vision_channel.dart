@@ -3,6 +3,25 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+/// What one pass of the recogniser found.
+class Recognition {
+  /// Every line it read, newline separated.
+  final String text;
+
+  /// Where all of that writing sits, as one box in normalised coordinates
+  /// with a top-left origin, or null when nothing was read.
+  ///
+  /// This is the app's answer for a document that will not square up. An open
+  /// passport has no outline to find — the data page runs into the facing page
+  /// across the fold, and the pages curve away from flat — but the writing on
+  /// it is unmistakable, and the writing is the part worth keeping.
+  final Rect? bounds;
+
+  const Recognition({required this.text, this.bounds});
+
+  static const empty = Recognition(text: '');
+}
+
 /// Which edge of the card is furthest from the camera.
 enum CardEdge { top, bottom, left, right }
 
@@ -128,12 +147,25 @@ class VisionChannel {
   /// contrast at all becomes something a recogniser can see. It is worth
   /// running only when the plain pass came back without one: the same
   /// treatment blooms fine flat print and costs the fields that already read.
-  Future<String> recognize(String path, {bool boost = false}) async {
-    final text = await _channel.invokeMethod<String>('recognize', {
+  Future<Recognition> recognize(String path, {bool boost = false}) async {
+    final reply = await _channel.invokeMapMethod<String, dynamic>('recognize', {
       'path': path,
       'boost': boost,
     });
-    return text ?? '';
+    if (reply == null) return Recognition.empty;
+
+    final box = (reply['bounds'] as Map?)?.cast<String, dynamic>();
+    return Recognition(
+      text: reply['text'] as String? ?? '',
+      bounds: box == null
+          ? null
+          : Rect.fromLTWH(
+              (box['x'] as num).toDouble(),
+              (box['y'] as num).toDouble(),
+              (box['width'] as num).toDouble(),
+              (box['height'] as num).toDouble(),
+            ),
+    );
   }
 
   /// Looks for a card in a live preview frame.

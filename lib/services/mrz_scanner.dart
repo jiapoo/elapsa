@@ -1,3 +1,5 @@
+import 'dart:ui' show Rect;
+
 import 'package:flutter/foundation.dart';
 
 import 'package:elapsa/core/theme.dart';
@@ -80,10 +82,16 @@ class MrzScanner {
     // same photo, and each is a full Vision request. Run together they finish
     // in about the time the slower one takes; run in series the user waits for
     // both.
-    final (text, card) = await (
+    final (read, cut) = await (
       _vision.recognize(path),
-      _cardFace(path, quad),
+      _vision.extractCard(path, quad: quad),
     ).wait;
+    final text = read.text;
+
+    // The crop is decided only once both have finished, so the fallback costs
+    // nothing in the ordinary case: the two passes still run side by side, and
+    // where the writing was found is already known by the time it is needed.
+    final card = cut ?? await _fallbackFace(path, read.bounds);
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
     MrzResult? parsed;
@@ -113,7 +121,7 @@ class MrzScanner {
     // running it at all costs a second full-resolution pass.
     if (printed.type == DocumentType.bankCard &&
         printed.documentNumber == null) {
-      final boosted = await _vision.recognize(path, boost: true);
+      final boosted = (await _vision.recognize(path, boost: true)).text;
       if (boosted.trim().isNotEmpty) {
         seen = '$text\n$boosted';
         printed = printed.mergedWith(_printed.parse(boosted));
@@ -128,15 +136,26 @@ class MrzScanner {
     );
   }
 
-  /// The card, cut out of the photo.
+  /// What to keep when the document would not square up.
   ///
-  /// Uses [quad] — the corners the scanner had locked on when the shutter
-  /// fired — so the saved card is the one the user framed. Falls back to
-  /// detecting afresh, then to a centre crop, when there is no quad or Vision
-  /// cannot find a rectangle. Something usable beats nothing.
-  Future<Uint8List?> _cardFace(String path, CardQuad? quad) async {
-    final cut = await _vision.extractCard(path, quad: quad);
-    if (cut != null) return cut;
+  /// Not everything Elapsa tracks is a rectangle with four findable corners.
+  /// An open passport is the clear case: the data page runs into the facing
+  /// page across the fold and the paper curves away from flat, so there is no
+  /// outline to lock on to — and the centre crop this used to fall back to was
+  /// worse than useless there. A card-shaped window taken out of the middle of
+  /// an open passport cuts off the machine-readable zone along the bottom of
+  /// the page, which is the one part of a passport that can be read with
+  /// certainty.
+  ///
+  /// So it falls back to the writing instead. Where the text is, the document
+  /// is; and a crop around all of it keeps the page whatever shape the page
+  /// turned out to be.
+  Future<Uint8List?> _fallbackFace(String path, Rect? textBounds) async {
+    if (textBounds != null) {
+      final region = await _cropper.cropToRegion(path, textBounds);
+      if (region != null) return region;
+    }
+    // Nothing read either: the centre of the frame is the last guess left.
     return _cropper.cropToCard(path, aspectRatio: kCardAspectRatio);
   }
 }

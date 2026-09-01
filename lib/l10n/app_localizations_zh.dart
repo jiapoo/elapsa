@@ -682,6 +682,36 @@ class LZh extends L {
   String leadOnDate(String date) {
     return '$date';
   }
+
+  @override
+  String get editUnsavedTitle => '保留修改吗？';
+
+  @override
+  String get editUnsavedBody => '此证件有尚未保存的修改。';
+
+  @override
+  String get editDiscard => '放弃';
+
+  @override
+  String get nearbyRoleTitle => '发送还是接收？';
+
+  @override
+  String get nearbyRoleSend => '从这台手机发送';
+
+  @override
+  String get nearbyRoleSendBody => '选择证件并传给另一台设备。';
+
+  @override
+  String get nearbyRoleReceive => '在这台手机接收';
+
+  @override
+  String get nearbyRoleReceiveBody => '等待另一台设备发送。收到之前会先询问你。';
+
+  @override
+  String get nearbyWaitingToReceive => '等待其他设备发送…';
+
+  @override
+  String get nearbyWantsToSend => '想向你发送证件';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1361,4 +1391,34 @@ class LZhHant extends LZh {
   String leadOnDate(String date) {
     return '$date';
   }
+
+  @override
+  String get editUnsavedTitle => '保留修改嗎？';
+
+  @override
+  String get editUnsavedBody => '此證件有尚未儲存的修改。';
+
+  @override
+  String get editDiscard => '放棄';
+
+  @override
+  String get nearbyRoleTitle => '傳送還是接收？';
+
+  @override
+  String get nearbyRoleSend => '從這台手機傳送';
+
+  @override
+  String get nearbyRoleSendBody => '選擇證件並傳給另一台裝置。';
+
+  @override
+  String get nearbyRoleReceive => '在這台手機接收';
+
+  @override
+  String get nearbyRoleReceiveBody => '等待另一台裝置傳送。收到之前會先詢問你。';
+
+  @override
+  String get nearbyWaitingToReceive => '等待其他裝置傳送…';
+
+  @override
+  String get nearbyWantsToSend => '想向你傳送證件';
 }

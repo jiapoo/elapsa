@@ -785,4 +785,37 @@ class LEn extends L {
   String leadOnDate(String date) {
     return 'On $date';
   }
+
+  @override
+  String get editUnsavedTitle => 'Keep your changes?';
+
+  @override
+  String get editUnsavedBody =>
+      'This document has edits that have not been saved.';
+
+  @override
+  String get editDiscard => 'Discard';
+
+  @override
+  String get nearbyRoleTitle => 'Send or receive?';
+
+  @override
+  String get nearbyRoleSend => 'Send from this phone';
+
+  @override
+  String get nearbyRoleSendBody =>
+      'Choose documents and hand them to another device.';
+
+  @override
+  String get nearbyRoleReceive => 'Receive on this phone';
+
+  @override
+  String get nearbyRoleReceiveBody =>
+      'Wait for another device to send. You will be asked before anything arrives.';
+
+  @override
+  String get nearbyWaitingToReceive => 'Waiting for a device to send…';
+
+  @override
+  String get nearbyWantsToSend => 'wants to send you documents';
 }

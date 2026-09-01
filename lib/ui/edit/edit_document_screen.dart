@@ -1,5 +1,5 @@
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -64,6 +64,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// Whether the editing list holds the document's whole set of pictures, and
   /// so can be written back over it.
   bool _imagesLoaded = false;
+
+  /// Set when a picture is moved or cropped. The list is the same length
+  /// afterwards, so nothing else would notice it had changed.
+  bool _imagesChanged = false;
 
   /// Whether the scan actually yielded any field, as opposed to only a
   /// picture. Claiming "filled in from the document" over an empty form is
@@ -240,7 +244,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       );
       if (cut == null || !mounted) return;
 
-      setState(() => _images[index] = cut.bytes);
+      setState(() {
+        _imagesChanged = true;
+        _images[index] = cut.bytes;
+      });
     } catch (error, stack) {
       debugPrint('Elapsa: cropping failed: $error\n$stack');
     } finally {
@@ -447,214 +454,324 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.editEditTitle : l.editAddTitle),
-        titleTextStyle: Theme.of(context).textTheme.titleLarge,
-        actions: [
-          if (_isEditing)
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: l.actionDelete,
-              onPressed: _confirmDelete,
-            ),
-        ],
-      ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
-          children: [
-            if (_images.isNotEmpty) ...[
-              _Label(l.fieldImages),
-              _CapturedPages(
-                images: _images,
-                onAdd: _scan,
-                onTapImage: _pictureOptions,
-                onReorder: (from, to) => setState(() {
-                  _images.insert(to, _images.removeAt(from));
-                }),
+    return PopScope(
+      // Intercepted rather than confirmed afterwards, because the swipe back
+      // is a gesture people make without deciding anything, and it was quietly
+      // throwing away a scan and every correction typed after it.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (await _mayLeave()) {
+          if (context.mounted) Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(_isEditing ? l.editEditTitle : l.editAddTitle),
+          titleTextStyle: Theme.of(context).textTheme.titleLarge,
+          actions: [
+            if (_isEditing)
+              IconButton(
+                icon: const Icon(Icons.delete_outline),
+                tooltip: l.actionDelete,
+                onPressed: _confirmDelete,
               ),
-              const SizedBox(height: 24),
-            ] else ...[
-              OutlinedButton.icon(
-                onPressed: _scan,
-                icon: const Icon(Icons.document_scanner_outlined),
-                label: Text(l.actionScan),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  side: BorderSide(color: scheme.outlineVariant),
-                  textStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  l.editScanHelp,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
-              ),
-              const SizedBox(height: 28),
-            ],
-
-            if (_fromScan) ...[
-              _InfoNote(
-                icon: Icons.verified_outlined,
-                text: _readAnything
-                    ? l.editFromScanNote
-                    : l.editScanNothingRead,
-              ),
-              const SizedBox(height: 24),
-            ],
-
-            _Label(l.fieldType),
-            DropdownButtonFormField<DocumentType>(
-              initialValue: _type,
-              items: DocumentType.values
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t,
-                      child: Row(
-                        children: [
-                          Icon(t.icon, size: 18),
-                          const SizedBox(width: 10),
-                          Text(t.label(l)),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _type = value;
-                  if (_leadDaysIsAuto) {
-                    _reminderOffsets = {
-                      ..._defaultOffsets(value.defaultRenewalLeadDays),
-                    };
-                  }
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            _Label(l.fieldName),
-            TextFormField(
-              controller: _label,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: l.fieldNameHint(_type.label(l)),
-              ),
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? l.fieldNameRequired : null,
-            ),
-            const SizedBox(height: 20),
-
-            _Label(l.fieldNumberLabel),
-            TextFormField(
-              controller: _documentNumber,
-              textCapitalization: TextCapitalization.characters,
-              // Only a payment card is grouped: a passport number is not
-              // written in fours, and spacing one would be wrong rather than
-              // merely unfamiliar.
-              keyboardType: _type == DocumentType.bankCard
-                  ? TextInputType.number
-                  : TextInputType.text,
-              inputFormatters: _type == DocumentType.bankCard
-                  ? const [CardNumberFormatter()]
-                  : null,
-              style: _type == DocumentType.bankCard
-                  ? const TextStyle(
-                      letterSpacing: 1.2,
-                      fontFeatures: [FontFeature.tabularFigures()],
-                    )
-                  : null,
-              decoration: InputDecoration(
-                hintText: l.fieldNumberHint,
-                prefixIcon: const Icon(Icons.tag),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            _Label(l.fieldExpiry),
-            _DateField(
-              value: _expiryDate,
-              onChanged: (d) => setState(() => _expiryDate = d),
-            ),
-            const SizedBox(height: 20),
-
-            _Label(l.fieldIssueDate),
-            _DateField(
-              value: _issueDate,
-              onChanged: (d) => setState(() => _issueDate = d),
-            ),
-            const SizedBox(height: 20),
-
-            _Label(l.fieldRemindMe),
-            _LeadTimeField(
-              expiry: _expiryDate,
-              onPickDate: _pickReminderDate,
-              selected: _reminderOffsets,
-              onToggle: (days) => setState(() {
-                if (!_reminderOffsets.remove(days)) _reminderOffsets.add(days);
-                // Never leave a document with no reminder at all; that is a
-                // silent way to fail at the app's only job.
-                if (_reminderOffsets.isEmpty) _reminderOffsets.add(days);
-                _leadDaysIsAuto = false;
-              }),
-            ),
-            const _DailyTailNote(),
-            const SizedBox(height: 6),
-            Text(
-              _leadTimeExplanation(l),
-              style: Theme.of(context).textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
-            ),
-
-            if (_type.hasSixMonthTravelRule) ...[
-              const SizedBox(height: 14),
-              _InfoNote(icon: Icons.flight_takeoff, text: l.sixMonthRuleNote),
-            ],
-
-            if (_type.details.isNotEmpty) ...[
-              const SizedBox(height: 28),
-              ..._type.details.map(
-                (detail) => _DetailField(
-                  detail: detail,
-                  controller: _details[detail]!,
-                  revealed: _revealed.contains(detail),
-                  onToggleReveal: () => setState(() {
-                    if (!_revealed.remove(detail)) _revealed.add(detail);
+          ],
+        ),
+        body: Form(
+          key: _formKey,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+            children: [
+              if (_images.isNotEmpty) ...[
+                _Label(l.fieldImages),
+                _CapturedPages(
+                  images: _images,
+                  onAdd: _scan,
+                  onTapImage: _pictureOptions,
+                  onReorder: (from, to) => setState(() {
+                    _imagesChanged = true;
+                    _images.insert(to, _images.removeAt(from));
                   }),
                 ),
+                const SizedBox(height: 24),
+              ] else ...[
+                OutlinedButton.icon(
+                  onPressed: _scan,
+                  icon: const Icon(Icons.document_scanner_outlined),
+                  label: Text(l.actionScan),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    side: BorderSide(color: scheme.outlineVariant),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Center(
+                  child: Text(
+                    l.editScanHelp,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+                const SizedBox(height: 28),
+              ],
+
+              if (_fromScan) ...[
+                _InfoNote(
+                  icon: Icons.verified_outlined,
+                  text: _readAnything
+                      ? l.editFromScanNote
+                      : l.editScanNothingRead,
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              _Label(l.fieldType),
+              DropdownButtonFormField<DocumentType>(
+                initialValue: _type,
+                items: DocumentType.values
+                    .map(
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Row(
+                          children: [
+                            Icon(t.icon, size: 18),
+                            const SizedBox(width: 10),
+                            Text(t.label(l)),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _type = value;
+                    if (_leadDaysIsAuto) {
+                      _reminderOffsets = {
+                        ..._defaultOffsets(value.defaultRenewalLeadDays),
+                      };
+                    }
+                  });
+                },
               ),
+              const SizedBox(height: 20),
+
+              _Label(l.fieldName),
+              TextFormField(
+                controller: _label,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  hintText: l.fieldNameHint(_type.label(l)),
+                ),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? l.fieldNameRequired
+                    : null,
+              ),
+              const SizedBox(height: 20),
+
+              _Label(l.fieldNumberLabel),
+              TextFormField(
+                controller: _documentNumber,
+                textCapitalization: TextCapitalization.characters,
+                // Only a payment card is grouped: a passport number is not
+                // written in fours, and spacing one would be wrong rather than
+                // merely unfamiliar.
+                keyboardType: _type == DocumentType.bankCard
+                    ? TextInputType.number
+                    : TextInputType.text,
+                inputFormatters: _type == DocumentType.bankCard
+                    ? const [CardNumberFormatter()]
+                    : null,
+                style: _type == DocumentType.bankCard
+                    ? const TextStyle(
+                        letterSpacing: 1.2,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      )
+                    : null,
+                decoration: InputDecoration(
+                  hintText: l.fieldNumberHint,
+                  prefixIcon: const Icon(Icons.tag),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              _Label(l.fieldExpiry),
+              _DateField(
+                value: _expiryDate,
+                onChanged: (d) => setState(() => _expiryDate = d),
+              ),
+              const SizedBox(height: 20),
+
+              _Label(l.fieldIssueDate),
+              _DateField(
+                value: _issueDate,
+                onChanged: (d) => setState(() => _issueDate = d),
+              ),
+              const SizedBox(height: 20),
+
+              _Label(l.fieldRemindMe),
+              _LeadTimeField(
+                expiry: _expiryDate,
+                onPickDate: _pickReminderDate,
+                selected: _reminderOffsets,
+                onToggle: (days) => setState(() {
+                  if (!_reminderOffsets.remove(days)) {
+                    _reminderOffsets.add(days);
+                  }
+                  // Never leave a document with no reminder at all; that is a
+                  // silent way to fail at the app's only job.
+                  if (_reminderOffsets.isEmpty) _reminderOffsets.add(days);
+                  _leadDaysIsAuto = false;
+                }),
+              ),
+              const _DailyTailNote(),
+              const SizedBox(height: 6),
+              Text(
+                _leadTimeExplanation(l),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+              ),
+
+              if (_type.hasSixMonthTravelRule) ...[
+                const SizedBox(height: 14),
+                _InfoNote(icon: Icons.flight_takeoff, text: l.sixMonthRuleNote),
+              ],
+
+              if (_type.details.isNotEmpty) ...[
+                const SizedBox(height: 28),
+                ..._type.details.map(
+                  (detail) => _DetailField(
+                    detail: detail,
+                    controller: _details[detail]!,
+                    revealed: _revealed.contains(detail),
+                    onToggleReveal: () => setState(() {
+                      if (!_revealed.remove(detail)) _revealed.add(detail);
+                    }),
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 28),
+              _Label(l.fieldOptional),
+              TextFormField(
+                controller: _holder,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  hintText: l.fieldHolderHint,
+                  prefixIcon: const Icon(Icons.person_outline),
+                ),
+              ),
+
+              const SizedBox(height: 32),
+              FilledButton(onPressed: _save, child: Text(l.editSave)),
             ],
-
-            const SizedBox(height: 28),
-            _Label(l.fieldOptional),
-            TextFormField(
-              controller: _holder,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                hintText: l.fieldHolderHint,
-                prefixIcon: const Icon(Icons.person_outline),
-              ),
-            ),
-
-            const SizedBox(height: 32),
-            FilledButton(onPressed: _save, child: Text(l.editSave)),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Whether anything on the form differs from what was there to begin with.
+  ///
+  /// Measured against the stored document, or against a blank form for a new
+  /// one — so a document that arrived from the scanner and has never been
+  /// saved counts as unsaved work, which it is.
+  ///
+  /// Pictures only count once they have finished loading. Until then the list
+  /// is legitimately empty, and comparing it would call every freshly opened
+  /// document unsaved.
+  bool get _dirty {
+    final existing = widget.existing;
+
+    String text(TextEditingController c) => c.text.trim();
+    bool differs(String a, String? b) => a != (b?.trim() ?? '');
+
+    if (existing == null) {
+      return _images.isNotEmpty ||
+          text(_label).isNotEmpty ||
+          text(_holder).isNotEmpty ||
+          text(_documentNumber).isNotEmpty ||
+          _expiryDate != null ||
+          _issueDate != null ||
+          _details.values.any((c) => text(c).isNotEmpty);
+    }
+
+    if (_type != existing.type) return true;
+    if (differs(text(_label), existing.label)) return true;
+    if (differs(text(_holder), existing.holder)) return true;
+    if (differs(
+      text(_documentNumber).replaceAll(' ', ''),
+      existing.documentNumber?.replaceAll(' ', ''),
+    )) {
+      return true;
+    }
+    if (_issuingCountry != existing.issuingCountry) return true;
+    if (_expiryDate != existing.expiryDate) return true;
+    if (_issueDate != existing.issueDate) return true;
+    if (!setEquals(_reminderOffsets, existing.reminderOffsetDays.toSet())) {
+      return true;
+    }
+
+    for (final detail in DocumentDetail.values) {
+      if (differs(text(_details[detail]!), existing.details[detail])) {
+        return true;
+      }
+    }
+
+    if (_imagesLoaded &&
+        (_images.length != existing.imageCount || _imagesChanged)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /// Whether leaving now is safe, asking if it is not.
+  Future<bool> _mayLeave() async {
+    if (!_dirty) return true;
+    final l = L.of(context);
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.editUnsavedTitle),
+        content: Text(l.editUnsavedBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l.actionCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('discard'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            child: Text(l.editDiscard),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop('save'),
+            child: Text(l.editSave),
+          ),
+        ],
+      ),
+    );
+
+    if (choice == 'save') {
+      // _save closes the screen itself once it is satisfied. If it refuses —
+      // no name, no expiry — staying put is the right outcome.
+      await _save();
+      return false;
+    }
+    return choice == 'discard';
   }
 
   /// The conventional set: when to start, then a tail as the date closes in.

@@ -12,15 +12,21 @@ import 'package:elapsa/services/nearby_transfer.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 /// Two phones in the same room.
-///
-/// Both sides advertise and both sides look, because either may turn out to be
-/// the one sending, and asking someone to pick a role before they have picked
-/// a device is a question about the app rather than about what they want.
 class NearbyScreen extends ConsumerStatefulWidget {
-  const NearbyScreen({super.key, required this.selected});
+  const NearbyScreen({
+    super.key,
+    required this.selected,
+    required this.sending,
+  });
 
-  /// The documents this device would send, if it turns out to be the sender.
+  /// The documents this device is offering, when it is the one sending.
   final Set<String> selected;
+
+  /// Which half of the transfer this phone is. Both sides still advertise and
+  /// browse — the protocol needs both — but only the sender has a list to act
+  /// on, and showing a receiver a row of devices invites them to press a
+  /// button that has nothing to send.
+  final bool sending;
 
   @override
   ConsumerState<NearbyScreen> createState() => _NearbyScreenState();
@@ -145,21 +151,74 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   Future<bool?> _askToAccept(String from) {
     final l = L.of(context);
 
+    final scheme = Theme.of(context).colorScheme;
+
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(l.nearbyInvite(from)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l.nearbyDecline),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The device, drawn rather than described. This dialog arrives
+              // unannounced while someone is looking at a list, and a line of
+              // text in a box is easy to dismiss without reading.
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.12),
+                ),
+                child: Icon(Icons.smartphone, size: 30, color: scheme.primary),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                from,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                l.nearbyWantsToSend,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                        foregroundColor: scheme.onSurfaceVariant,
+                      ),
+                      child: Text(l.nearbyDecline),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                      child: Text(l.nearbyAccept),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l.nearbyAccept),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -223,7 +282,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     SizedBox(
                       width: 16,
                       height: 16,
-                      child: _peers.isEmpty && !_busy
+                      child: (!widget.sending || _peers.isEmpty) && !_busy
                           ? const CircularProgressIndicator(strokeWidth: 2)
                           : Icon(
                               Icons.wifi_tethering,
@@ -234,7 +293,11 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _peers.isEmpty ? l.nearbySearching : l.nearbyTitle,
+                        !widget.sending
+                            ? l.nearbyWaitingToReceive
+                            : _peers.isEmpty
+                            ? l.nearbySearching
+                            : l.nearbyTitle,
                         style: Theme.of(context).textTheme.labelLarge,
                       ),
                     ),
@@ -242,7 +305,16 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                 ),
                 const SizedBox(height: 8),
 
-                if (_peers.isEmpty)
+                if (!widget.sending)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      l.nearbyRoleReceiveBody,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  )
+                else if (_peers.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(

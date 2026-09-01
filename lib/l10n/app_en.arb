@@ -648,5 +648,45 @@
         "type": "String"
       }
     }
+  },
+  "editUnsavedTitle": "Keep your changes?",
+  "@editUnsavedTitle": {
+    "description": "Keep your changes?"
+  },
+  "editUnsavedBody": "This document has edits that have not been saved.",
+  "@editUnsavedBody": {
+    "description": "This document has edits that have not been saved."
+  },
+  "editDiscard": "Discard",
+  "@editDiscard": {
+    "description": "Discard"
+  },
+  "nearbyRoleTitle": "Send or receive?",
+  "@nearbyRoleTitle": {
+    "description": "Send or receive?"
+  },
+  "nearbyRoleSend": "Send from this phone",
+  "@nearbyRoleSend": {
+    "description": "Send from this phone"
+  },
+  "nearbyRoleSendBody": "Choose documents and hand them to another device.",
+  "@nearbyRoleSendBody": {
+    "description": "Choose documents and hand them to another device."
+  },
+  "nearbyRoleReceive": "Receive on this phone",
+  "@nearbyRoleReceive": {
+    "description": "Receive on this phone"
+  },
+  "nearbyRoleReceiveBody": "Wait for another device to send. You will be asked before anything arrives.",
+  "@nearbyRoleReceiveBody": {
+    "description": "Wait for another device to send. You will be asked before an"
+  },
+  "nearbyWaitingToReceive": "Waiting for a device to send…",
+  "@nearbyWaitingToReceive": {
+    "description": "Waiting for a device to send…"
+  },
+  "nearbyWantsToSend": "wants to send you documents",
+  "@nearbyWantsToSend": {
+    "description": "wants to send you documents"
   }
 }

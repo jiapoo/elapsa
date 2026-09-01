@@ -1309,6 +1309,66 @@ abstract class L {
   /// In en, this message translates to:
   /// **'On {date}'**
   String leadOnDate(String date);
+
+  /// Keep your changes?
+  ///
+  /// In en, this message translates to:
+  /// **'Keep your changes?'**
+  String get editUnsavedTitle;
+
+  /// This document has edits that have not been saved.
+  ///
+  /// In en, this message translates to:
+  /// **'This document has edits that have not been saved.'**
+  String get editUnsavedBody;
+
+  /// Discard
+  ///
+  /// In en, this message translates to:
+  /// **'Discard'**
+  String get editDiscard;
+
+  /// Send or receive?
+  ///
+  /// In en, this message translates to:
+  /// **'Send or receive?'**
+  String get nearbyRoleTitle;
+
+  /// Send from this phone
+  ///
+  /// In en, this message translates to:
+  /// **'Send from this phone'**
+  String get nearbyRoleSend;
+
+  /// Choose documents and hand them to another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose documents and hand them to another device.'**
+  String get nearbyRoleSendBody;
+
+  /// Receive on this phone
+  ///
+  /// In en, this message translates to:
+  /// **'Receive on this phone'**
+  String get nearbyRoleReceive;
+
+  /// Wait for another device to send. You will be asked before an
+  ///
+  /// In en, this message translates to:
+  /// **'Wait for another device to send. You will be asked before anything arrives.'**
+  String get nearbyRoleReceiveBody;
+
+  /// Waiting for a device to send…
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a device to send…'**
+  String get nearbyWaitingToReceive;
+
+  /// wants to send you documents
+  ///
+  /// In en, this message translates to:
+  /// **'wants to send you documents'**
+  String get nearbyWantsToSend;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

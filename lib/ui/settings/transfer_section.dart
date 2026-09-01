@@ -115,15 +115,26 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
 
   /// Straight to another phone, with no file in between.
   Future<void> _nearby() async {
+    // Which way round, before anything else. The two halves want different
+    // screens — one picks documents, the other simply waits — and asking the
+    // receiver to choose what to send first was asking a question that has no
+    // answer on that side.
+    final sending = await _askRole();
+    if (sending == null || !mounted) return;
+
+    if (!sending) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const NearbyScreen(selected: {}, sending: false),
+        ),
+      );
+      return;
+    }
+
     final all = await ref.read(documentRepositoryProvider).getAll();
     if (!mounted) return;
     if (all.isEmpty) {
-      // Still worth opening: this phone may be the one receiving.
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const NearbyScreen(selected: {}),
-        ),
-      );
+      _say(L.of(context).transferNothing);
       return;
     }
 
@@ -137,11 +148,50 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => NearbyScreen(selected: choice.ids),
+        builder: (_) => NearbyScreen(selected: choice.ids, sending: true),
       ),
     );
     // Nothing to report back here: the nearby screen says what is happening
     // while it happens, which is the only moment that is useful.
+  }
+
+  Future<bool?> _askRole() {
+    final l = L.of(context);
+
+    return showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.nearbyRoleTitle,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              _RoleChoice(
+                icon: Icons.upload_outlined,
+                title: l.nearbyRoleSend,
+                body: l.nearbyRoleSendBody,
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+              const SizedBox(height: 8),
+              _RoleChoice(
+                icon: Icons.download_outlined,
+                title: l.nearbyRoleReceive,
+                body: l.nearbyRoleReceiveBody,
+                onTap: () => Navigator.of(context).pop(false),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _import() async {
@@ -455,6 +505,63 @@ class _Panel extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One half of the nearby question.
+class _RoleChoice extends StatelessWidget {
+  const _RoleChoice({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: scheme.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    body,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
           ],
         ),
       ),

@@ -205,18 +205,26 @@ class _Wallet extends StatelessWidget {
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
         children: [
-          // The triage band survives, ungrouped. It is not a sort — it is the
-          // answer to "is anything wrong", and breaking it up by type buries
-          // that answer under headings.
+          // The triage band survives, ungrouped and first. It is not a sort —
+          // it is the answer to "is anything wrong", and breaking it up under
+          // type headings buries that answer.
+          //
+          // And it is a lens, not a bucket: a passport that needs attention is
+          // still a passport, so it appears here *and* under its type below.
+          // Moving it out would leave a hole in the type it belongs to, which
+          // reads as a document that has gone missing.
           if (needsAttention.isNotEmpty) ...[
             _SectionHeader(l.homeNeedsAttention),
             _section(needsAttention),
             const SizedBox(height: 24),
           ],
-          for (final group in _byType(rest, l)) ...[
-            _SectionHeader(group.key.label(l)),
+          // Tight. A heading with two cards under it does not need the gap
+          // that separates the triage band from everything else; at that
+          // spacing a wallet of eight documents reads as eight lists.
+          for (final group in _byType(documents, l)) ...[
+            _SectionHeader(group.key.label(l), tight: true),
             _section(group.value),
-            const SizedBox(height: 24),
+            const SizedBox(height: 6),
           ],
         ],
       );
@@ -285,13 +293,19 @@ class _Wallet extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader(this.title);
+  const _SectionHeader(this.title, {this.tight = false});
+
   final String title;
+
+  /// For a heading that follows another group rather than opening the page.
+  final bool tight;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 12),
+      padding: tight
+          ? const EdgeInsets.fromLTRB(4, 10, 4, 8)
+          : const EdgeInsets.fromLTRB(4, 8, 4, 12),
       child: Text(
         title.toUpperCase(),
         style: Theme.of(context).textTheme.labelSmall?.copyWith(

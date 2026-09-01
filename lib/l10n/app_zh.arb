@@ -316,5 +316,15 @@
   "leadCustom": "选择日期",
   "leadDailyTitle": "最后一个月每天提醒",
   "leadDailyBody": "距离到期不足一个月时，Elapsa 会每天提醒你。此项无法关闭。",
-  "leadOnDate": "{date}"
+  "leadOnDate": "{date}",
+  "editUnsavedTitle": "保留修改吗？",
+  "editUnsavedBody": "此证件有尚未保存的修改。",
+  "editDiscard": "放弃",
+  "nearbyRoleTitle": "发送还是接收？",
+  "nearbyRoleSend": "从这台手机发送",
+  "nearbyRoleSendBody": "选择证件并传给另一台设备。",
+  "nearbyRoleReceive": "在这台手机接收",
+  "nearbyRoleReceiveBody": "等待另一台设备发送。收到之前会先询问你。",
+  "nearbyWaitingToReceive": "等待其他设备发送…",
+  "nearbyWantsToSend": "想向你发送证件"
 }

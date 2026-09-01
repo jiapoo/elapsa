@@ -49,7 +49,18 @@ class _CropScreenState extends State<CropScreen> {
   /// bottom-left, matching [CardQuad].
   late List<Offset> _corners = _startingCorners();
 
+  /// What is under the finger: 0-3 a corner, 4-7 the edge that leaves the
+  /// corner of the same index.
   int? _dragging;
+
+  /// Where the drag began, and the shape it began from.
+  ///
+  /// An edge is moved from its starting position by the total distance
+  /// travelled, not nudged by each frame's delta. Accumulating deltas drifts,
+  /// and a side that ends up somewhere other than where the finger left it is
+  /// the sort of thing that makes a control feel broken without being wrong.
+  Offset? _grabbedAt;
+  List<Offset> _before = const [];
 
   /// A comfortable inset, for when there is nothing to start from.
   static const _defaultInset = 0.10;
@@ -147,25 +158,45 @@ class _CropScreenState extends State<CropScreen> {
     );
   }
 
-  /// Takes hold of whichever corner is nearest, if one is near enough.
+  /// The handles, in pixels: four corners, then the midpoint of each side.
+  static List<Offset> _handles(List<Offset> corners, Size box) {
+    final points = [
+      for (final corner in corners)
+        Offset(corner.dx * box.width, corner.dy * box.height),
+    ];
+    return [
+      ...points,
+      for (var i = 0; i < 4; i++)
+        Offset.lerp(points[i], points[(i + 1) % 4], 0.5)!,
+    ];
+  }
+
+  /// Takes hold of whichever handle is nearest, if one is near enough.
   void _grab(Offset local, Size box) {
+    final handles = _handles(_corners, box);
+
     var nearest = 0;
     var best = double.infinity;
-    for (var i = 0; i < 4; i++) {
-      final at = Offset(
-        _corners[i].dx * box.width,
-        _corners[i].dy * box.height,
-      );
-      final distance = (at - local).distance;
+    for (var i = 0; i < handles.length; i++) {
+      final distance = (handles[i] - local).distance;
+      // Strictly nearer, so a corner wins a tie against the side beside it.
+      // A corner is the more precise instrument and the harder one to grab by
+      // accident, so it should be the one that answers when both are equally
+      // close.
       if (distance < best) {
         best = distance;
         nearest = i;
       }
     }
+
     // Generously, because a fingertip is far wider than the handle it is
     // aiming at and the corner is usually the last thing still on screen.
     if (best <= _handleRadius * 3) {
-      setState(() => _dragging = nearest);
+      setState(() {
+        _dragging = nearest;
+        _grabbedAt = local;
+        _before = List.of(_corners);
+      });
       HapticFeedback.selectionClick();
     }
   }
@@ -174,19 +205,49 @@ class _CropScreenState extends State<CropScreen> {
     final index = _dragging;
     if (index == null) return;
 
+    Offset normalised(Offset pixels) => Offset(
+      (pixels.dx / box.width).clamp(0.0, 1.0),
+      (pixels.dy / box.height).clamp(0.0, 1.0),
+    );
+
     // A new list, not a write into the old one. The painter decides whether
     // to redraw by comparing what it was given last time against what it has
     // now, and a list mutated in place is the same list — so every drag was
-    // being recorded and none of it was ever drawn. The corners moved; the
-    // picture did not, which from the outside is a screen that cannot be
-    // dragged.
+    // being recorded and none of it was ever drawn.
     setState(() {
+      if (index < 4) {
+        _corners = [
+          for (var i = 0; i < 4; i++)
+            i == index ? normalised(local) : _corners[i],
+        ];
+        return;
+      }
+
+      // A side, moved as one piece. Both of its corners travel together, and
+      // only across the side rather than along it — dragging the top of a
+      // crop should raise or lower the top, not shear the picture sideways
+      // while it does so.
+      final side = index - 4;
+      final start = _before[side];
+      final end = _before[(side + 1) % 4];
+
+      final a = Offset(start.dx * box.width, start.dy * box.height);
+      final b = Offset(end.dx * box.width, end.dy * box.height);
+      final along = b - a;
+      final length = along.distance;
+      if (length < 1) return;
+
+      final across = Offset(-along.dy / length, along.dx / length);
+      final travelled = local - _grabbedAt!;
+      final distance = travelled.dx * across.dx + travelled.dy * across.dy;
+      final shift = across * distance;
+
       _corners = [
-        for (var i = 0; i < _corners.length; i++)
-          if (i == index)
-            Offset(
-              (local.dx / box.width).clamp(0.0, 1.0),
-              (local.dy / box.height).clamp(0.0, 1.0),
+        for (var i = 0; i < 4; i++)
+          if (i == side || i == (side + 1) % 4)
+            normalised(
+              Offset(_before[i].dx * box.width, _before[i].dy * box.height) +
+                  shift,
             )
           else
             _corners[i],
@@ -342,6 +403,36 @@ class _QuadPainter extends CustomPainter {
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke,
     );
+
+    // A capsule lying along each side, at its middle. Drawn as a bar rather
+    // than another dot because it does something different from a corner —
+    // it takes the whole side with it — and two identical handles that behave
+    // differently is a worse answer than one of each.
+    for (var i = 0; i < 4; i++) {
+      final a = points[i];
+      final b = points[(i + 1) % 4];
+      final middle = Offset.lerp(a, b, 0.5)!;
+      final active = held == i + 4;
+
+      canvas.save();
+      canvas.translate(middle.dx, middle.dy);
+      canvas.rotate(math.atan2(b.dy - a.dy, b.dx - a.dx));
+
+      final bar = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: active ? 40 : 30,
+          height: active ? 9 : 7,
+        ),
+        const Radius.circular(5),
+      );
+      canvas.drawRRect(
+        bar.inflate(5),
+        Paint()..color = Colors.white.withValues(alpha: active ? 0.3 : 0.2),
+      );
+      canvas.drawRRect(bar, Paint()..color = Colors.white);
+      canvas.restore();
+    }
 
     for (var i = 0; i < points.length; i++) {
       final active = i == held;

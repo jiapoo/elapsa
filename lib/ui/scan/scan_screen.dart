@@ -103,6 +103,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// while.
   Timer? _stuckTimer;
 
+  /// A line at the top of the frame, and the clock that clears it.
+  String? _notice;
+  Timer? _noticeTimer;
+
   /// Long enough that someone still lining the document up is not nagged,
   /// short enough to arrive before they give up. A lock normally happens
   /// inside two seconds, so six means six seconds of genuinely finding
@@ -141,6 +145,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   @override
   void dispose() {
     _stuckTimer?.cancel();
+    _noticeTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // Stop delivering frames before tearing the session down, or AVFoundation
     // complains about a source that vanished mid-flight.
@@ -334,15 +339,18 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     HapticFeedback.selectionClick();
     _armStuckTimer();
 
+    // Said at the top of the frame, not in a snack bar at the bottom.
+    //
+    // A snack bar floats over exactly the strip this screen keeps its shutter
+    // in, so confirming the switch covered the buttons the user had just
+    // reached for — and covered them for two seconds, which is long enough to
+    // take a photograph they did not mean to take.
     final l = L.of(context);
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(_autoDetect ? l.scanAutoOn : l.scanAutoOff),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    _noticeTimer?.cancel();
+    setState(() => _notice = _autoDetect ? l.scanAutoOn : l.scanAutoOff);
+    _noticeTimer = Timer(const Duration(milliseconds: 1900), () {
+      if (mounted) setState(() => _notice = null);
+    });
   }
 
   /// How square-on the card currently is, or null when none is detected.
@@ -555,6 +563,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                   ),
                 ),
 
+                // Top centre: the one part of this screen with nothing in it,
+                // and out of the way of both the shutter and the done button.
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    // Held clear of the two round buttons in the top corners,
+                    // so a longer sentence cannot creep underneath one.
+                    padding: const EdgeInsets.fromLTRB(76, 6, 76, 0),
+                    child: _RotatingGlyphs(
+                      controller: _controller,
+                      child: _Notice(text: _notice),
+                    ),
+                  ),
+                ),
+
                 if (_pages.isNotEmpty)
                   Align(
                     alignment: Alignment.topRight,
@@ -679,6 +702,51 @@ class _GlyphRotation extends InheritedWidget {
 }
 
 /// A glyph that keeps itself upright as the phone turns.
+/// A word or two from the app, floated over the picture.
+///
+/// Fades rather than appearing, because something that blinks into existence
+/// over a live camera reads as a fault with the camera.
+class _Notice extends StatelessWidget {
+  const _Notice({required this.text});
+
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      child: text == null
+          ? const SizedBox.shrink()
+          : AnimatedRotation(
+              key: ValueKey(text),
+              turns: _GlyphRotation.of(context),
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.62),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  text!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
+}
+
 class _UprightIcon extends StatelessWidget {
   const _UprightIcon(this.icon, {required this.color, required this.size});
 

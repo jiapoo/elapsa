@@ -420,7 +420,9 @@ class _Tile extends StatelessWidget {
               borderRadius: BorderRadius.circular(5),
             ),
             child: Text(
-              days < 0 ? l.statusExpired.toUpperCase() : '$days',
+              days < 0
+                  ? l.shortExpired
+                  : compactDuration(DateTime.now(), document.expiryDate, l),
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 10,

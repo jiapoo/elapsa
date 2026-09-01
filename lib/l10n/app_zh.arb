@@ -279,5 +279,18 @@
   "transferFailedFile": "这不是 Elapsa 存档文件。",
   "transferFailedNew": "此存档由更新版本的 Elapsa 创建。",
   "transferFailedKey": "密码错误，或文件已损坏。",
-  "actionContinue": "继续"
+  "actionContinue": "继续",
+  "shortYears": "{years}年",
+  "shortDays": "{days}天",
+  "shortExpired": "已过期",
+  "transferProtect": "使用密码保护",
+  "transferProtectBody": "文件会在传输之后继续留存，因此默认开启——它会留在两端的“文件”里。只有当你准备立刻导入并删除时才关闭。",
+  "transferChoose": "选择要发送的内容",
+  "transferAll": "全选",
+  "transferNone": "全不选",
+  "transferSelected": "已选 {count} 份",
+  "cropTitle": "拖动四角",
+  "cropBody": "把四个角分别对准证件的四角。",
+  "cropReset": "重置",
+  "scanAdjust": "调整裁剪"
 }

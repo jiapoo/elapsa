@@ -119,3 +119,27 @@ String durationLabel(DateTime from, DateTime to, L l) {
   if (days == 0) return l.countYears(years);
   return '${l.countYears(years)} ${l.countDays(days)}';
 }
+
+/// The same span with the words taken out: "3y20d".
+///
+/// For the picture-only wallet, where a card carries its countdown in a pill
+/// the width of a fingernail and there is no room to write it out. Days alone
+/// were no use there either — "1204" on the corner of a passport says nothing
+/// anybody can act on.
+String compactDuration(DateTime from, DateTime to, L l) {
+  final start = DateTime(from.year, from.month, from.day);
+  final end = DateTime(to.year, to.month, to.day);
+  if (!end.isAfter(start)) return l.shortDays(0);
+
+  var years = end.year - start.year;
+  var anniversary = DateTime(start.year + years, start.month, start.day);
+  if (anniversary.isAfter(end)) {
+    years -= 1;
+    anniversary = DateTime(start.year + years, start.month, start.day);
+  }
+
+  final days = end.difference(anniversary).inDays;
+  if (years <= 0) return l.shortDays(days);
+  if (days == 0) return l.shortYears(years);
+  return '${l.shortYears(years)}${l.shortDays(days)}';
+}

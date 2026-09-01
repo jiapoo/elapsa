@@ -104,12 +104,17 @@ class DocumentRepository {
     await save(doc.copyWith(imagePath: path, imageCount: images.length));
   }
 
-  /// Everything, pictures included, ready to be written to a file.
-  Future<List<ArchivedDocument>> exportAll() async {
+  /// The chosen documents, pictures included, ready to be written to a file.
+  ///
+  /// Takes ids rather than documents so the pictures — the expensive part, and
+  /// the part that has to be decrypted one file at a time — are only loaded
+  /// for what is actually being sent.
+  Future<List<ArchivedDocument>> exportDocuments(Set<String> ids) async {
     final documents = await getAll();
     return [
       for (final doc in documents)
-        ArchivedDocument(doc, await _images.loadAll(doc.id, doc.imageCount)),
+        if (ids.contains(doc.id))
+          ArchivedDocument(doc, await _images.loadAll(doc.id, doc.imageCount)),
     ];
   }
 

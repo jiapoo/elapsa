@@ -556,6 +556,52 @@ class LZh extends L {
 
   @override
   String get actionContinue => '继续';
+
+  @override
+  String shortYears(int years) {
+    return '$years年';
+  }
+
+  @override
+  String shortDays(int days) {
+    return '$days天';
+  }
+
+  @override
+  String get shortExpired => '已过期';
+
+  @override
+  String get transferProtect => '使用密码保护';
+
+  @override
+  String get transferProtectBody =>
+      '文件会在传输之后继续留存，因此默认开启——它会留在两端的“文件”里。只有当你准备立刻导入并删除时才关闭。';
+
+  @override
+  String get transferChoose => '选择要发送的内容';
+
+  @override
+  String get transferAll => '全选';
+
+  @override
+  String get transferNone => '全不选';
+
+  @override
+  String transferSelected(int count) {
+    return '已选 $count 份';
+  }
+
+  @override
+  String get cropTitle => '拖动四角';
+
+  @override
+  String get cropBody => '把四个角分别对准证件的四角。';
+
+  @override
+  String get cropReset => '重置';
+
+  @override
+  String get scanAdjust => '调整裁剪';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1109,4 +1155,50 @@ class LZhHant extends LZh {
 
   @override
   String get actionContinue => '繼續';
+
+  @override
+  String shortYears(int years) {
+    return '$years年';
+  }
+
+  @override
+  String shortDays(int days) {
+    return '$days天';
+  }
+
+  @override
+  String get shortExpired => '已過期';
+
+  @override
+  String get transferProtect => '使用密碼保護';
+
+  @override
+  String get transferProtectBody =>
+      '檔案會在傳輸之後繼續留存，因此預設開啟——它會留在兩端的「檔案」裡。只有當你準備立刻匯入並刪除時才關閉。';
+
+  @override
+  String get transferChoose => '選擇要傳送的內容';
+
+  @override
+  String get transferAll => '全選';
+
+  @override
+  String get transferNone => '全不選';
+
+  @override
+  String transferSelected(int count) {
+    return '已選 $count 份';
+  }
+
+  @override
+  String get cropTitle => '拖曳四角';
+
+  @override
+  String get cropBody => '把四個角分別對準證件的四角。';
+
+  @override
+  String get cropReset => '重設';
+
+  @override
+  String get scanAdjust => '調整裁切';
 }

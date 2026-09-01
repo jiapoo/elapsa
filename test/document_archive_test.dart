@@ -182,6 +182,34 @@ void main() {
     });
   });
 
+  group('unprotected archives', () {
+    test('a file with no passphrase round-trips', () async {
+      // What a nearby transfer will carry: the handover is already guarded by
+      // the other device having to accept it, so there is nothing to type.
+      final packed = await archive.pack([_passport()]);
+      final out = await archive.unpack(packed);
+
+      expect(out.single.document.id, 'a1b2');
+      expect(out.single.images, hasLength(2));
+    });
+
+    test('the file says whether it will ask for anything', () async {
+      expect(archive.isProtected(await archive.pack([])), isFalse);
+      expect(
+        archive.isProtected(await archive.pack([], passphrase: 'a key')),
+        isTrue,
+      );
+    });
+
+    test('an unprotected archive does not pretend to be sealed', () async {
+      // Being exact about this is the point: without a passphrase the contents
+      // are readable by anything that opens the file, and the app says so
+      // rather than implying otherwise.
+      final packed = await archive.pack([_passport()]);
+      expect(utf8.decode(packed), isNot(contains('pbkdf2')));
+    });
+  });
+
   test('nothing readable is left in the clear', () async {
     final packed = await archive.pack([_passport()], passphrase: 'a passphrase');
     final text = utf8.decode(packed);

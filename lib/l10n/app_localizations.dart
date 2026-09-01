@@ -1087,6 +1087,84 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Continue'**
   String get actionContinue;
+
+  /// {years}y
+  ///
+  /// In en, this message translates to:
+  /// **'{years}y'**
+  String shortYears(int years);
+
+  /// {days}d
+  ///
+  /// In en, this message translates to:
+  /// **'{days}d'**
+  String shortDays(int days);
+
+  /// EXP
+  ///
+  /// In en, this message translates to:
+  /// **'EXP'**
+  String get shortExpired;
+
+  /// Protect with a passphrase
+  ///
+  /// In en, this message translates to:
+  /// **'Protect with a passphrase'**
+  String get transferProtect;
+
+  /// Off, the archive is a plain readable file wherever it lands
+  ///
+  /// In en, this message translates to:
+  /// **'Kept on for a file, which outlives the handover — it sits in Files at both ends afterwards. Turn it off only for an archive you are about to import and delete.'**
+  String get transferProtectBody;
+
+  /// Choose what to send
+  ///
+  /// In en, this message translates to:
+  /// **'Choose what to send'**
+  String get transferChoose;
+
+  /// All
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get transferAll;
+
+  /// None
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get transferNone;
+
+  /// {count, plural, =0{Nothing selected} =1{1 document} other{{c
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Nothing selected} =1{1 document} other{{count} documents}}'**
+  String transferSelected(int count);
+
+  /// Drag the corners
+  ///
+  /// In en, this message translates to:
+  /// **'Drag the corners'**
+  String get cropTitle;
+
+  /// Put a corner on each corner of the document.
+  ///
+  /// In en, this message translates to:
+  /// **'Put a corner on each corner of the document.'**
+  String get cropBody;
+
+  /// Reset
+  ///
+  /// In en, this message translates to:
+  /// **'Reset'**
+  String get cropReset;
+
+  /// Adjust the crop
+  ///
+  /// In en, this message translates to:
+  /// **'Adjust the crop'**
+  String get scanAdjust;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

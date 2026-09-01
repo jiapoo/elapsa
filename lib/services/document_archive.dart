@@ -70,13 +70,20 @@ class DocumentArchive {
   static final _cipher = AesGcm.with256bits();
 
   /// Packs [documents] into a single encrypted file.
+  /// Packs [documents] into a single file, encrypted when a [passphrase] is
+  /// given.
+  ///
+  /// Without one the file is plain. That is a real choice with a real cost, so
+  /// it is worth being exact about what each half protects: handing the
+  /// archive over device to device is already guarded, because the other phone
+  /// has to accept it. What a passphrase adds is protection for the file
+  /// *afterwards* — it survives the transfer at both ends, in Files, in
+  /// Downloads, in whatever backup those get swept into, and an unprotected
+  /// one is every passport number the user owns in readable text.
   Future<Uint8List> pack(
     List<ArchivedDocument> documents, {
-    required String passphrase,
+    String? passphrase,
   }) async {
-    final salt = _randomBytes(16);
-    final key = await _deriveKey(passphrase, salt);
-
     final payload = utf8.encode(
       jsonEncode({
         'exported': DateTime.now().toIso8601String(),
@@ -84,28 +91,45 @@ class DocumentArchive {
       }),
     );
 
-    final box = await _cipher.encrypt(payload, secretKey: key);
-
     // The envelope is plain JSON on purpose. Anyone finding this file years
     // from now can see what it is and what it would take to open it, without
     // having to have kept a copy of this app.
-    return Uint8List.fromList(
-      utf8.encode(
-        jsonEncode({
-          'format': _magic,
-          'version': _version,
-          'kdf': {
-            'name': 'pbkdf2-hmac-sha256',
-            'rounds': _rounds,
-            'salt': base64Encode(salt),
-          },
-          'cipher': 'aes-256-gcm',
-          'nonce': base64Encode(box.nonce),
-          'mac': base64Encode(box.mac.bytes),
-          'body': base64Encode(box.cipherText),
-        }),
-      ),
-    );
+    final envelope = <String, dynamic>{'format': _magic, 'version': _version};
+
+    if (passphrase == null) {
+      envelope['body'] = base64Encode(payload);
+    } else {
+      final salt = _randomBytes(16);
+      final box = await _cipher.encrypt(
+        payload,
+        secretKey: await _deriveKey(passphrase, salt),
+      );
+      envelope['kdf'] = {
+        'name': 'pbkdf2-hmac-sha256',
+        'rounds': _rounds,
+        'salt': base64Encode(salt),
+      };
+      envelope['cipher'] = 'aes-256-gcm';
+      envelope['nonce'] = base64Encode(box.nonce);
+      envelope['mac'] = base64Encode(box.mac.bytes);
+      envelope['body'] = base64Encode(box.cipherText);
+    }
+
+    return Uint8List.fromList(utf8.encode(jsonEncode(envelope)));
+  }
+
+  /// Whether this file will ask for a passphrase, without opening it.
+  ///
+  /// So the user is only ever asked for one when there is something to ask
+  /// about, instead of being made to guess whether the archive they were sent
+  /// has a passphrase at all.
+  bool isProtected(Uint8List file) {
+    try {
+      final envelope = jsonDecode(utf8.decode(file)) as Map<String, dynamic>;
+      return envelope['kdf'] != null;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Opens a file produced by [pack].
@@ -114,7 +138,7 @@ class DocumentArchive {
   /// this fails is something the user needs told about in different words.
   Future<List<ArchivedDocument>> unpack(
     Uint8List file, {
-    required String passphrase,
+    String? passphrase,
   }) async {
     final Map<String, dynamic> envelope;
     try {
@@ -133,23 +157,27 @@ class DocumentArchive {
 
     final Uint8List plain;
     try {
-      final kdf = envelope['kdf'] as Map<String, dynamic>;
-      final key = await _deriveKey(
-        passphrase,
-        base64Decode(kdf['salt'] as String),
-        rounds: (kdf['rounds'] as num?)?.toInt() ?? _rounds,
-      );
+      final kdf = envelope['kdf'] as Map<String, dynamic>?;
+      if (kdf == null) {
+        plain = base64Decode(envelope['body'] as String);
+      } else {
+        final key = await _deriveKey(
+          passphrase ?? '',
+          base64Decode(kdf['salt'] as String),
+          rounds: (kdf['rounds'] as num?)?.toInt() ?? _rounds,
+        );
 
-      plain = Uint8List.fromList(
-        await _cipher.decrypt(
-          SecretBox(
-            base64Decode(envelope['body'] as String),
-            nonce: base64Decode(envelope['nonce'] as String),
-            mac: Mac(base64Decode(envelope['mac'] as String)),
+        plain = Uint8List.fromList(
+          await _cipher.decrypt(
+            SecretBox(
+              base64Decode(envelope['body'] as String),
+              nonce: base64Decode(envelope['nonce'] as String),
+              mac: Mac(base64Decode(envelope['mac'] as String)),
+            ),
+            secretKey: key,
           ),
-          secretKey: key,
-        ),
-      );
+        );
+      }
     } catch (_) {
       throw const ArchiveException(ArchiveFailure.cannotOpen);
     }

@@ -648,4 +648,57 @@ class LEn extends L {
 
   @override
   String get actionContinue => 'Continue';
+
+  @override
+  String shortYears(int years) {
+    return '${years}y';
+  }
+
+  @override
+  String shortDays(int days) {
+    return '${days}d';
+  }
+
+  @override
+  String get shortExpired => 'EXP';
+
+  @override
+  String get transferProtect => 'Protect with a passphrase';
+
+  @override
+  String get transferProtectBody =>
+      'Kept on for a file, which outlives the handover — it sits in Files at both ends afterwards. Turn it off only for an archive you are about to import and delete.';
+
+  @override
+  String get transferChoose => 'Choose what to send';
+
+  @override
+  String get transferAll => 'All';
+
+  @override
+  String get transferNone => 'None';
+
+  @override
+  String transferSelected(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count documents',
+      one: '1 document',
+      zero: 'Nothing selected',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get cropTitle => 'Drag the corners';
+
+  @override
+  String get cropBody => 'Put a corner on each corner of the document.';
+
+  @override
+  String get cropReset => 'Reset';
+
+  @override
+  String get scanAdjust => 'Adjust the crop';
 }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
@@ -13,6 +14,7 @@ import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/mrz_scanner.dart';
 import 'package:elapsa/services/vision_channel.dart';
+import 'package:elapsa/ui/scan/crop_screen.dart';
 
 /// Everything one scanning session produced.
 ///
@@ -85,6 +87,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   Future<void>? _releasing;
 
   final _pages = <Uint8List>[];
+
+  /// The untouched photograph behind each page, kept for as long as the
+  /// scanner is open. Cropping is destructive, and a crop cannot be redone
+  /// from its own output — so the original stays available for the whole
+  /// session and is never written to the library.
+  final _originals = <String>[];
   MrzResult? _bestMrz;
   PrintedFields _printed = PrintedFields.empty;
 
@@ -296,7 +304,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       // way they were holding the phone. Re-detecting on the still can find a
       // different rectangle, and geometry alone cannot tell upright from
       // upside down.
-      _absorb(await _scanner.scanFile(shot.path, quad: framed));
+      final result = await _scanner.scanFile(shot.path, quad: framed);
+      _absorb(result, original: shot.path);
+
+      // Ask for the corners when the app has run out of ideas of its own.
+      // That is the honest moment for it: automatic detection is right most of
+      // the time and wrong in ways nobody can argue with from outside — a book
+      // that will not lie flat, a laminated card throwing back the ceiling
+      // light — and a scanner with no manual override simply fails sometimes.
+      if (!result.croppedConfidently && result.cardImage != null && mounted) {
+        await _adjust(_pages.length - 1);
+      }
     } catch (error, stack) {
       debugPrint('Elapsa: capture failed: $error\n$stack');
       _restore();
@@ -314,7 +332,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
         _restore();
         return;
       }
-      _absorb(await _scanner.scanFile(picked.path));
+      _absorb(await _scanner.scanFile(picked.path), original: picked.path);
     } catch (error, stack) {
       debugPrint('Elapsa: scan from library failed: $error\n$stack');
       _restore();
@@ -329,7 +347,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// carries the expiry, and discarding the picture for that would be absurd.
   /// The first trusted reading wins, so a later page cannot overwrite it with
   /// something worse.
-  void _absorb(ScanResult result) {
+  void _absorb(ScanResult result, {String? original}) {
     if (!mounted) return;
 
     // Held in memory only, for the diagnostics screen. Never written to disk:
@@ -339,13 +357,40 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     }
 
     setState(() {
-      if (result.cardImage != null) _pages.add(result.cardImage!);
+      if (result.cardImage != null) {
+        _pages.add(result.cardImage!);
+        _originals.add(original ?? '');
+      }
       if (result.hasTrustedCode && _bestMrz == null) _bestMrz = result.mrz;
       // Merged, not replaced. A card is two photographs — the front carries
       // the number, the name and the dates, the back carries the security
       // code — and keeping only the first page that yielded anything threw
       // the other half away.
       _printed = _printed.mergedWith(result.printed);
+      _stage = _controller != null ? _Stage.ready : _Stage.noCamera;
+    });
+  }
+
+  /// Lets the user place the corners on one page by hand.
+  Future<void> _adjust(int index) async {
+    if (index < 0 || index >= _originals.length) return;
+    final original = _originals[index];
+    if (original.isEmpty || !await File(original).exists()) return;
+    if (!mounted) return;
+
+    final quad = await Navigator.of(context).push<CardQuad>(
+      MaterialPageRoute(
+        builder: (_) => CropScreen(imagePath: original, initial: _quad),
+      ),
+    );
+    if (quad == null || !mounted) return;
+
+    setState(() => _stage = _Stage.working);
+    final recut = await _scanner.recut(original, quad);
+    if (!mounted) return;
+
+    setState(() {
+      if (recut != null) _pages[index] = recut;
       _stage = _controller != null ? _Stage.ready : _Stage.noCamera;
     });
   }
@@ -437,7 +482,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           if (_pages.isNotEmpty) ...[
-                            _PageStrip(pages: _pages),
+                            _PageStrip(pages: _pages, onTap: _adjust),
                             const SizedBox(height: 18),
                           ],
                           Row(
@@ -884,9 +929,13 @@ class _GlyphButton extends StatelessWidget {
 }
 
 class _PageStrip extends StatelessWidget {
-  const _PageStrip({required this.pages});
+  const _PageStrip({required this.pages, required this.onTap});
 
   final List<Uint8List> pages;
+
+  /// Tapping a page reopens it for cropping by hand — the way back for
+  /// anything the automatic pass got wrong but did not know it had.
+  final void Function(int index) onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -898,13 +947,16 @@ class _PageStrip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         itemCount: pages.length,
         separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) => ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: Image.memory(
-            pages[index],
-            width: 54 * kCardAspectRatio,
-            height: 54,
-            fit: BoxFit.cover,
+        itemBuilder: (context, index) => GestureDetector(
+          onTap: () => onTap(index),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Image.memory(
+              pages[index],
+              width: 54 * kCardAspectRatio,
+              height: 54,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),

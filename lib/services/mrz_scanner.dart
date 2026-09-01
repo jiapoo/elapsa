@@ -27,6 +27,14 @@ class ScanResult {
   /// not be decoded.
   final Uint8List? cardImage;
 
+  /// Whether the crop came from a rectangle the detector actually found and
+  /// that survived checking, rather than from a fallback.
+  ///
+  /// The scanner offers the corners to the user by hand when this is false —
+  /// which is the honest moment to ask, because it is exactly when the app
+  /// has run out of ideas of its own.
+  final bool croppedConfidently;
+
   /// Everything the recogniser read, verbatim.
   ///
   /// Kept so the app can show it back when a field comes up empty. That single
@@ -39,6 +47,7 @@ class ScanResult {
     this.printed = PrintedFields.empty,
     this.cardImage,
     this.rawText = '',
+    this.croppedConfidently = false,
   });
 
   /// True when an MRZ was found *and* every check digit agreed.
@@ -104,9 +113,8 @@ class MrzScanner {
     // The crop is judged only once both passes have finished, so none of this
     // costs the user any time: the two still run side by side, and where the
     // writing was found is already known by the time it is needed.
-    final card = _keeps(cut, read.bounds, hasCode: parsed != null)
-        ? cut!.bytes
-        : await _fallbackFace(path, read.bounds);
+    final trusted = _keeps(cut, read.bounds, hasCode: parsed != null);
+    final card = trusted ? cut!.bytes : await _fallbackFace(path, read.bounds);
 
     var printed = _printed.parse(text);
     var seen = text;
@@ -136,7 +144,18 @@ class MrzScanner {
       printed: printed,
       cardImage: card,
       rawText: seen,
+      croppedConfidently: trusted,
     );
+  }
+
+  /// Re-cuts a photo along corners the user placed by hand.
+  ///
+  /// The same perspective correction the automatic path uses; only the corners
+  /// came from a finger. Falls back to the whole photo, because someone who
+  /// has just placed four corners deserves a picture either way.
+  Future<Uint8List?> recut(String path, CardQuad quad) async {
+    final cut = await _vision.extractCard(path, quad: quad);
+    return cut?.bytes ?? await _cropper.cropToRegion(path, Rect.largest);
   }
 
   /// Whether the crop can be trusted to have kept what matters.

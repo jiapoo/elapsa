@@ -81,6 +81,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// started again afterwards, and asking the plugin to do either twice throws.
   bool _streaming = false;
 
+  /// The teardown of the previous controller, while it is still running.
+  Future<void>? _releasing;
+
   final _pages = <Uint8List>[];
   MrzResult? _bestMrz;
   PrintedFields _printed = PrintedFields.empty;
@@ -169,7 +172,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
           _stage = _Stage.working;
         });
         _streaming = false;
-        controller.dispose();
+        // Kept, because coming back has to wait for it. The hardware is not
+        // free until this finishes, and a new controller that asks for a
+        // camera the old one still holds fails outright — which is a scanner
+        // that comes back looking alive and never sees anything.
+        _releasing = controller.dispose();
 
       case AppLifecycleState.resumed:
         if (_controller == null) _startCamera();
@@ -178,6 +185,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
   Future<void> _startCamera() async {
     try {
+      // Never two controllers on one camera. Without this the restart races
+      // the release and loses.
+      await _releasing;
+      _releasing = null;
+
       final cameras = await availableCameras();
       if (cameras.isEmpty) throw CameraException('none', 'No cameras');
 

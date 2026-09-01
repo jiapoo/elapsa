@@ -526,4 +526,36 @@ class LEn extends L {
 
   @override
   String get settingsCopied => 'Copied.';
+
+  @override
+  String countYears(int years) {
+    String _temp0 = intl.Intl.pluralLogic(
+      years,
+      locale: localeName,
+      other: '$years years',
+      one: '1 year',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String countDays(int days) {
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String durationLeft(String duration) {
+    return '$duration left';
+  }
+
+  @override
+  String durationAgo(String duration) {
+    return '$duration ago';
+  }
 }

@@ -60,15 +60,21 @@ DEBIT CCB GD VALID THRU 07/35
 UnionPay 银联
 ''';
 
-    test('reads MM/YY as the last day of that month', () {
-      // A card marked 07/35 is good *through* July, so expiring it on the 1st
-      // would fire every reminder a month early.
-      expect(parser.parse(card).expiryDate, DateTime(2035, 7, 31));
+    test('reads MM/YY as the end of the month before', () {
+      // 07/35 names a month and nothing finer. An expiry is not a fact to be
+      // right about, it is a date to act before, so an imprecise one is read
+      // pessimistically: a month of slack is a month of walking around with a
+      // document you believe is valid.
+      expect(parser.parse(card).expiryDate, DateTime(2035, 6, 30));
+    });
+
+    test('turns the year without a special case', () {
+      expect(parser.parse('VALID THRU 01/27').expiryDate, DateTime(2026, 12, 31));
     });
 
     test('handles February and leap years', () {
-      expect(parser.parse('VALID THRU 02/27').expiryDate, DateTime(2027, 2, 28));
-      expect(parser.parse('VALID THRU 02/28').expiryDate, DateTime(2028, 2, 29));
+      expect(parser.parse('VALID THRU 03/27').expiryDate, DateTime(2027, 2, 28));
+      expect(parser.parse('VALID THRU 03/28').expiryDate, DateTime(2028, 2, 29));
     });
 
     test('identifies the type', () {
@@ -132,11 +138,11 @@ Signature
     test('takes the later date as the expiry, never the earlier', () {
       // Anchoring to the MONTH/YEAR caption matched the issue date first and
       // recorded a live card as two years expired.
-      expect(parser.parse(front).expiryDate, DateTime(2028, 10, 31));
+      expect(parser.parse(front).expiryDate, DateTime(2028, 9, 30));
     });
 
     test('keeps the earlier date as when it became valid', () {
-      expect(parser.parse(front).issueDate, DateTime(2023, 10, 31));
+      expect(parser.parse(front).issueDate, DateTime(2023, 9, 30));
     });
 
     test('reads the name embossed on it', () {
@@ -155,7 +161,7 @@ Signature
 
     test('a single date is still the expiry', () {
       expect(parser.parse('UnionPay VALID THRU 07/35').expiryDate,
-          DateTime(2035, 7, 31));
+          DateTime(2035, 6, 30));
       expect(parser.parse('UnionPay VALID THRU 07/35').issueDate, isNull);
     });
   });

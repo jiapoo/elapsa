@@ -464,6 +464,26 @@ class LZh extends L {
 
   @override
   String get settingsCopied => '已复制。';
+
+  @override
+  String countYears(int years) {
+    return '$years 年';
+  }
+
+  @override
+  String countDays(int days) {
+    return '$days 天';
+  }
+
+  @override
+  String durationLeft(String duration) {
+    return '还剩 $duration';
+  }
+
+  @override
+  String durationAgo(String duration) {
+    return '已过期 $duration';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -925,4 +945,24 @@ class LZhHant extends LZh {
 
   @override
   String get settingsCopied => '已複製。';
+
+  @override
+  String countYears(int years) {
+    return '$years 年';
+  }
+
+  @override
+  String countDays(int days) {
+    return '$days 天';
+  }
+
+  @override
+  String durationLeft(String duration) {
+    return '還剩 $duration';
+  }
+
+  @override
+  String durationAgo(String duration) {
+    return '已過期 $duration';
+  }
 }

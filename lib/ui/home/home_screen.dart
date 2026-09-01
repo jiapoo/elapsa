@@ -641,12 +641,18 @@ class _TravelWarning extends StatelessWidget {
 }
 
 String _statusLine(TrackedDocument document, L l) {
-  final days = document.daysRemaining();
-  if (days < 0) return l.daysAgo(-days);
-  if (document.status() == DocumentStatus.actionNeeded) {
-    return '${l.daysLeft(days)} · ${l.startRenewingNow}';
+  final today = DateTime.now();
+  final expiry = document.expiryDate;
+
+  if (document.daysRemaining() < 0) {
+    return l.durationAgo(durationLabel(expiry, today, l));
   }
-  return l.daysLeft(days);
+
+  final left = l.durationLeft(durationLabel(today, expiry, l));
+  if (document.status() == DocumentStatus.actionNeeded) {
+    return '$left · ${l.startRenewingNow}';
+  }
+  return left;
 }
 
 class _EmptyState extends StatelessWidget {

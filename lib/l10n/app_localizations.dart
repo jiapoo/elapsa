@@ -931,6 +931,30 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Copied.'**
   String get settingsCopied;
+
+  /// Duration fragment
+  ///
+  /// In en, this message translates to:
+  /// **'{years, plural, =1{1 year} other{{years} years}}'**
+  String countYears(int years);
+
+  /// Duration fragment
+  ///
+  /// In en, this message translates to:
+  /// **'{days, plural, =1{1 day} other{{days} days}}'**
+  String countDays(int days);
+
+  /// Duration fragment
+  ///
+  /// In en, this message translates to:
+  /// **'{duration} left'**
+  String durationLeft(String duration);
+
+  /// Duration fragment
+  ///
+  /// In en, this message translates to:
+  /// **'{duration} ago'**
+  String durationAgo(String duration);
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

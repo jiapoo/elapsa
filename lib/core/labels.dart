@@ -91,3 +91,31 @@ String leadTimeLabel(L l, int days) {
   final months = (days / 30).round();
   return l.leadMonths(months < 1 ? 1 : months);
 }
+
+/// A span written the way people plan in: "2 years 34 days".
+///
+/// Days alone stop meaning anything past a few hundred of them. Nobody reads
+/// "3,412 days left" as three trips round the sun; they read it as a large
+/// number and move on, which is the opposite of what a countdown is for.
+///
+/// Whole calendar years, not 365-day blocks. A ten-year passport should say
+/// ten years on the day it is issued, and dividing by 365 makes that nine
+/// years and three hundred and sixty-odd days — arithmetically defensible and
+/// obviously wrong to anyone holding the passport.
+String durationLabel(DateTime from, DateTime to, L l) {
+  final start = DateTime(from.year, from.month, from.day);
+  final end = DateTime(to.year, to.month, to.day);
+  if (!end.isAfter(start)) return l.countDays(0);
+
+  var years = end.year - start.year;
+  var anniversary = DateTime(start.year + years, start.month, start.day);
+  if (anniversary.isAfter(end)) {
+    years -= 1;
+    anniversary = DateTime(start.year + years, start.month, start.day);
+  }
+
+  final days = end.difference(anniversary).inDays;
+  if (years <= 0) return l.countDays(days);
+  if (days == 0) return l.countYears(years);
+  return '${l.countYears(years)} ${l.countDays(days)}';
+}

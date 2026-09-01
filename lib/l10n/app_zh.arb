@@ -253,5 +253,9 @@
   "settingsLastScanBody": "相机读到的原始文字，尚未经过解析。某个字段为空时可用来排查。",
   "settingsLastScanEmpty": "本次启动后还没有扫描过。",
   "actionCopy": "复制",
-  "settingsCopied": "已复制。"
+  "settingsCopied": "已复制。",
+  "countYears": "{years} 年",
+  "countDays": "{days} 天",
+  "durationLeft": "还剩 {duration}",
+  "durationAgo": "已过期 {duration}"
 }

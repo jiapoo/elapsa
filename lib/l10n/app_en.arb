@@ -331,5 +331,41 @@
   "settingsCopied": "Copied.",
   "@settingsCopied": {
     "description": "Copied."
+  },
+  "countYears": "{years, plural, =1{1 year} other{{years} years}}",
+  "@countYears": {
+    "description": "Duration fragment",
+    "placeholders": {
+      "years": {
+        "type": "int"
+      }
+    }
+  },
+  "countDays": "{days, plural, =1{1 day} other{{days} days}}",
+  "@countDays": {
+    "description": "Duration fragment",
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "durationLeft": "{duration} left",
+  "@durationLeft": {
+    "description": "Duration fragment",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
+  },
+  "durationAgo": "{duration} ago",
+  "@durationAgo": {
+    "description": "Duration fragment",
+    "placeholders": {
+      "duration": {
+        "type": "String"
+      }
+    }
   }
 }

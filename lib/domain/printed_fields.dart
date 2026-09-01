@@ -464,9 +464,19 @@ class PrintedFieldParser {
     return null;
   }
 
-  /// A card marked `07/35` is good through the *last* day of July 2035, not
-  /// the first. Recording the first would expire it a month early and fire
-  /// every reminder against the wrong date.
+  /// A month with no day in it, recorded a month early.
+  ///
+  /// `07/35` names a month and nothing finer. Taken at face value that is the
+  /// 31st of July — the card really is good through the end of the month — but
+  /// an expiry is not a fact to be right about, it is a date to act before,
+  /// and every day of slack in it is a day someone is walking around with a
+  /// document they believe is valid.
+  ///
+  /// So an imprecise date is read pessimistically: the last day of the month
+  /// *before* the one printed. `07/35` becomes the 30th of June, and everything
+  /// downstream — the status, the countdown, every reminder — moves a month
+  /// earlier with it. The cost of being a month early is a renewal done in
+  /// good time. The cost of being a day late is a cancelled trip.
   static DateTime? _endOfMonth(String? month, String? year) {
     final m = int.tryParse(month ?? '');
     var y = int.tryParse(year ?? '');
@@ -474,9 +484,10 @@ class PrintedFieldParser {
     if (y < 100) y += 2000;
     if (y < 2000 || y > 2200) return null;
 
-    // Day zero of the following month is the last day of this one, and it
-    // handles February and leap years without a table.
-    return DateTime(y, m + 1, 0);
+    // Day zero of a month is the last day of the one before it, so this is
+    // the end of the *previous* month — and it handles February, leap years
+    // and the turn of the year without a table or a special case.
+    return DateTime(y, m, 0);
   }
 
   static DateTime? _date(String? year, String? month, String? day) {

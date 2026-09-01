@@ -262,11 +262,27 @@ enum VisionHandler {
       result(nil); return
     }
 
-    let request = makeRectangleRequest { observation in
+    // Strict first, then loose — the same cascade the still uses.
+    //
+    // The preview only ever ran the strict pass, so the brackets could not
+    // lock on to anything the strict pass rejects: a passport, which is not
+    // card-shaped, and a card held far enough back to fall under the size
+    // floor. The document was findable at capture and unfindable on screen,
+    // which is the wrong way round — the preview is where the user needs to be
+    // told it has been seen.
+    let relaxed = makeRectangleRequest(relaxed: true) { observation in
       result(observation.map(corners))
     }
 
-    perform([request], on: cgImage, orientation: .up) { _ in result(nil) }
+    let strict = makeRectangleRequest { observation in
+      if let observation = observation {
+        result(corners(observation))
+      } else {
+        perform([relaxed], on: cgImage, orientation: .up) { _ in result(nil) }
+      }
+    }
+
+    perform([strict], on: cgImage, orientation: .up) { _ in result(nil) }
   }
 
   /// Detects the card in a full-resolution capture and cuts it out.
@@ -531,10 +547,17 @@ enum VisionHandler {
     // is 0.63 and a passport data page about 0.70, so this window covers the
     // documents we track while rejecting the long thin shapes that windowsills
     // and table edges produce.
+    // Vision expresses aspect ratio as short side over long side. An ID-1
+    // card is 0.63 and a passport data page about 0.70; an open passport is
+    // squarer still, which is what the relaxed ceiling is for.
     request.minimumAspectRatio = relaxed ? 0.30 : 0.45
-    request.maximumAspectRatio = relaxed ? 1.0 : 0.95
-    request.minimumSize = relaxed ? 0.15 : 0.25
-    request.minimumConfidence = relaxed ? 0.4 : 0.7
+    request.maximumAspectRatio = relaxed ? 1.00 : 0.95
+
+    // Size is a fraction of the frame. A quarter of it demanded the card be
+    // held closer than people naturally hold one, and a document that fills a
+    // fifth of the picture is still unmistakably the subject of it.
+    request.minimumSize = relaxed ? 0.12 : 0.18
+    request.minimumConfidence = relaxed ? 0.4 : 0.62
     request.maximumObservations = 1
     // How far from square the corners may be. Loose enough for a card held at
     // an angle, tight enough to reject arbitrary quadrilaterals — and looser

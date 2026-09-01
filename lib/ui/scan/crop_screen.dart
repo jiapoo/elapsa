@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,9 +49,17 @@ class _CropScreenState extends State<CropScreen> {
     if (quad != null) {
       return [quad.topLeft, quad.topRight, quad.bottomRight, quad.bottomLeft];
     }
+    // Growable and non-const. As a const list this was unmodifiable, and the
+    // manual path — a photograph with no detected quad to start from — got
+    // exactly this list, so the first drag threw before it moved anything.
     const a = _defaultInset;
     const b = 1 - _defaultInset;
-    return const [Offset(a, a), Offset(b, a), Offset(b, b), Offset(a, b)];
+    return [
+      const Offset(a, a),
+      const Offset(b, a),
+      const Offset(b, b),
+      const Offset(a, b),
+    ];
   }
 
   @override
@@ -82,6 +91,7 @@ class _CropScreenState extends State<CropScreen> {
                   return _Canvas(
                     imagePath: widget.imagePath,
                     corners: _corners,
+                    held: _dragging,
                     limits: constraints.biggest,
                     onDragStart: _grab,
                     onDragUpdate: _move,
@@ -146,11 +156,23 @@ class _CropScreenState extends State<CropScreen> {
     final index = _dragging;
     if (index == null) return;
 
+    // A new list, not a write into the old one. The painter decides whether
+    // to redraw by comparing what it was given last time against what it has
+    // now, and a list mutated in place is the same list — so every drag was
+    // being recorded and none of it was ever drawn. The corners moved; the
+    // picture did not, which from the outside is a screen that cannot be
+    // dragged.
     setState(() {
-      _corners[index] = Offset(
-        (local.dx / box.width).clamp(0.0, 1.0),
-        (local.dy / box.height).clamp(0.0, 1.0),
-      );
+      _corners = [
+        for (var i = 0; i < _corners.length; i++)
+          if (i == index)
+            Offset(
+              (local.dx / box.width).clamp(0.0, 1.0),
+              (local.dy / box.height).clamp(0.0, 1.0),
+            )
+          else
+            _corners[i],
+      ];
     });
   }
 
@@ -181,6 +203,7 @@ class _Canvas extends StatefulWidget {
   const _Canvas({
     required this.imagePath,
     required this.corners,
+    required this.held,
     required this.limits,
     required this.onDragStart,
     required this.onDragUpdate,
@@ -189,6 +212,7 @@ class _Canvas extends StatefulWidget {
 
   final String imagePath;
   final List<Offset> corners;
+  final int? held;
   final Size limits;
   final void Function(Offset local, Size box) onDragStart;
   final void Function(Offset local, Size box) onDragUpdate;
@@ -254,7 +278,7 @@ class _CanvasState extends State<_Canvas> {
           fit: StackFit.expand,
           children: [
             Image.file(File(widget.imagePath), fit: BoxFit.fill),
-            CustomPaint(painter: _QuadPainter(widget.corners)),
+            CustomPaint(painter: _QuadPainter(widget.corners, widget.held)),
           ],
         ),
       ),
@@ -263,9 +287,14 @@ class _CanvasState extends State<_Canvas> {
 }
 
 class _QuadPainter extends CustomPainter {
-  _QuadPainter(this.corners);
+  _QuadPainter(this.corners, this.held);
 
   final List<Offset> corners;
+
+  /// Which corner is under a finger, so it can grow while it is being moved —
+  /// otherwise the fingertip covers the only thing that would confirm the drag
+  /// is working.
+  final int? held;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -296,16 +325,22 @@ class _QuadPainter extends CustomPainter {
         ..style = PaintingStyle.stroke,
     );
 
-    for (final point in points) {
+    for (var i = 0; i < points.length; i++) {
+      final active = i == held;
       canvas.drawCircle(
-        point,
-        13,
-        Paint()..color = Colors.white.withValues(alpha: 0.28),
+        points[i],
+        active ? 22 : 14,
+        Paint()..color = Colors.white.withValues(alpha: active ? 0.34 : 0.24),
       );
-      canvas.drawCircle(point, 7, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        points[i],
+        active ? 9 : 7,
+        Paint()..color = Colors.white,
+      );
     }
   }
 
   @override
-  bool shouldRepaint(_QuadPainter old) => old.corners != corners;
+  bool shouldRepaint(_QuadPainter old) =>
+      old.held != held || !listEquals(old.corners, corners);
 }

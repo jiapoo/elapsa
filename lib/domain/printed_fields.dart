@@ -119,6 +119,57 @@ class PrintedFieldParser {
     r'(?<![\d/])(\d{1,2})\s*/\s*(\d{2})(?![\d/])',
   );
 
+  /// A date written with the month in words: `16 JUL 1986`, and the bilingual
+  /// `21 5月/MAY 2024` that a Chinese passport prints.
+  ///
+  /// This is how travel documents write dates, and none of the numeric
+  /// patterns above could see them. A passport whose machine-readable zone
+  /// failed — a thumb over the line, a worn strip — therefore came back
+  /// identified as a passport with every field blank, which is the most
+  /// useless result the app can produce: it knew what it was holding and
+  /// nothing about it.
+  static final _dayMonthYear = RegExp(
+    r'(?<![\d])(\d{1,2})\s*(?:\d{1,2}\s*月\s*/?\s*)?'
+    r'([A-Za-z]{3})[A-Za-z]*\.?\s*(\d{4})(?![\d])',
+  );
+
+  static const _monthNames = {
+    'jan': 1,
+    'feb': 2,
+    'mar': 3,
+    'apr': 4,
+    'may': 5,
+    'jun': 6,
+    'jul': 7,
+    'aug': 8,
+    'sep': 9,
+    'oct': 10,
+    'nov': 11,
+    'dec': 12,
+  };
+
+  /// The caption a passport prints over the date it expires.
+  static final _expiryLabel = RegExp(
+    r'有效期至|有效期限|date\s*of\s*expiry|expiry|expires?|valid\s*until',
+    caseSensitive: false,
+  );
+
+  /// And over the date it was issued. Deliberately not just "issue": the page
+  /// also says *place* of issue, which is a different line with a different
+  /// answer under it.
+  static final _issueLabel = RegExp(
+    r'签发日期|簽發日期|date\s*of\s*issue',
+    caseSensitive: false,
+  );
+
+  /// A travel document number: a letter or two, then seven or eight digits.
+  ///
+  /// Bounded on both sides so it cannot match inside a machine-readable zone,
+  /// where the same characters run into the check digit that follows them.
+  static final _travelNumber = RegExp(
+    r'(?<![A-Z0-9])([A-Z]{1,2}\d{7,8})(?![A-Z0-9])',
+  );
+
   /// A three-digit security code, printed after the last four of the card
   /// number on the signature panel.
   ///
@@ -131,7 +182,7 @@ class PrintedFieldParser {
   /// A line that is plausibly the cardholder's name: embossed in capitals,
   /// letters only, a word or three.
   static final _nameLine = RegExp(
-    r'^([A-Z][A-Z.\-]{1,20}(?: [A-Z][A-Z.\-]{0,20}){0,3})$',
+    r'^([A-Z][A-Z.\-]{1,20},?(?: [A-Z][A-Z.\-]{0,20}){0,3})$',
     multiLine: true,
   );
 
@@ -139,7 +190,12 @@ class PrintedFieldParser {
   static final _notAName = RegExp(
     r'BANK|VALID|THRU|FROM|MONTH|YEAR|SIGNATURE|AUTHORIZED|AUTHORISED|DEBIT|'
     r'CREDIT|UNIONPAY|VISA|MASTERCARD|EXPRESS|CARD|ATM|CUSTOMER|SERVICE|'
-    r'HOTLINE|OVERSEAS|CALL|SIGNED|HTTP|WWW',
+    r'HOTLINE|OVERSEAS|CALL|SIGNED|HTTP|WWW|'
+    // Everything else set in capitals on a passport's data page. The holder's
+    // name is one line among many that look exactly like it.
+    r'PASSPORT|REPUBLIC|CHINA|PEOPLE|NATIONAL|IMMIGRATION|ADMINISTRATION|'
+    r'MINISTRY|FOREIGN|AFFAIRS|AUTHORITY|NATIONALITY|COUNTRY|CODE|TYPE|'
+    r'PLACE|BIRTH|ISSUE|EXPIRY|SEX|HOLDER|BEARER|CHINESE|PRC',
   );
 
   /// Mainland Chinese national identity number: 17 digits and a check
@@ -311,6 +367,7 @@ class PrintedFieldParser {
     if (text.trim().isEmpty) return PrintedFields.empty;
 
     final normalised = text.replaceAll(RegExp(r'[ \t]+'), ' ');
+    final lines = normalised.split('\n');
 
     // Whether this is a payment card at all, judged only on its wording.
     //
@@ -358,6 +415,27 @@ class PrintedFieldParser {
         if (expiry == null && months.isNotEmpty) expiry = months.last;
         if (months.length > 1) issued = months.first;
       }
+
+      // A travel document writes its dates in words, under captions, in a
+      // grid. Read under the caption first — that is the only reading that is
+      // certain — and fall back to the shape of the page: a data page carries
+      // birth, issue and expiry, and of those the expiry is always the last.
+      if (expiry == null && _looksLikeTravelDocument(normalised)) {
+        expiry = _dateUnder(lines, _expiryLabel);
+        issued ??= _dateUnder(lines, _issueLabel);
+
+        if (expiry == null) {
+          final written = _allWrittenDates(normalised);
+          // Three or more, or nothing. With two there is no telling an expiry
+          // from a date of birth, and a passport recorded as expiring on the
+          // day its holder was born is worse than one with the field left for
+          // them to fill in.
+          if (written.length >= 3) {
+            expiry = written.last;
+            issued ??= written[written.length - 2];
+          }
+        }
+      }
     }
 
     // A long run of digits is only a card number when something else on the
@@ -372,7 +450,14 @@ class PrintedFieldParser {
               (looksLikeCard
                   ? _cardNumber.firstMatch(normalised)?.group(1)
                   : null);
-    final number = chineseId ?? card?.replaceAll(RegExp(r'[ -]'), '');
+    // A passport prints its number in one place and encodes it in another.
+    // This is the printed one, for when the machine-readable zone could not be
+    // read — which is exactly when the printed face is all there is.
+    final travel = _looksLikeTravelDocument(normalised)
+        ? _travelNumber.firstMatch(normalised)?.group(1)
+        : null;
+
+    final number = chineseId ?? travel ?? card?.replaceAll(RegExp(r'[ -]'), '');
 
     final issuer = _issuerLine.firstMatch(normalised);
 
@@ -390,9 +475,24 @@ class PrintedFieldParser {
       securityCode: looksLikeCard
           ? _securityCode.firstMatch(normalised)?.group(1)
           : null,
-      holderName: looksLikeCard ? _holderName(normalised, issuer) : null,
+      // A passport prints the holder's name in capitals exactly as a card
+      // embosses it, and the same reader finds both.
+      holderName: looksLikeCard || _looksLikeTravelDocument(normalised)
+          ? _holderName(normalised, issuer)
+          : null,
       neverExpires: permanent,
     );
+  }
+
+  /// Whether this is the sort of document that prints dates in words under
+  /// captions — a passport, a visa, a residence permit.
+  static bool _looksLikeTravelDocument(String text) {
+    return text.contains('护照') ||
+        text.contains('護照') ||
+        RegExp(
+          r'\bpassport\b|\bvisa\b|residence\s*permit|居留',
+          caseSensitive: false,
+        ).hasMatch(text);
   }
 
   /// Identifies the document from words printed on it.
@@ -438,6 +538,47 @@ class PrintedFieldParser {
       return DocumentType.bankCard;
     }
     return null;
+  }
+
+  /// The first date written with a month name on this line, if any.
+  static DateTime? _writtenDate(String line) {
+    for (final match in _dayMonthYear.allMatches(line)) {
+      final month = _monthNames[match.group(2)!.toLowerCase()];
+      if (month == null) continue;
+      final date = _date(match.group(3), '$month', match.group(1));
+      if (date != null) return date;
+    }
+    return null;
+  }
+
+  /// The date printed under a caption.
+  ///
+  /// A passport's data page is a grid: the caption sits on one line and its
+  /// value on the next, because that is how the page is laid out and not how
+  /// it is read. So the caption's own line is searched first and then the two
+  /// below it, which is close enough to be the same cell and far enough to
+  /// survive a recogniser that split the row.
+  static DateTime? _dateUnder(List<String> lines, RegExp label) {
+    for (var i = 0; i < lines.length; i++) {
+      if (!label.hasMatch(lines[i])) continue;
+      for (var j = i; j < lines.length && j <= i + 2; j++) {
+        final date = _writtenDate(lines[j]);
+        if (date != null) return date;
+      }
+    }
+    return null;
+  }
+
+  /// Every date written with a month name, earliest first.
+  static List<DateTime> _allWrittenDates(String text) {
+    final dates = <DateTime>{};
+    for (final match in _dayMonthYear.allMatches(text)) {
+      final month = _monthNames[match.group(2)!.toLowerCase()];
+      if (month == null) continue;
+      final date = _date(match.group(3), '$month', match.group(1));
+      if (date != null) dates.add(date);
+    }
+    return dates.toList()..sort();
   }
 
   /// Every `MM/YY` in the text, earliest first, each as the month's last day.

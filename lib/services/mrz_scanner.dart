@@ -142,24 +142,21 @@ class MrzScanner {
   /// Reading again is the point. Placing the corners is new information about
   /// where the document is, and the fields ought to be filled from the better
   /// framing rather than left as whatever the first guess produced.
-  Future<ScanResult> recut(String path, CardQuad quad) async {
-    final cut = await _vision.extractCard(path, quad: quad);
-    final card = cut?.bytes ?? await _cropper.cropToRegion(path, Rect.largest);
-    if (card == null) return const ScanResult();
+  Future<ScanResult> recut(String path, CardQuad quad) =>
+      scanFile(path, quad: quad, byHand: true);
 
-    final text = await _readCrop(card);
-    final reading = await _interpret(text);
-
-    return ScanResult(
-      mrz: reading.mrz,
-      printed: reading.printed,
-      cardImage: card,
-      rawText: text,
-      croppedConfidently: true,
-    );
-  }
-
-  Future<ScanResult> scanFile(String path, {CardQuad? quad}) async {
+  /// Reads one captured photo.
+  ///
+  /// [byHand] says the corners in [quad] were placed by a person rather than
+  /// found by the detector. That changes what is worth reading: a hand-placed
+  /// crop is a statement about where the document is, and the app should take
+  /// it as one — so the crop is read *as well as* the frame, always, instead
+  /// of only as a rescue when the frame yielded nothing.
+  Future<ScanResult> scanFile(
+    String path, {
+    CardQuad? quad,
+    bool byHand = false,
+  }) async {
     // Reading the text and cutting the card are independent passes over the
     // same photo, and each is a full Vision request. Run together they finish
     // in about the time the slower one takes; run in series the user waits for
@@ -184,23 +181,29 @@ class MrzScanner {
     var printed = reading.printed;
     var seen = text;
 
-    // Nothing usable out of the whole frame? Read the document on its own.
+    // Read the document on its own as well as in its surroundings.
     //
     // A photograph taken without the guide is a photograph of a desk with a
     // passport somewhere in it, and there the small print is a fraction of the
     // frame. Inside the crop it is most of one. This is the difference between
-    // a manual capture that fills the form in and one that appears to have
-    // read nothing at all.
-    if (parsed == null &&
-        printed.expiryDate == null &&
-        !printed.neverExpires &&
-        card != null) {
+    // a capture that fills the form in and one that appears to have read
+    // nothing at all.
+    //
+    // Always when the corners were placed by hand — that is the whole point of
+    // having placed them — and otherwise only when the frame gave nothing
+    // worth having, since it costs another full pass.
+    final worthACloserLook =
+        byHand ||
+        (parsed == null && printed.expiryDate == null && !printed.neverExpires);
+    if (worthACloserLook && card != null) {
       final closer = await _readCrop(card);
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(closer);
-        parsed = reading.mrz;
-        printed = printed.mergedWith(reading.printed);
-        seen = '$text\n$closer';
+        // The closer reading wins where the two disagree: it was taken of the
+        // document rather than of the room the document was in.
+        parsed = reading.mrz ?? parsed;
+        printed = reading.printed.mergedWith(printed);
+        seen = '$text\n--- crop ---\n$closer';
       }
     }
 

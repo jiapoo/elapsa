@@ -360,4 +360,80 @@ http://www.8008205555.com
       );
     });
   });
+
+  group('a passport whose machine-readable zone could not be read', () {
+    // The printed face of a Chinese passport, laid out as the recogniser
+    // returns it: captions on one line, their values on the next, because that
+    // is how the page is printed and not how it is read.
+    const face = '''
+中华人民共和国 PEOPLE'S REPUBLIC OF CHINA
+护照 PASSPORT
+类型/Type 国家码/Country Code 护照号/Passport No.
+P CHN EM1234567
+姓名/Name
+LIU, JIA
+性别/Sex 国籍/Nationality 出生日期/Date of birth
+男/M 中国/CHINESE 16 JUL 1986
+出生地点/Place of birth 签发日期/Date of issue
+湖南/HUNAN 21 5月/MAY 2024
+签发地点/Place of issue 有效期至/Date of expiry
+广东/GUANGDONG 20 5月/MAY 2034
+签发机关/Authority
+中华人民共和国国家移民管理局
+National Immigration Administration,PRC
+''';
+
+    test('reads the expiry from under its own caption', () {
+      // Every numeric date pattern missed this: a passport writes the month in
+      // words. The document came back identified as a passport with every
+      // field blank, which is the most useless answer the app can give — it
+      // knew what it was holding and nothing about it.
+      expect(parser.parse(face).expiryDate, DateTime(2034, 5, 20));
+    });
+
+    test('does not mistake the date of issue for it', () {
+      expect(parser.parse(face).issueDate, DateTime(2024, 5, 21));
+    });
+
+    test('never takes the date of birth for either', () {
+      final fields = parser.parse(face);
+      expect(fields.expiryDate, isNot(DateTime(1986, 7, 16)));
+      expect(fields.issueDate, isNot(DateTime(1986, 7, 16)));
+    });
+
+    test('reads the number printed on the face', () {
+      expect(parser.parse(face).documentNumber, 'EM1234567');
+    });
+
+    test('reads the holder, and nothing else set in capitals', () {
+      final holder = parser.parse(face).holderName;
+      expect(holder, 'LIU, JIA');
+      expect(holder, isNot(contains('REPUBLIC')));
+      expect(holder, isNot(contains('IMMIGRATION')));
+    });
+
+    test('reads a plain English data page too', () {
+      final fields = parser.parse(
+        'PASSPORT\nDate of expiry\n20 MAY 2034\nDate of issue\n21 MAY 2024',
+      );
+      expect(fields.expiryDate, DateTime(2034, 5, 20));
+      expect(fields.issueDate, DateTime(2024, 5, 21));
+    });
+
+    test('two dates and no caption is not enough to guess from', () {
+      // With only a birth date and one other there is no telling which is
+      // which, and a passport recorded as expiring on the day its holder was
+      // born is worse than a field left blank.
+      expect(
+        parser.parse('PASSPORT\n16 JUL 1986\n21 MAY 2024').expiryDate,
+        isNull,
+      );
+    });
+
+    test('a month in words on something that is not a travel document', () {
+      // The whole rule is scoped to documents that print dates this way.
+      expect(parser.parse('RECEIPT\n16 JUL 1986\n21 MAY 2024').expiryDate,
+          isNull);
+    });
+  });
 }

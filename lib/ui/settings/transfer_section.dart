@@ -7,11 +7,10 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/data/document_repository.dart';
-import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/ui/settings/document_picker_screen.dart';
 import 'package:elapsa/ui/settings/nearby_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
@@ -79,11 +78,8 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
     // What to send, before anything is decrypted. Sending the whole library
     // is rarely what someone means by lending a colleague their insurance
     // card, and there is no undoing a document that has already gone.
-    final choice = await showModalBottomSheet<_ExportChoice>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _ExportSheet(documents: all),
+    final choice = await Navigator.of(context).push<ExportChoice>(
+      MaterialPageRoute(builder: (_) => DocumentPickerScreen(documents: all)),
     );
     if (choice == null || !mounted || choice.ids.isEmpty) return;
 
@@ -131,11 +127,11 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
       return;
     }
 
-    final choice = await showModalBottomSheet<_ExportChoice>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _ExportSheet(documents: all, forNearby: true),
+    final choice = await Navigator.of(context).push<ExportChoice>(
+      MaterialPageRoute(
+        builder: (_) =>
+            DocumentPickerScreen(documents: all, offerPassphrase: false),
+      ),
     );
     if (choice == null || !mounted) return;
 
@@ -458,136 +454,6 @@ class _Panel extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// What the user picked to send, and whether to seal it.
-class _ExportChoice {
-  final Set<String> ids;
-  final bool protect;
-
-  const _ExportChoice(this.ids, this.protect);
-}
-
-/// Choosing what goes in the archive.
-///
-/// Everything is ticked to begin with, because moving to a new phone is what
-/// this is mostly for and that wants the lot. Unticking is for the other case:
-/// sending one document to someone who has no business with the rest.
-class _ExportSheet extends StatefulWidget {
-  const _ExportSheet({required this.documents, this.forNearby = false});
-
-  final List<TrackedDocument> documents;
-
-  /// A nearby handover has nothing to protect afterwards, so it does not ask.
-  final bool forNearby;
-
-  @override
-  State<_ExportSheet> createState() => _ExportSheetState();
-}
-
-class _ExportSheetState extends State<_ExportSheet> {
-  late Set<String> _chosen = {for (final d in widget.documents) d.id};
-
-  /// On by default, because a file outlives the handover. A nearby transfer
-  /// hands the data straight to a device that had to accept it and leaves
-  /// nothing behind; a file sits in Files and Downloads at both ends
-  /// afterwards, and gets swept into whatever backs those up.
-  bool _protect = true;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = L.of(context);
-    final scheme = Theme.of(context).colorScheme;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    l.transferChoose,
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => setState(
-                    () => _chosen = {for (final d in widget.documents) d.id},
-                  ),
-                  child: Text(l.transferAll),
-                ),
-                TextButton(
-                  onPressed: () => setState(_chosen.clear),
-                  child: Text(l.transferNone),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: widget.documents.length,
-                itemBuilder: (context, index) {
-                  final doc = widget.documents[index];
-                  final on = _chosen.contains(doc.id);
-
-                  return CheckboxListTile(
-                    value: on,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    secondary: Icon(
-                      doc.type.icon,
-                      size: 20,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                    title: Text(
-                      doc.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(doc.type.label(l)),
-                    onChanged: (_) => setState(
-                      () => on ? _chosen.remove(doc.id) : _chosen.add(doc.id),
-                    ),
-                  );
-                },
-              ),
-            ),
-            if (!widget.forNearby) const Divider(),
-            if (!widget.forNearby)
-              SwitchListTile(
-                value: _protect,
-                contentPadding: EdgeInsets.zero,
-                title: Text(l.transferProtect),
-                subtitle: Text(
-                  l.transferProtectBody,
-                  style: Theme.of(context).textTheme.bodySmall
-                      ?.copyWith(color: scheme.onSurfaceVariant, height: 1.35),
-                ),
-                onChanged: (on) => setState(() => _protect = on),
-              ),
-            const SizedBox(height: 10),
-            FilledButton(
-              onPressed: _chosen.isEmpty
-                  ? null
-                  : () =>
-                        Navigator.of(context)
-                            .pop(_ExportChoice(_chosen, _protect)),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-              ),
-              child: Text(l.transferSelected(_chosen.length)),
             ),
           ],
         ),

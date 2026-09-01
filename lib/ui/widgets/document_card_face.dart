@@ -34,8 +34,10 @@ class DocumentImageRef {
 /// same photo on every frame.
 final documentImageProvider =
     FutureProvider.family<Uint8List?, DocumentImageRef>((ref, image) async {
-  return ref.watch(documentImageStoreProvider).load(image.documentId, image.index);
-});
+      return ref
+          .watch(documentImageStoreProvider)
+          .load(image.documentId, image.index);
+    });
 
 /// The visual representation of a document.
 ///

@@ -13,6 +13,13 @@ import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+
+import 'dart:io';
+
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:elapsa/services/vision_channel.dart';
+import 'package:elapsa/ui/scan/crop_screen.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
@@ -156,6 +163,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
               ),
               const SizedBox(height: 20),
               _SheetAction(
+                icon: Icons.crop,
+                label: l.actionCrop,
+                onTap: () => Navigator.of(context).pop('crop'),
+              ),
+              _SheetAction(
                 icon: Icons.photo_camera_outlined,
                 label: l.actionRetake,
                 onTap: () => Navigator.of(context).pop('retake'),
@@ -181,10 +193,61 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     );
     if (choice == null || !mounted) return;
 
+    // Cropping changes the picture and nothing else. The form is the user's;
+    // trimming a photograph is not new information about the document, and
+    // silently rewriting fields they have already corrected would make the
+    // safest of the three options the most destructive.
+    if (choice == 'crop') {
+      await _crop(index);
+      return;
+    }
+
     setState(() => _images.removeAt(index));
     if (choice == 'delete') return;
 
-    await _scan();
+    // A retake replaces a picture, not the document. It still reads what it
+    // can — a field left blank is worth filling from a better photograph —
+    // but it will not overwrite an answer already on the form.
+    await _scan(keepFilled: true);
+  }
+
+  /// Trims one picture, leaving every field exactly as it was.
+  ///
+  /// Cropping works from the stored picture rather than the original
+  /// photograph, which is long gone by the time a document is opened again —
+  /// so this trims what is there rather than re-cutting what it came from.
+  Future<void> _crop(int index) async {
+    File? temp;
+    try {
+      final dir = await getTemporaryDirectory();
+      temp = File(
+        p.join(
+          dir.path,
+          'elapsa-edit-${DateTime.now().microsecondsSinceEpoch}.jpg',
+        ),
+      );
+      await temp.writeAsBytes(_images[index]);
+      if (!mounted) return;
+
+      final quad = await Navigator.of(context).push<CardQuad>(
+        MaterialPageRoute(builder: (_) => CropScreen(imagePath: temp!.path)),
+      );
+      if (quad == null || !mounted) return;
+
+      final cut = await const VisionChannel().extractCard(
+        temp.path,
+        quad: quad,
+      );
+      if (cut == null || !mounted) return;
+
+      setState(() => _images[index] = cut.bytes);
+    } catch (error, stack) {
+      debugPrint('Elapsa: cropping failed: $error\n$stack');
+    } finally {
+      // A decrypted picture of someone's document has no business outliving
+      // the crop that needed it.
+      if (temp != null && await temp.exists()) await temp.delete();
+    }
   }
 
   /// Brings a saved document's pictures into the editing list.
@@ -204,11 +267,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     });
   }
 
-  Future<void> _scan() async {
+  Future<void> _scan({bool keepFilled = false}) async {
     final session = await Navigator.of(
       context,
     ).push<ScanSession>(MaterialPageRoute(builder: (_) => const ScanScreen()));
-    if (session != null) _applySession(session);
+    if (session != null) _applySession(session, keepFilled: keepFilled);
   }
 
   /// Folds a scan into the form.
@@ -222,10 +285,24 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// Everything stays editable afterwards. The check digits make a validated
   /// code near-certain to be right, but the user's own name for the document
   /// is theirs to choose, and a wrong guess should never be locked in.
-  void _applySession(ScanSession session) {
+  void _applySession(ScanSession session, {bool keepFilled = false}) {
     if (!mounted) return;
     final l = L.of(context);
     final mrz = session.mrz;
+
+    /// Writes a field the scan read.
+    ///
+    /// With [keepFilled] it will not tread on a value that is already there.
+    /// That is what a retake asks for: the picture is being replaced, not the
+    /// document, and a field the user has corrected by hand should survive a
+    /// second photograph of the same passport.
+    void write(TextEditingController field, String? value) {
+      if (value == null || value.isEmpty) return;
+      if (keepFilled && field.text.trim().isNotEmpty) return;
+      field.text = value;
+    }
+
+    bool free(Object? current) => !keepFilled || current == null;
 
     setState(() {
       _fromScan = true;
@@ -238,27 +315,32 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       // Most documents have no MRZ at all — a Chinese 居民身份证 prints its
       // 有效期限 in plain sight and nothing else.
       final printed = session.printed;
-      if (printed.type != null) {
+      if (printed.type != null && !keepFilled) {
         _type = printed.type!;
         if (_leadDaysIsAuto) {
           _reminderOffsets = {..._defaultOffsets(_type.defaultRenewalLeadDays)};
         }
       }
-      if (printed.expiryDate != null) _expiryDate = printed.expiryDate;
-      if (printed.issueDate != null) _issueDate = printed.issueDate;
-      if (printed.securityCode != null) {
-        _details[DocumentDetail.securityCode]!.text = printed.securityCode!;
+      if (printed.expiryDate != null && free(_expiryDate)) {
+        _expiryDate = printed.expiryDate;
       }
+      if (printed.issueDate != null && free(_issueDate)) {
+        _issueDate = printed.issueDate;
+      }
+      write(_details[DocumentDetail.securityCode]!, printed.securityCode);
       if (printed.holderName != null) {
-        _details[DocumentDetail.cardholderName]!.text = printed.holderName!;
-        _holder.text = _titleCase(printed.holderName!);
+        write(_details[DocumentDetail.cardholderName]!, printed.holderName);
+        write(_holder, _titleCase(printed.holderName!));
       }
       if (printed.documentNumber != null) {
-        _documentNumber.text = printed.type == DocumentType.bankCard
-            ? groupCardNumber(printed.documentNumber!)
-            : printed.documentNumber!;
+        write(
+          _documentNumber,
+          printed.type == DocumentType.bankCard
+              ? groupCardNumber(printed.documentNumber!)
+              : printed.documentNumber,
+        );
       }
-      if (printed.issuer != null) _label.text = printed.issuer!;
+      write(_label, printed.issuer);
 
       if (mrz == null) {
         if (_label.text.trim().isEmpty) _label.text = _type.label(l);
@@ -266,7 +348,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       }
 
       final scannedType = _typeFromDocumentCode(mrz.documentCode);
-      if (scannedType != null) {
+      if (scannedType != null && !keepFilled) {
         _type = scannedType;
         if (_leadDaysIsAuto) {
           _reminderOffsets = {
@@ -275,12 +357,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         }
       }
 
-      if (mrz.expiryDate != null) _expiryDate = mrz.expiryDate;
-      if (mrz.documentNumber.isNotEmpty) {
-        _documentNumber.text = mrz.documentNumber;
+      if (mrz.expiryDate != null && free(_expiryDate)) {
+        _expiryDate = mrz.expiryDate;
       }
-      if (mrz.issuingState.isNotEmpty) _issuingCountry = mrz.issuingState;
-      if (mrz.fullName.isNotEmpty) _holder.text = _titleCase(mrz.fullName);
+      write(_documentNumber, mrz.documentNumber);
+      if (mrz.issuingState.isNotEmpty && free(_issuingCountry)) {
+        _issuingCountry = mrz.issuingState;
+      }
+      if (mrz.fullName.isNotEmpty) write(_holder, _titleCase(mrz.fullName));
       if (_label.text.trim().isEmpty) _label.text = _type.label(l);
     });
 

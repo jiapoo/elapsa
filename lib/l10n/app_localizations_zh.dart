@@ -665,6 +665,9 @@ class LZh extends L {
 
   @override
   String get nearbyName => '本机显示为';
+
+  @override
+  String get actionCrop => '裁剪';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1327,4 +1330,7 @@ class LZhHant extends LZh {
 
   @override
   String get nearbyName => '本機顯示為';
+
+  @override
+  String get actionCrop => '裁切';
 }

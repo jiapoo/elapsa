@@ -311,5 +311,6 @@
   "nearbyDecline": "拒绝",
   "nearbyReceiving": "正在接收…",
   "nearbyUnavailable": "此设备暂不支持附近发送，请改用导出文件。",
-  "nearbyName": "本机显示为"
+  "nearbyName": "本机显示为",
+  "actionCrop": "裁剪"
 }

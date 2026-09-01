@@ -767,4 +767,7 @@ class LEn extends L {
 
   @override
   String get nearbyName => 'This device appears as';
+
+  @override
+  String get actionCrop => 'Crop';
 }

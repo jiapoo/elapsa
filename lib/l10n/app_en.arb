@@ -623,5 +623,9 @@
   "nearbyName": "This device appears as",
   "@nearbyName": {
     "description": "This device appears as"
+  },
+  "actionCrop": "Crop",
+  "@actionCrop": {
+    "description": "Crop a picture"
   }
 }

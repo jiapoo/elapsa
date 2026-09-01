@@ -1279,6 +1279,12 @@ abstract class L {
   /// In en, this message translates to:
   /// **'This device appears as'**
   String get nearbyName;
+
+  /// Crop a picture
+  ///
+  /// In en, this message translates to:
+  /// **'Crop'**
+  String get actionCrop;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

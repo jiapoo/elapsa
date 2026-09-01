@@ -357,6 +357,36 @@ enum VisionHandler {
 
     /// The card cut out and turned upright, or nil when the result is not
     /// plausibly a whole document.
+    /// The quad's axis-aligned box, normalised, with a top-left origin — the
+    /// same frame of reference Dart uses for the text bounds, so the two can
+    /// be compared there.
+    func normalisedBox(
+      _ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)
+    ) -> [String: Double] {
+      let xs = [quad.tl.x, quad.tr.x, quad.br.x, quad.bl.x]
+      let ys = [quad.tl.y, quad.tr.y, quad.br.y, quad.bl.y]
+      let minX = (xs.min()! - extent.origin.x) / extent.width
+      let maxX = (xs.max()! - extent.origin.x) / extent.width
+      let minY = (ys.min()! - extent.origin.y) / extent.height
+      let maxY = (ys.max()! - extent.origin.y) / extent.height
+      return [
+        "x": Double(minX),
+        "y": Double(1.0 - maxY),
+        "width": Double(maxX - minX),
+        "height": Double(maxY - minY),
+      ]
+    }
+
+    func answer(
+      _ jpeg: Data,
+      _ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)
+    ) {
+      reply([
+        "bytes": FlutterStandardTypedData(bytes: jpeg),
+        "bounds": normalisedBox(quad),
+      ])
+    }
+
     func cut(_ quad: (tl: CGPoint, tr: CGPoint, br: CGPoint, bl: CGPoint)) -> Data? {
       // The card's angle in the frame, taken from the edge Vision calls the
       // top. Note *Vision's* top: the corners are labelled against the image,
@@ -498,7 +528,7 @@ enum VisionHandler {
       if let tl = supplied("topLeft"), let tr = supplied("topRight"),
          let br = supplied("bottomRight"), let bl = supplied("bottomLeft"),
          let jpeg = cut((tl: tl, tr: tr, br: br, bl: bl)) {
-        reply(FlutterStandardTypedData(bytes: jpeg))
+        answer(jpeg, (tl: tl, tr: tr, br: br, bl: bl))
         return
       }
     }
@@ -506,18 +536,15 @@ enum VisionHandler {
     // Otherwise find the card again in the still itself.
     func find(relaxed: Bool, then next: @escaping () -> Void) {
       let request = makeRectangleRequest(relaxed: relaxed) { observation in
-        guard
-          let observation = observation,
-          let jpeg = cut((
-            tl: point(observation.topLeft),
-            tr: point(observation.topRight),
-            br: point(observation.bottomRight),
-            bl: point(observation.bottomLeft)
-          ))
-        else {
-          next(); return
-        }
-        reply(FlutterStandardTypedData(bytes: jpeg))
+        guard let observation = observation else { next(); return }
+        let quad = (
+          tl: point(observation.topLeft),
+          tr: point(observation.topRight),
+          br: point(observation.bottomRight),
+          bl: point(observation.bottomLeft)
+        )
+        guard let jpeg = cut(quad) else { next(); return }
+        answer(jpeg, quad)
       }
       perform([request], on: cgImage, orientation: orientation) { _ in next() }
     }
@@ -539,7 +566,17 @@ enum VisionHandler {
     _ completion: @escaping (VNRectangleObservation?) -> Void
   ) -> VNDetectRectanglesRequest {
     let request = VNDetectRectanglesRequest { request, _ in
-      let found = (request.results as? [VNRectangleObservation])?.first
+      // The largest, not the most confident. Vision ranks by confidence, and
+      // on a document the most confident rectangle is often a panel *inside*
+      // it — the tinted field behind a passport's data, whose edges are
+      // cleaner than the page's own. Picking that one framed the data page
+      // and left the machine-readable zone outside the crop. The document is
+      // the biggest thing the user was pointing at.
+      let found = (request.results as? [VNRectangleObservation])?
+        .max { a, b in
+          a.boundingBox.width * a.boundingBox.height
+            < b.boundingBox.width * b.boundingBox.height
+        }
       completion(found)
     }
 
@@ -558,7 +595,7 @@ enum VisionHandler {
     // fifth of the picture is still unmistakably the subject of it.
     request.minimumSize = relaxed ? 0.12 : 0.18
     request.minimumConfidence = relaxed ? 0.4 : 0.62
-    request.maximumObservations = 1
+    request.maximumObservations = relaxed ? 6 : 3
     // How far from square the corners may be. Loose enough for a card held at
     // an angle, tight enough to reject arbitrary quadrilaterals — and looser
     // still on the second look, for a page that is curved rather than flat.

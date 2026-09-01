@@ -3,6 +3,20 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+/// The card cut out of a photo, and where it was cut from.
+///
+/// The region comes back with the bytes so the caller can check what the crop
+/// left behind. A detector finds *a* rectangle, not necessarily the right one,
+/// and on a document the wrong one is often a panel inside the page.
+class CardCut {
+  final Uint8List bytes;
+
+  /// The crop's own bounds in the original photo, normalised, top-left origin.
+  final Rect bounds;
+
+  const CardCut(this.bytes, this.bounds);
+}
+
 /// What one pass of the recogniser found.
 class Recognition {
   /// Every line it read, newline separated.
@@ -216,15 +230,33 @@ class VisionChannel {
   ///
   /// Returns null when no card is found, and the caller falls back to a centre
   /// crop.
-  Future<Uint8List?> extractCard(String path, {CardQuad? quad}) async {
+  Future<CardCut?> extractCard(String path, {CardQuad? quad}) async {
     try {
-      return await _channel.invokeMethod<Uint8List>('extractCard', {
-        'path': path,
-        // The corners the scanner had locked on when the shutter fired. Sent
-        // so the cut matches what the user was shown — re-detecting on the
-        // still can settle on a different rectangle entirely.
-        if (quad != null) 'corners': _encode(quad),
-      });
+      final reply = await _channel.invokeMapMethod<String, dynamic>(
+        'extractCard',
+        {
+          'path': path,
+          // The corners the scanner had locked on when the shutter fired. Sent
+          // so the cut matches what the user was shown — re-detecting on the
+          // still can settle on a different rectangle entirely.
+          if (quad != null) 'corners': _encode(quad),
+        },
+      );
+      if (reply == null) return null;
+
+      final bytes = reply['bytes'];
+      final box = (reply['bounds'] as Map?)?.cast<String, dynamic>();
+      if (bytes is! Uint8List || box == null) return null;
+
+      return CardCut(
+        bytes,
+        Rect.fromLTWH(
+          (box['x'] as num).toDouble(),
+          (box['y'] as num).toDouble(),
+          (box['width'] as num).toDouble(),
+          (box['height'] as num).toDouble(),
+        ),
+      );
     } on PlatformException catch (error) {
       debugPrint('Elapsa: extractCard failed: $error');
       return null;

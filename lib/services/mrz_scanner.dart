@@ -88,10 +88,6 @@ class MrzScanner {
     ).wait;
     final text = read.text;
 
-    // The crop is decided only once both have finished, so the fallback costs
-    // nothing in the ordinary case: the two passes still run side by side, and
-    // where the writing was found is already known by the time it is needed.
-    final card = cut ?? await _fallbackFace(path, read.bounds);
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
     MrzResult? parsed;
@@ -104,6 +100,13 @@ class MrzScanner {
         parsed = null;
       }
     }
+
+    // The crop is judged only once both passes have finished, so none of this
+    // costs the user any time: the two still run side by side, and where the
+    // writing was found is already known by the time it is needed.
+    final card = _keeps(cut, read.bounds, hasCode: parsed != null)
+        ? cut!.bytes
+        : await _fallbackFace(path, read.bounds);
 
     var printed = _printed.parse(text);
     var seen = text;
@@ -134,6 +137,32 @@ class MrzScanner {
       cardImage: card,
       rawText: seen,
     );
+  }
+
+  /// Whether the crop can be trusted to have kept what matters.
+  ///
+  /// A detector finds *a* rectangle, not necessarily the right one. On a
+  /// passport the cleanest edges belong to the tinted panel behind the data,
+  /// not to the page, so the crop came out framing the data page neatly with
+  /// the machine-readable zone left outside it — the one part of a passport
+  /// that carries its own check digits, thrown away.
+  ///
+  /// So a crop is checked against the writing: it has to contain essentially
+  /// all of the text that was read, or it is not the document.
+  ///
+  /// Only for a document that turned out to have a machine-readable zone. A
+  /// card photographed on a desk covered in other paper has text sprawling
+  /// well past its own edges, and demanding the crop swallow all of that would
+  /// throw away a perfectly good card face in favour of the whole tabletop.
+  static bool _keeps(CardCut? cut, Rect? text, {required bool hasCode}) {
+    if (cut == null) return false;
+    if (!hasCode || text == null || text.isEmpty) return true;
+
+    final kept = cut.bounds.intersect(text);
+    if (kept.isEmpty) return false;
+
+    final covered = (kept.width * kept.height) / (text.width * text.height);
+    return covered >= 0.95;
   }
 
   /// What to keep when the document would not square up.

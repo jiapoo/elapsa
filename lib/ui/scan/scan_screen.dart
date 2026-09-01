@@ -588,8 +588,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                               ),
                               const SizedBox(width: 26),
                               _Shutter(
-                                armed: _armed,
-                                enabled: hasCamera && !busy,
+                                // A plain camera is always ready; there is
+                                // nothing for it to be waiting for.
+                                armed: !_autoDetect || _armed,
+                                enabled:
+                                    hasCamera &&
+                                    !busy &&
+                                    (!_autoDetect || _armed),
                                 semantic: l.actionScan,
                                 onTap: _capture,
                               ),
@@ -952,8 +957,18 @@ class _Shutter extends StatelessWidget {
     required this.onTap,
   });
 
+  /// Square on and worth taking — how the button *looks*.
   final bool armed;
+
+  /// Whether it can be pressed at all.
+  ///
+  /// Separate from [armed] on purpose. These were one flag, and the tap was
+  /// gated on being armed, which meant the shutter could only ever fire once
+  /// the detector had locked on to something flat. With automatic detection
+  /// switched off there is no lock and never will be, so the camera had no
+  /// working shutter at all.
   final bool enabled;
+
   final String semantic;
   final VoidCallback onTap;
 
@@ -961,10 +976,10 @@ class _Shutter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      enabled: enabled && armed,
+      enabled: enabled,
       label: semantic,
       child: GestureDetector(
-        onTap: enabled && armed ? onTap : null,
+        onTap: enabled ? onTap : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           width: 74,

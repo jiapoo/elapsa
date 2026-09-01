@@ -909,44 +909,42 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [documents];
 }
 
-typedef $$DocumentsTableCreateCompanionBuilder =
-    DocumentsCompanion Function({
-      required String id,
-      required DocumentType type,
-      required String label,
-      Value<String?> holder,
-      Value<String?> documentNumber,
-      Value<String?> issuingCountry,
-      Value<DateTime?> issueDate,
-      required DateTime expiryDate,
-      required int renewalLeadDays,
-      Value<String?> imagePath,
-      Value<int> imageCount,
-      Value<String?> details,
-      Value<String?> reminderOffsets,
-      required DateTime createdAt,
-      required DateTime updatedAt,
-      Value<int> rowid,
-    });
-typedef $$DocumentsTableUpdateCompanionBuilder =
-    DocumentsCompanion Function({
-      Value<String> id,
-      Value<DocumentType> type,
-      Value<String> label,
-      Value<String?> holder,
-      Value<String?> documentNumber,
-      Value<String?> issuingCountry,
-      Value<DateTime?> issueDate,
-      Value<DateTime> expiryDate,
-      Value<int> renewalLeadDays,
-      Value<String?> imagePath,
-      Value<int> imageCount,
-      Value<String?> details,
-      Value<String?> reminderOffsets,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-      Value<int> rowid,
-    });
+typedef $$DocumentsTableCreateCompanionBuilder = DocumentsCompanion Function({
+  required String id,
+  required DocumentType type,
+  required String label,
+  Value<String?> holder,
+  Value<String?> documentNumber,
+  Value<String?> issuingCountry,
+  Value<DateTime?> issueDate,
+  required DateTime expiryDate,
+  required int renewalLeadDays,
+  Value<String?> imagePath,
+  Value<int> imageCount,
+  Value<String?> details,
+  Value<String?> reminderOffsets,
+  required DateTime createdAt,
+  required DateTime updatedAt,
+  Value<int> rowid,
+});
+typedef $$DocumentsTableUpdateCompanionBuilder = DocumentsCompanion Function({
+  Value<String> id,
+  Value<DocumentType> type,
+  Value<String> label,
+  Value<String?> holder,
+  Value<String?> documentNumber,
+  Value<String?> issuingCountry,
+  Value<DateTime?> issueDate,
+  Value<DateTime> expiryDate,
+  Value<int> renewalLeadDays,
+  Value<String?> imagePath,
+  Value<int> imageCount,
+  Value<String?> details,
+  Value<String?> reminderOffsets,
+  Value<DateTime> createdAt,
+  Value<DateTime> updatedAt,
+  Value<int> rowid,
+});
 
 class $$DocumentsTableFilterComposer
     extends Composer<_$AppDatabase, $DocumentsTable> {

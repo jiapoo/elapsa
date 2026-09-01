@@ -367,5 +367,103 @@
         "type": "String"
       }
     }
+  },
+  "settingsTransfer": "Transfer",
+  "@settingsTransfer": {
+    "description": "Transfer"
+  },
+  "transferExport": "Export everything",
+  "@transferExport": {
+    "description": "Export everything"
+  },
+  "transferExportBody": "Every document and picture in one encrypted file. Send it to your other phone however you like — AirDrop, Files, a cable. It is also the only backup Elapsa has: nothing is stored anywhere but this device.",
+  "@transferExportBody": {
+    "description": "Every document and picture in one encrypted file. Send it to"
+  },
+  "transferImport": "Import from a file",
+  "@transferImport": {
+    "description": "Import from a file"
+  },
+  "transferImportBody": "Open an archive exported from another device.",
+  "@transferImportBody": {
+    "description": "Open an archive exported from another device."
+  },
+  "transferPassphrase": "Passphrase",
+  "@transferPassphrase": {
+    "description": "Passphrase"
+  },
+  "transferPassphraseNew": "Choose a passphrase",
+  "@transferPassphraseNew": {
+    "description": "Choose a passphrase"
+  },
+  "transferPassphraseNewBody": "You will need this exact passphrase to open the archive on the other phone. Nobody can recover it for you — not even Elapsa, which is what keeps the file safe if it goes astray.",
+  "@transferPassphraseNewBody": {
+    "description": "You will need this exact passphrase to open the archive on t"
+  },
+  "transferPassphraseAsk": "Enter the passphrase this archive was made with.",
+  "@transferPassphraseAsk": {
+    "description": "Enter the passphrase this archive was made with."
+  },
+  "transferPassphraseShort": "At least 8 characters.",
+  "@transferPassphraseShort": {
+    "description": "At least 8 characters."
+  },
+  "transferExported": "Archived {count, plural, =1{1 document} other{{count} documents}}.",
+  "@transferExported": {
+    "description": "Archived {count, plural, =1{1 document} other{{count} docume",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "transferImported": "Imported {count, plural, =1{1 document} other{{count} documents}}.",
+  "@transferImported": {
+    "description": "Imported {count, plural, =1{1 document} other{{count} docume",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "transferNothing": "Nothing to export yet.",
+  "@transferNothing": {
+    "description": "Nothing to export yet."
+  },
+  "transferMergeTitle": "Import how?",
+  "@transferMergeTitle": {
+    "description": "Import how?"
+  },
+  "transferMerge": "Merge",
+  "@transferMerge": {
+    "description": "Merge"
+  },
+  "transferMergeBody": "Keep what is here and add what is in the file.",
+  "@transferMergeBody": {
+    "description": "Keep what is here and add what is in the file."
+  },
+  "transferReplace": "Replace everything",
+  "@transferReplace": {
+    "description": "Replace everything"
+  },
+  "transferReplaceBody": "Delete every document on this phone first.",
+  "@transferReplaceBody": {
+    "description": "Delete every document on this phone first."
+  },
+  "transferFailedFile": "That is not an Elapsa archive.",
+  "@transferFailedFile": {
+    "description": "That is not an Elapsa archive."
+  },
+  "transferFailedNew": "That archive was made by a newer version of Elapsa.",
+  "@transferFailedNew": {
+    "description": "That archive was made by a newer version of Elapsa."
+  },
+  "transferFailedKey": "Wrong passphrase, or the file has been damaged.",
+  "@transferFailedKey": {
+    "description": "Wrong passphrase, or the file has been damaged."
+  },
+  "actionContinue": "Continue",
+  "@actionContinue": {
+    "description": "Continue"
   }
 }

@@ -558,4 +558,94 @@ class LEn extends L {
   String durationAgo(String duration) {
     return '$duration ago';
   }
+
+  @override
+  String get settingsTransfer => 'Transfer';
+
+  @override
+  String get transferExport => 'Export everything';
+
+  @override
+  String get transferExportBody =>
+      'Every document and picture in one encrypted file. Send it to your other phone however you like — AirDrop, Files, a cable. It is also the only backup Elapsa has: nothing is stored anywhere but this device.';
+
+  @override
+  String get transferImport => 'Import from a file';
+
+  @override
+  String get transferImportBody =>
+      'Open an archive exported from another device.';
+
+  @override
+  String get transferPassphrase => 'Passphrase';
+
+  @override
+  String get transferPassphraseNew => 'Choose a passphrase';
+
+  @override
+  String get transferPassphraseNewBody =>
+      'You will need this exact passphrase to open the archive on the other phone. Nobody can recover it for you — not even Elapsa, which is what keeps the file safe if it goes astray.';
+
+  @override
+  String get transferPassphraseAsk =>
+      'Enter the passphrase this archive was made with.';
+
+  @override
+  String get transferPassphraseShort => 'At least 8 characters.';
+
+  @override
+  String transferExported(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count documents',
+      one: '1 document',
+    );
+    return 'Archived $_temp0.';
+  }
+
+  @override
+  String transferImported(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count documents',
+      one: '1 document',
+    );
+    return 'Imported $_temp0.';
+  }
+
+  @override
+  String get transferNothing => 'Nothing to export yet.';
+
+  @override
+  String get transferMergeTitle => 'Import how?';
+
+  @override
+  String get transferMerge => 'Merge';
+
+  @override
+  String get transferMergeBody =>
+      'Keep what is here and add what is in the file.';
+
+  @override
+  String get transferReplace => 'Replace everything';
+
+  @override
+  String get transferReplaceBody =>
+      'Delete every document on this phone first.';
+
+  @override
+  String get transferFailedFile => 'That is not an Elapsa archive.';
+
+  @override
+  String get transferFailedNew =>
+      'That archive was made by a newer version of Elapsa.';
+
+  @override
+  String get transferFailedKey =>
+      'Wrong passphrase, or the file has been damaged.';
+
+  @override
+  String get actionContinue => 'Continue';
 }

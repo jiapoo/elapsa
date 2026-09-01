@@ -1,0 +1,421 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/ui/widgets/document_card_face.dart';
+
+/// Moving a library to another phone.
+///
+/// Elapsa keeps everything on the device and nothing on a server, which is the
+/// point of it — and which means a new phone has meant photographing every
+/// document again, and a lost phone has meant losing the lot. One encrypted
+/// file answers both, and the system share sheet carries it, so the app never
+/// needs a transport of its own.
+class TransferSection extends ConsumerStatefulWidget {
+  const TransferSection({super.key});
+
+  @override
+  ConsumerState<TransferSection> createState() => _TransferSectionState();
+}
+
+class _TransferSectionState extends ConsumerState<TransferSection> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        _Panel(
+          icon: Icons.ios_share,
+          title: l.transferExport,
+          body: l.transferExportBody,
+          busy: _busy,
+          onTap: _export,
+        ),
+        const SizedBox(height: 12),
+        _Panel(
+          icon: Icons.download_outlined,
+          title: l.transferImport,
+          body: l.transferImportBody,
+          busy: _busy,
+          onTap: _import,
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(Icons.lock_outline, size: 14, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                l.transferPassphraseNewBody,
+                style: Theme.of(context).textTheme.labelSmall
+                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _export() async {
+    final l = L.of(context);
+    final repo = ref.read(documentRepositoryProvider);
+
+    final documents = await repo.exportAll();
+    if (!mounted) return;
+    if (documents.isEmpty) {
+      _say(l.transferNothing);
+      return;
+    }
+
+    final passphrase = await _askPassphrase(confirm: true);
+    if (passphrase == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final bytes = await const DocumentArchive().pack(
+        documents,
+        passphrase: passphrase,
+      );
+
+      // A temporary file, not the documents directory: this one is *not*
+      // encrypted with the device key, and it should not outlive the share.
+      final stamp = DateTime.now().toIso8601String().split('T').first;
+      final file = File(
+        p.join((await getTemporaryDirectory()).path, 'elapsa-$stamp.elapsa'),
+      );
+      await file.writeAsBytes(bytes);
+
+      if (!mounted) return;
+      await Share.shareXFiles([XFile(file.path)]);
+
+      if (mounted) _say(l.transferExported(documents.length));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _import() async {
+    final l = L.of(context);
+
+    final picked = await FilePicker.platform.pickFiles(withData: true);
+    final file = picked?.files.singleOrNull;
+    if (file == null || !mounted) return;
+
+    final bytes =
+        file.bytes ??
+        (file.path == null ? null : await File(file.path!).readAsBytes());
+    if (bytes == null || !mounted) return;
+
+    final passphrase = await _askPassphrase(confirm: false);
+    if (passphrase == null || !mounted) return;
+
+    final replace = await _askReplace();
+    if (replace == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final archived = await const DocumentArchive().unpack(
+        bytes,
+        passphrase: passphrase,
+      );
+      final count = await ref
+          .read(documentRepositoryProvider)
+          .importAll(archived, replace: replace);
+
+      // Pictures are cached by document and page, and an import replaces the
+      // contents behind keys that have not changed.
+      ref.invalidate(documentImageProvider);
+
+      if (mounted) _say(l.transferImported(count));
+    } on ArchiveException catch (error) {
+      if (!mounted) return;
+      _say(switch (error.reason) {
+        ArchiveFailure.notAnArchive => l.transferFailedFile,
+        ArchiveFailure.tooNew => l.transferFailedNew,
+        ArchiveFailure.cannotOpen => l.transferFailedKey,
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Asks for the passphrase, twice when one is being chosen.
+  ///
+  /// Typed twice on the way out because a mistyped passphrase is not
+  /// discovered until the archive will not open on the other phone, by which
+  /// time the first one may well have been wiped.
+  Future<String?> _askPassphrase({required bool confirm}) {
+    return showDialog<String>(
+      context: context,
+      builder: (context) => _PassphraseDialog(confirm: confirm),
+    );
+  }
+
+  Future<bool?> _askReplace() async {
+    final l = L.of(context);
+
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.transferMergeTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Merge first and merge by default: it is the recoverable
+            // mistake. An unwanted document can be deleted one at a time,
+            // while a wrongly replaced library is simply gone.
+            _ImportChoice(
+              title: l.transferMerge,
+              body: l.transferMergeBody,
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+            const SizedBox(height: 6),
+            _ImportChoice(
+              title: l.transferReplace,
+              body: l.transferReplaceBody,
+              destructive: true,
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l.actionCancel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _say(String message) =>
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+}
+
+class _PassphraseDialog extends StatefulWidget {
+  const _PassphraseDialog({required this.confirm});
+
+  final bool confirm;
+
+  @override
+  State<_PassphraseDialog> createState() => _PassphraseDialogState();
+}
+
+class _PassphraseDialogState extends State<_PassphraseDialog> {
+  final _first = TextEditingController();
+  final _second = TextEditingController();
+  bool _shown = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _first.dispose();
+    _second.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final l = L.of(context);
+    final value = _first.text;
+
+    if (widget.confirm) {
+      if (value.length < 8) {
+        setState(() => _error = l.transferPassphraseShort);
+        return;
+      }
+      if (value != _second.text) {
+        setState(() => _error = l.transferPassphraseShort);
+        return;
+      }
+    } else if (value.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+
+    return AlertDialog(
+      title: Text(
+        widget.confirm ? l.transferPassphraseNew : l.transferPassphrase,
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.confirm
+                ? l.transferPassphraseNewBody
+                : l.transferPassphraseAsk,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _first,
+            autofocus: true,
+            obscureText: !_shown,
+            decoration: InputDecoration(
+              labelText: l.transferPassphrase,
+              errorText: _error,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _shown ? Icons.visibility_off : Icons.visibility_outlined,
+                ),
+                onPressed: () => setState(() => _shown = !_shown),
+              ),
+            ),
+            onSubmitted: (_) => widget.confirm ? null : _submit(),
+          ),
+          if (widget.confirm) ...[
+            const SizedBox(height: 10),
+            TextField(
+              controller: _second,
+              obscureText: !_shown,
+              decoration: InputDecoration(labelText: l.transferPassphrase),
+              onSubmitted: (_) => _submit(),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l.actionCancel),
+        ),
+        FilledButton(onPressed: _submit, child: Text(l.actionContinue)),
+      ],
+    );
+  }
+}
+
+class _ImportChoice extends StatelessWidget {
+  const _ImportChoice({
+    required this.title,
+    required this.body,
+    required this.onTap,
+    this.destructive = false,
+  });
+
+  final String title;
+  final String body;
+  final VoidCallback onTap;
+  final bool destructive;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tint = destructive ? scheme.error : scheme.onSurface;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.bodyLarge
+                  ?.copyWith(color: tint, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              body,
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Panel extends StatelessWidget {
+  const _Panel({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.busy,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: busy ? null : onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: busy
+                  ? const CircularProgressIndicator(strokeWidth: 2)
+                  : Icon(icon, size: 20, color: scheme.primary),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    body,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.45,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

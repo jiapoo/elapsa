@@ -56,7 +56,7 @@ class Documents extends Table {
 @DriftDatabase(tables: [Documents])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(SecureStore secure, [QueryExecutor? executor])
-      : super(executor ?? _openConnection(secure));
+    : super(executor ?? _openConnection(secure));
 
   /// In-memory database for tests.
   AppDatabase.memory() : super(NativeDatabase.memory());
@@ -66,43 +66,42 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onUpgrade: (m, from, to) async {
-          if (from < 2) {
-            await m.addColumn(documents, documents.imageCount);
-            // Records written before multi-image support have one picture if
-            // they have any picture at all.
-            await customStatement(
-              'UPDATE documents SET image_count = 1 WHERE image_path IS NOT NULL',
-            );
-          }
-          if (from < 3) {
-            await m.addColumn(documents, documents.details);
-          }
-          if (from < 4) {
-            // Left null, so every existing document keeps the conventional
-            // set it has been reminding on.
-            await m.addColumn(documents, documents.reminderOffsets);
-          }
-        },
-      );
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(documents, documents.imageCount);
+        // Records written before multi-image support have one picture if
+        // they have any picture at all.
+        await customStatement(
+          'UPDATE documents SET image_count = 1 WHERE image_path IS NOT NULL',
+        );
+      }
+      if (from < 3) {
+        await m.addColumn(documents, documents.details);
+      }
+      if (from < 4) {
+        // Left null, so every existing document keeps the conventional
+        // set it has been reminding on.
+        await m.addColumn(documents, documents.reminderOffsets);
+      }
+    },
+  );
 
   /// All documents, soonest expiry first, as a live stream so the list
   /// redraws itself whenever anything changes.
   Stream<List<Document>> watchAll() {
-    return (select(documents)
-          ..orderBy([(t) => OrderingTerm.asc(t.expiryDate)]))
-        .watch();
+    return (select(
+      documents,
+    )..orderBy([(t) => OrderingTerm.asc(t.expiryDate)])).watch();
   }
 
   Future<List<Document>> getAll() {
-    return (select(documents)
-          ..orderBy([(t) => OrderingTerm.asc(t.expiryDate)]))
-        .get();
+    return (select(
+      documents,
+    )..orderBy([(t) => OrderingTerm.asc(t.expiryDate)])).get();
   }
 
   Future<Document?> getById(String id) {
-    return (select(documents)..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+    return (select(documents)..where((t) => t.id.equals(id))).getSingleOrNull();
   }
 
   Future<void> upsert(DocumentsCompanion entry) =>

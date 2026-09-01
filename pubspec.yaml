@@ -53,6 +53,13 @@ dependencies:
   # card, not an arbitrary rectangle of whatever was behind it.
   image: ^4.2.0
 
+  # Moving a library to another phone. The archive is written to a temporary
+  # file and handed to the system share sheet, so AirDrop, Files, a cable or
+  # anything else the user already trusts can carry it — Elapsa never needs a
+  # transport of its own, or a server.
+  share_plus: ^10.1.2
+  file_picker: ^8.1.4
+
   # Formatting
   intl: ^0.20.2
   uuid: ^4.5.1

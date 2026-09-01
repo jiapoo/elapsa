@@ -484,6 +484,78 @@ class LZh extends L {
   String durationAgo(String duration) {
     return '已过期 $duration';
   }
+
+  @override
+  String get settingsTransfer => '迁移';
+
+  @override
+  String get transferExport => '导出全部';
+
+  @override
+  String get transferExportBody =>
+      '所有证件和照片打包成一个加密文件。用任何方式传给另一台手机——隔空投送、文件、数据线都行。这也是 Elapsa 唯一的备份：数据只存在这台设备上。';
+
+  @override
+  String get transferImport => '从文件导入';
+
+  @override
+  String get transferImportBody => '打开从另一台设备导出的存档。';
+
+  @override
+  String get transferPassphrase => '密码';
+
+  @override
+  String get transferPassphraseNew => '设置密码';
+
+  @override
+  String get transferPassphraseNewBody =>
+      '在另一台手机上打开存档时需要输入完全相同的密码。没有人能帮你找回——Elapsa 也不能，这正是文件万一遗失仍然安全的原因。';
+
+  @override
+  String get transferPassphraseAsk => '请输入创建此存档时使用的密码。';
+
+  @override
+  String get transferPassphraseShort => '至少 8 个字符。';
+
+  @override
+  String transferExported(int count) {
+    return '已归档 $count 份证件。';
+  }
+
+  @override
+  String transferImported(int count) {
+    return '已导入 $count 份证件。';
+  }
+
+  @override
+  String get transferNothing => '暂无可导出的内容。';
+
+  @override
+  String get transferMergeTitle => '如何导入？';
+
+  @override
+  String get transferMerge => '合并';
+
+  @override
+  String get transferMergeBody => '保留现有内容，并加入文件中的证件。';
+
+  @override
+  String get transferReplace => '全部替换';
+
+  @override
+  String get transferReplaceBody => '先删除这台手机上的所有证件。';
+
+  @override
+  String get transferFailedFile => '这不是 Elapsa 存档文件。';
+
+  @override
+  String get transferFailedNew => '此存档由更新版本的 Elapsa 创建。';
+
+  @override
+  String get transferFailedKey => '密码错误，或文件已损坏。';
+
+  @override
+  String get actionContinue => '继续';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -965,4 +1037,76 @@ class LZhHant extends LZh {
   String durationAgo(String duration) {
     return '已過期 $duration';
   }
+
+  @override
+  String get settingsTransfer => '轉移';
+
+  @override
+  String get transferExport => '匯出全部';
+
+  @override
+  String get transferExportBody =>
+      '所有證件與照片打包成一個加密檔案。用任何方式傳給另一台手機——AirDrop、檔案、傳輸線都行。這也是 Elapsa 唯一的備份：資料只存在這台裝置上。';
+
+  @override
+  String get transferImport => '從檔案匯入';
+
+  @override
+  String get transferImportBody => '開啟從另一台裝置匯出的封存檔。';
+
+  @override
+  String get transferPassphrase => '密碼';
+
+  @override
+  String get transferPassphraseNew => '設定密碼';
+
+  @override
+  String get transferPassphraseNewBody =>
+      '在另一台手機上開啟封存檔時需要輸入完全相同的密碼。沒有人能幫你找回——Elapsa 也不能，這正是檔案萬一遺失仍然安全的原因。';
+
+  @override
+  String get transferPassphraseAsk => '請輸入建立此封存檔時使用的密碼。';
+
+  @override
+  String get transferPassphraseShort => '至少 8 個字元。';
+
+  @override
+  String transferExported(int count) {
+    return '已封存 $count 份證件。';
+  }
+
+  @override
+  String transferImported(int count) {
+    return '已匯入 $count 份證件。';
+  }
+
+  @override
+  String get transferNothing => '暫無可匯出的內容。';
+
+  @override
+  String get transferMergeTitle => '如何匯入？';
+
+  @override
+  String get transferMerge => '合併';
+
+  @override
+  String get transferMergeBody => '保留現有內容，並加入檔案中的證件。';
+
+  @override
+  String get transferReplace => '全部取代';
+
+  @override
+  String get transferReplaceBody => '先刪除這台手機上的所有證件。';
+
+  @override
+  String get transferFailedFile => '這不是 Elapsa 封存檔。';
+
+  @override
+  String get transferFailedNew => '此封存檔由更新版本的 Elapsa 建立。';
+
+  @override
+  String get transferFailedKey => '密碼錯誤，或檔案已損毀。';
+
+  @override
+  String get actionContinue => '繼續';
 }

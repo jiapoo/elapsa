@@ -955,6 +955,138 @@ abstract class L {
   /// In en, this message translates to:
   /// **'{duration} ago'**
   String durationAgo(String duration);
+
+  /// Transfer
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer'**
+  String get settingsTransfer;
+
+  /// Export everything
+  ///
+  /// In en, this message translates to:
+  /// **'Export everything'**
+  String get transferExport;
+
+  /// Every document and picture in one encrypted file. Send it to
+  ///
+  /// In en, this message translates to:
+  /// **'Every document and picture in one encrypted file. Send it to your other phone however you like — AirDrop, Files, a cable. It is also the only backup Elapsa has: nothing is stored anywhere but this device.'**
+  String get transferExportBody;
+
+  /// Import from a file
+  ///
+  /// In en, this message translates to:
+  /// **'Import from a file'**
+  String get transferImport;
+
+  /// Open an archive exported from another device.
+  ///
+  /// In en, this message translates to:
+  /// **'Open an archive exported from another device.'**
+  String get transferImportBody;
+
+  /// Passphrase
+  ///
+  /// In en, this message translates to:
+  /// **'Passphrase'**
+  String get transferPassphrase;
+
+  /// Choose a passphrase
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a passphrase'**
+  String get transferPassphraseNew;
+
+  /// You will need this exact passphrase to open the archive on t
+  ///
+  /// In en, this message translates to:
+  /// **'You will need this exact passphrase to open the archive on the other phone. Nobody can recover it for you — not even Elapsa, which is what keeps the file safe if it goes astray.'**
+  String get transferPassphraseNewBody;
+
+  /// Enter the passphrase this archive was made with.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the passphrase this archive was made with.'**
+  String get transferPassphraseAsk;
+
+  /// At least 8 characters.
+  ///
+  /// In en, this message translates to:
+  /// **'At least 8 characters.'**
+  String get transferPassphraseShort;
+
+  /// Archived {count, plural, =1{1 document} other{{count} docume
+  ///
+  /// In en, this message translates to:
+  /// **'Archived {count, plural, =1{1 document} other{{count} documents}}.'**
+  String transferExported(int count);
+
+  /// Imported {count, plural, =1{1 document} other{{count} docume
+  ///
+  /// In en, this message translates to:
+  /// **'Imported {count, plural, =1{1 document} other{{count} documents}}.'**
+  String transferImported(int count);
+
+  /// Nothing to export yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing to export yet.'**
+  String get transferNothing;
+
+  /// Import how?
+  ///
+  /// In en, this message translates to:
+  /// **'Import how?'**
+  String get transferMergeTitle;
+
+  /// Merge
+  ///
+  /// In en, this message translates to:
+  /// **'Merge'**
+  String get transferMerge;
+
+  /// Keep what is here and add what is in the file.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep what is here and add what is in the file.'**
+  String get transferMergeBody;
+
+  /// Replace everything
+  ///
+  /// In en, this message translates to:
+  /// **'Replace everything'**
+  String get transferReplace;
+
+  /// Delete every document on this phone first.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete every document on this phone first.'**
+  String get transferReplaceBody;
+
+  /// That is not an Elapsa archive.
+  ///
+  /// In en, this message translates to:
+  /// **'That is not an Elapsa archive.'**
+  String get transferFailedFile;
+
+  /// That archive was made by a newer version of Elapsa.
+  ///
+  /// In en, this message translates to:
+  /// **'That archive was made by a newer version of Elapsa.'**
+  String get transferFailedNew;
+
+  /// Wrong passphrase, or the file has been damaged.
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong passphrase, or the file has been damaged.'**
+  String get transferFailedKey;
+
+  /// Continue
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get actionContinue;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

@@ -10,6 +10,7 @@ import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_image_store.dart';
+import 'package:elapsa/services/document_archive.dart';
 import 'package:elapsa/services/notification_service.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/services/secure_store.dart';
@@ -101,6 +102,51 @@ class DocumentRepository {
   ) async {
     final path = await _images.saveAll(doc.id, images);
     await save(doc.copyWith(imagePath: path, imageCount: images.length));
+  }
+
+  /// Everything, pictures included, ready to be written to a file.
+  Future<List<ArchivedDocument>> exportAll() async {
+    final documents = await getAll();
+    return [
+      for (final doc in documents)
+        ArchivedDocument(doc, await _images.loadAll(doc.id, doc.imageCount)),
+    ];
+  }
+
+  /// Writes archived documents back in.
+  ///
+  /// Identity is kept, so importing the same archive twice updates the same
+  /// records instead of doubling them — which is what makes this safe to run
+  /// when you are not quite sure whether the last attempt worked.
+  ///
+  /// [replace] clears what is here first. The default merges, because merging
+  /// is the recoverable mistake: an unwanted document can be deleted one at a
+  /// time, while a wrongly replaced library is gone.
+  Future<int> importAll(
+    List<ArchivedDocument> archived, {
+    bool replace = false,
+  }) async {
+    if (replace) {
+      for (final existing in await getAll()) {
+        await _db.deleteById(existing.id);
+        await _images.deleteAll(existing.id);
+      }
+    }
+
+    for (final entry in archived) {
+      final path = await _images.saveAll(entry.document.id, entry.images);
+      await _db.upsert(
+        _toCompanion(
+          entry.document.copyWith(
+            imagePath: path,
+            imageCount: entry.images.length,
+          ),
+        ),
+      );
+    }
+
+    await _resync();
+    return archived.length;
   }
 
   /// Rebuilds the scheduled reminders from what is currently stored.

@@ -6,6 +6,7 @@ import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/ui/settings/transfer_section.dart';
 
 /// Everything the app can be told about itself, in one place.
 ///
@@ -70,6 +71,10 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           _SectionLabel(l.settingsRemindersTitle),
           const _DefaultReminders(),
+
+          const SizedBox(height: 28),
+          _SectionLabel(l.settingsTransfer),
+          const TransferSection(),
 
           const SizedBox(height: 28),
           _SectionLabel(l.settingsDiagnostics),

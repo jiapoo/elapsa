@@ -326,5 +326,7 @@
   "nearbyRoleReceive": "在这台手机接收",
   "nearbyRoleReceiveBody": "等待另一台设备发送。收到之前会先询问你。",
   "nearbyWaitingToReceive": "等待其他设备发送…",
-  "nearbyWantsToSend": "想向你发送证件"
+  "nearbyWantsToSend": "想向你发送证件",
+  "shareCardTitle": "分享此证件",
+  "actionShare": "分享"
 }

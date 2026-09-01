@@ -712,6 +712,12 @@ class LZh extends L {
 
   @override
   String get nearbyWantsToSend => '想向你发送证件';
+
+  @override
+  String get shareCardTitle => '分享此证件';
+
+  @override
+  String get actionShare => '分享';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1421,4 +1427,10 @@ class LZhHant extends LZh {
 
   @override
   String get nearbyWantsToSend => '想向你傳送證件';
+
+  @override
+  String get shareCardTitle => '分享此證件';
+
+  @override
+  String get actionShare => '分享';
 }

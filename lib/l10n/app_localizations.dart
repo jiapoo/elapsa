@@ -1369,6 +1369,18 @@ abstract class L {
   /// In en, this message translates to:
   /// **'wants to send you documents'**
   String get nearbyWantsToSend;
+
+  /// Share this document
+  ///
+  /// In en, this message translates to:
+  /// **'Share this document'**
+  String get shareCardTitle;
+
+  /// Share
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get actionShare;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

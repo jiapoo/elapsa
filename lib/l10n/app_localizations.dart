@@ -1189,6 +1189,96 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Take it yourself'**
   String get scanAutoStuckAction;
+
+  /// Send to a nearby device
+  ///
+  /// In en, this message translates to:
+  /// **'Send to a nearby device'**
+  String get nearbyTitle;
+
+  /// Open Elapsa on the other phone and come to this screen. No f
+  ///
+  /// In en, this message translates to:
+  /// **'Open Elapsa on the other phone and come to this screen. No file, no passphrase — the other side has to accept.'**
+  String get nearbyBody;
+
+  /// Looking for devices…
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for devices…'**
+  String get nearbySearching;
+
+  /// Nothing found yet. Both phones need this screen open, and Wi
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found yet. Both phones need this screen open, and Wi-Fi on.'**
+  String get nearbyNone;
+
+  /// Send
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get nearbySend;
+
+  /// Waiting for {name} to accept…
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for {name} to accept…'**
+  String nearbyWaiting(String name);
+
+  /// Sending to {name}…
+  ///
+  /// In en, this message translates to:
+  /// **'Sending to {name}…'**
+  String nearbySendingTo(String name);
+
+  /// Sent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent.'**
+  String get nearbySentTo;
+
+  /// They declined.
+  ///
+  /// In en, this message translates to:
+  /// **'They declined.'**
+  String get nearbyDeclined;
+
+  /// {name} wants to send you documents.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} wants to send you documents.'**
+  String nearbyInvite(String name);
+
+  /// Accept
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get nearbyAccept;
+
+  /// Decline
+  ///
+  /// In en, this message translates to:
+  /// **'Decline'**
+  String get nearbyDecline;
+
+  /// Receiving…
+  ///
+  /// In en, this message translates to:
+  /// **'Receiving…'**
+  String get nearbyReceiving;
+
+  /// Nearby sending is not available on this device yet. Export a
+  ///
+  /// In en, this message translates to:
+  /// **'Nearby sending is not available on this device yet. Export a file instead.'**
+  String get nearbyUnavailable;
+
+  /// This device appears as
+  ///
+  /// In en, this message translates to:
+  /// **'This device appears as'**
+  String get nearbyName;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

@@ -614,6 +614,57 @@ class LZh extends L {
 
   @override
   String get scanAutoStuckAction => '手动拍摄';
+
+  @override
+  String get nearbyTitle => '发送到附近的设备';
+
+  @override
+  String get nearbyBody => '在另一台手机上打开 Elapsa 并进入此页面。无需文件，也无需密码——由对方确认接收。';
+
+  @override
+  String get nearbySearching => '正在查找设备…';
+
+  @override
+  String get nearbyNone => '尚未找到设备。两台手机都需要打开此页面，并开启 Wi-Fi。';
+
+  @override
+  String get nearbySend => '发送';
+
+  @override
+  String nearbyWaiting(String name) {
+    return '等待 $name 接受…';
+  }
+
+  @override
+  String nearbySendingTo(String name) {
+    return '正在发送到 $name…';
+  }
+
+  @override
+  String get nearbySentTo => '已发送。';
+
+  @override
+  String get nearbyDeclined => '对方已拒绝。';
+
+  @override
+  String nearbyInvite(String name) {
+    return '$name 想向你发送证件。';
+  }
+
+  @override
+  String get nearbyAccept => '接受';
+
+  @override
+  String get nearbyDecline => '拒绝';
+
+  @override
+  String get nearbyReceiving => '正在接收…';
+
+  @override
+  String get nearbyUnavailable => '此设备暂不支持附近发送，请改用导出文件。';
+
+  @override
+  String get nearbyName => '本机显示为';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1225,4 +1276,55 @@ class LZhHant extends LZh {
 
   @override
   String get scanAutoStuckAction => '手動拍攝';
+
+  @override
+  String get nearbyTitle => '傳送到附近的裝置';
+
+  @override
+  String get nearbyBody => '在另一台手機上開啟 Elapsa 並進入此頁面。無需檔案，也無需密碼——由對方確認接收。';
+
+  @override
+  String get nearbySearching => '正在尋找裝置…';
+
+  @override
+  String get nearbyNone => '尚未找到裝置。兩台手機都需要開啟此頁面，並開啟 Wi-Fi。';
+
+  @override
+  String get nearbySend => '傳送';
+
+  @override
+  String nearbyWaiting(String name) {
+    return '等待 $name 接受…';
+  }
+
+  @override
+  String nearbySendingTo(String name) {
+    return '正在傳送到 $name…';
+  }
+
+  @override
+  String get nearbySentTo => '已傳送。';
+
+  @override
+  String get nearbyDeclined => '對方已拒絕。';
+
+  @override
+  String nearbyInvite(String name) {
+    return '$name 想向你傳送證件。';
+  }
+
+  @override
+  String get nearbyAccept => '接受';
+
+  @override
+  String get nearbyDecline => '拒絕';
+
+  @override
+  String get nearbyReceiving => '正在接收…';
+
+  @override
+  String get nearbyUnavailable => '此裝置暫不支援附近傳送，請改用匯出檔案。';
+
+  @override
+  String get nearbyName => '本機顯示為';
 }

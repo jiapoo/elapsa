@@ -21,5 +21,11 @@ import UIKit
     ) {
       VisionHandler.register(with: registrar)
     }
+
+    if let registrar = engineBridge.pluginRegistry.registrar(
+      forPlugin: "NearbyTransfer"
+    ) {
+      NearbyTransfer.register(with: registrar)
+    }
   }
 }

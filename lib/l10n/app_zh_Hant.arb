@@ -296,5 +296,20 @@
   "scanAutoOn": "已開啟自動辨識",
   "scanAutoOff": "已關閉自動辨識",
   "scanAutoStuck": "找不到證件？",
-  "scanAutoStuckAction": "手動拍攝"
+  "scanAutoStuckAction": "手動拍攝",
+  "nearbyTitle": "傳送到附近的裝置",
+  "nearbyBody": "在另一台手機上開啟 Elapsa 並進入此頁面。無需檔案，也無需密碼——由對方確認接收。",
+  "nearbySearching": "正在尋找裝置…",
+  "nearbyNone": "尚未找到裝置。兩台手機都需要開啟此頁面，並開啟 Wi-Fi。",
+  "nearbySend": "傳送",
+  "nearbyWaiting": "等待 {name} 接受…",
+  "nearbySendingTo": "正在傳送到 {name}…",
+  "nearbySentTo": "已傳送。",
+  "nearbyDeclined": "對方已拒絕。",
+  "nearbyInvite": "{name} 想向你傳送證件。",
+  "nearbyAccept": "接受",
+  "nearbyDecline": "拒絕",
+  "nearbyReceiving": "正在接收…",
+  "nearbyUnavailable": "此裝置暫不支援附近傳送，請改用匯出檔案。",
+  "nearbyName": "本機顯示為"
 }

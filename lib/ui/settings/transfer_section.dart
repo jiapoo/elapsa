@@ -12,6 +12,7 @@ import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/ui/settings/nearby_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 /// Moving a library to another phone.
@@ -43,6 +44,14 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
           body: l.transferExportBody,
           busy: _busy,
           onTap: _export,
+        ),
+        const SizedBox(height: 12),
+        _Panel(
+          icon: Icons.wifi_tethering,
+          title: l.nearbyTitle,
+          body: l.nearbyBody,
+          busy: _busy,
+          onTap: _nearby,
         ),
         const SizedBox(height: 12),
         _Panel(
@@ -106,6 +115,37 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Straight to another phone, with no file in between.
+  Future<void> _nearby() async {
+    final all = await ref.read(documentRepositoryProvider).getAll();
+    if (!mounted) return;
+    if (all.isEmpty) {
+      // Still worth opening: this phone may be the one receiving.
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => const NearbyScreen(selected: {}),
+        ),
+      );
+      return;
+    }
+
+    final choice = await showModalBottomSheet<_ExportChoice>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _ExportSheet(documents: all, forNearby: true),
+    );
+    if (choice == null || !mounted) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => NearbyScreen(selected: choice.ids),
+      ),
+    );
+    // Nothing to report back here: the nearby screen says what is happening
+    // while it happens, which is the only moment that is useful.
   }
 
   Future<void> _import() async {
@@ -440,9 +480,12 @@ class _ExportChoice {
 /// this is mostly for and that wants the lot. Unticking is for the other case:
 /// sending one document to someone who has no business with the rest.
 class _ExportSheet extends StatefulWidget {
-  const _ExportSheet({required this.documents});
+  const _ExportSheet({required this.documents, this.forNearby = false});
 
   final List<TrackedDocument> documents;
+
+  /// A nearby handover has nothing to protect afterwards, so it does not ask.
+  final bool forNearby;
 
   @override
   State<_ExportSheet> createState() => _ExportSheetState();
@@ -450,6 +493,7 @@ class _ExportSheet extends StatefulWidget {
 
 class _ExportSheetState extends State<_ExportSheet> {
   late Set<String> _chosen = {for (final d in widget.documents) d.id};
+
   /// On by default, because a file outlives the handover. A nearby transfer
   /// hands the data straight to a device that had to accept it and leaves
   /// nothing behind; a file sits in Files and Downloads at both ends
@@ -520,18 +564,19 @@ class _ExportSheetState extends State<_ExportSheet> {
                 },
               ),
             ),
-            const Divider(),
-            SwitchListTile(
-              value: _protect,
-              contentPadding: EdgeInsets.zero,
-              title: Text(l.transferProtect),
-              subtitle: Text(
-                l.transferProtectBody,
-                style: Theme.of(context).textTheme.bodySmall
-                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.35),
+            if (!widget.forNearby) const Divider(),
+            if (!widget.forNearby)
+              SwitchListTile(
+                value: _protect,
+                contentPadding: EdgeInsets.zero,
+                title: Text(l.transferProtect),
+                subtitle: Text(
+                  l.transferProtectBody,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant, height: 1.35),
+                ),
+                onChanged: (on) => setState(() => _protect = on),
               ),
-              onChanged: (on) => setState(() => _protect = on),
-            ),
             const SizedBox(height: 10),
             FilledButton(
               onPressed: _chosen.isEmpty

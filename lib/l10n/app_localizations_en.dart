@@ -713,4 +713,58 @@ class LEn extends L {
 
   @override
   String get scanAutoStuckAction => 'Take it yourself';
+
+  @override
+  String get nearbyTitle => 'Send to a nearby device';
+
+  @override
+  String get nearbyBody =>
+      'Open Elapsa on the other phone and come to this screen. No file, no passphrase — the other side has to accept.';
+
+  @override
+  String get nearbySearching => 'Looking for devices…';
+
+  @override
+  String get nearbyNone =>
+      'Nothing found yet. Both phones need this screen open, and Wi-Fi on.';
+
+  @override
+  String get nearbySend => 'Send';
+
+  @override
+  String nearbyWaiting(String name) {
+    return 'Waiting for $name to accept…';
+  }
+
+  @override
+  String nearbySendingTo(String name) {
+    return 'Sending to $name…';
+  }
+
+  @override
+  String get nearbySentTo => 'Sent.';
+
+  @override
+  String get nearbyDeclined => 'They declined.';
+
+  @override
+  String nearbyInvite(String name) {
+    return '$name wants to send you documents.';
+  }
+
+  @override
+  String get nearbyAccept => 'Accept';
+
+  @override
+  String get nearbyDecline => 'Decline';
+
+  @override
+  String get nearbyReceiving => 'Receiving…';
+
+  @override
+  String get nearbyUnavailable =>
+      'Nearby sending is not available on this device yet. Export a file instead.';
+
+  @override
+  String get nearbyName => 'This device appears as';
 }

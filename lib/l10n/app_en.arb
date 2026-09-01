@@ -548,5 +548,80 @@
   "scanAutoStuckAction": "Take it yourself",
   "@scanAutoStuckAction": {
     "description": "Take it yourself"
+  },
+  "nearbyTitle": "Send to a nearby device",
+  "@nearbyTitle": {
+    "description": "Send to a nearby device"
+  },
+  "nearbyBody": "Open Elapsa on the other phone and come to this screen. No file, no passphrase — the other side has to accept.",
+  "@nearbyBody": {
+    "description": "Open Elapsa on the other phone and come to this screen. No f"
+  },
+  "nearbySearching": "Looking for devices…",
+  "@nearbySearching": {
+    "description": "Looking for devices…"
+  },
+  "nearbyNone": "Nothing found yet. Both phones need this screen open, and Wi-Fi on.",
+  "@nearbyNone": {
+    "description": "Nothing found yet. Both phones need this screen open, and Wi"
+  },
+  "nearbySend": "Send",
+  "@nearbySend": {
+    "description": "Send"
+  },
+  "nearbyWaiting": "Waiting for {name} to accept…",
+  "@nearbyWaiting": {
+    "description": "Waiting for {name} to accept…",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbySendingTo": "Sending to {name}…",
+  "@nearbySendingTo": {
+    "description": "Sending to {name}…",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbySentTo": "Sent.",
+  "@nearbySentTo": {
+    "description": "Sent."
+  },
+  "nearbyDeclined": "They declined.",
+  "@nearbyDeclined": {
+    "description": "They declined."
+  },
+  "nearbyInvite": "{name} wants to send you documents.",
+  "@nearbyInvite": {
+    "description": "{name} wants to send you documents.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyAccept": "Accept",
+  "@nearbyAccept": {
+    "description": "Accept"
+  },
+  "nearbyDecline": "Decline",
+  "@nearbyDecline": {
+    "description": "Decline"
+  },
+  "nearbyReceiving": "Receiving…",
+  "@nearbyReceiving": {
+    "description": "Receiving…"
+  },
+  "nearbyUnavailable": "Nearby sending is not available on this device yet. Export a file instead.",
+  "@nearbyUnavailable": {
+    "description": "Nearby sending is not available on this device yet. Export a"
+  },
+  "nearbyName": "This device appears as",
+  "@nearbyName": {
+    "description": "This device appears as"
   }
 }

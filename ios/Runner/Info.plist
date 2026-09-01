@@ -18,6 +18,12 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Elapsa uses the local network to hand your documents straight to another device, so nothing has to travel through a file or a server.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_elapsa._tcp</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>elapsa</string>
 	<key>CFBundlePackageType</key>

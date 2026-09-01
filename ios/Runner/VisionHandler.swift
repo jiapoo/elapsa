@@ -141,6 +141,15 @@ enum VisionHandler {
     request.usesLanguageCorrection = false
     request.recognitionLanguages = supportedLanguages(for: request)
 
+    // How small a line may be, as a fraction of the image height. Vision
+    // *discards* anything shorter, and the default of 1/32 is far too coarse
+    // for this: a machine-readable zone photographed from arm's length is a
+    // couple of hundredths of the frame, so the one part of a passport that
+    // can be read with certainty was being thrown away before parsing ever
+    // saw it. Lower costs time on a big photo and buys back every document
+    // that was not held close enough to fill it.
+    request.minimumTextHeight = 0.012
+
     perform([request], on: cgImage,
             orientation: cgOrientation(from: image.imageOrientation),
             onFailure: result)

@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
@@ -86,6 +89,76 @@ class MrzScanner {
   /// Text is read from the **full-resolution original**, so the recogniser
   /// sees every pixel, while the stored face is the cropped card. Reading the
   /// crop instead would throw away detail the parsers depend on.
+  /// What one pass of reading produced.
+  Future<({MrzResult? mrz, PrintedFields printed})> _interpret(
+    String text,
+  ) async {
+    MrzResult? parsed;
+    if (text.trim().isNotEmpty) {
+      try {
+        parsed = MrzParser.parse(text);
+      } on MrzException {
+        // No MRZ in this image — the normal case for an ID card, and for the
+        // back of almost anything.
+        parsed = null;
+      }
+    }
+    return (mrz: parsed, printed: _printed.parse(text));
+  }
+
+  /// Reads the cropped document itself, rather than the photo it came out of.
+  ///
+  /// Worth a second pass whenever the first found nothing. A recogniser
+  /// measures text against the height of the whole image, so the same
+  /// machine-readable zone that is a couple of hundredths of a photograph of a
+  /// desk is a tenth of the crop — and small print that fell under the floor
+  /// in one clears it comfortably in the other. It is also the whole reason a
+  /// document held at arm's length reads worse than the same document filling
+  /// the frame.
+  Future<String> _readCrop(Uint8List cropped) async {
+    File? temp;
+    try {
+      final dir = await getTemporaryDirectory();
+      temp = File(
+        p.join(
+          dir.path,
+          'elapsa-crop-${DateTime.now().microsecondsSinceEpoch}.jpg',
+        ),
+      );
+      await temp.writeAsBytes(cropped);
+      return (await _vision.recognize(temp.path)).text;
+    } catch (error) {
+      debugPrint('Elapsa: reading the crop failed: $error');
+      return '';
+    } finally {
+      // The crop is a decrypted picture of someone's passport. It does not
+      // stay on disk a moment longer than the read takes.
+      if (temp != null && await temp.exists()) await temp.delete();
+    }
+  }
+
+  /// Re-cuts a photo along corners placed by hand, and reads it again.
+  ///
+  /// Reading again is the point. Placing the corners is new information about
+  /// where the document is, and the fields ought to be filled from the better
+  /// framing rather than left as whatever the first guess produced.
+  Future<ScanResult> recut(String path, CardQuad quad) async {
+    final cut = await _vision.extractCard(path, quad: quad);
+    final card = cut?.bytes ?? await _cropper.cropToRegion(path, Rect.largest);
+    if (card == null) return const ScanResult();
+
+    final text = await _readCrop(card);
+    final reading = await _interpret(text);
+
+    return ScanResult(
+      mrz: reading.mrz,
+      printed: reading.printed,
+      cardImage: card,
+      rawText: text,
+      croppedConfidently: true,
+    );
+  }
+
   Future<ScanResult> scanFile(String path, {CardQuad? quad}) async {
     // Reading the text and cutting the card are independent passes over the
     // same photo, and each is a full Vision request. Run together they finish
@@ -99,16 +172,8 @@ class MrzScanner {
 
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
-    MrzResult? parsed;
-    if (text.trim().isNotEmpty) {
-      try {
-        parsed = MrzParser.parse(text);
-      } on MrzException {
-        // No MRZ in this image — the normal case for an ID card, and for the
-        // back of almost anything.
-        parsed = null;
-      }
-    }
+    var reading = await _interpret(text);
+    var parsed = reading.mrz;
 
     // The crop is judged only once both passes have finished, so none of this
     // costs the user any time: the two still run side by side, and where the
@@ -116,8 +181,28 @@ class MrzScanner {
     final trusted = _keeps(cut, read.bounds, hasCode: parsed != null);
     final card = trusted ? cut!.bytes : await _fallbackFace(path, read.bounds);
 
-    var printed = _printed.parse(text);
+    var printed = reading.printed;
     var seen = text;
+
+    // Nothing usable out of the whole frame? Read the document on its own.
+    //
+    // A photograph taken without the guide is a photograph of a desk with a
+    // passport somewhere in it, and there the small print is a fraction of the
+    // frame. Inside the crop it is most of one. This is the difference between
+    // a manual capture that fills the form in and one that appears to have
+    // read nothing at all.
+    if (parsed == null &&
+        printed.expiryDate == null &&
+        !printed.neverExpires &&
+        card != null) {
+      final closer = await _readCrop(card);
+      if (closer.trim().isNotEmpty) {
+        reading = await _interpret(closer);
+        parsed = reading.mrz;
+        printed = printed.mergedWith(reading.printed);
+        seen = '$text\n$closer';
+      }
+    }
 
     // A card whose number did not read gets a second look.
     //
@@ -146,16 +231,6 @@ class MrzScanner {
       rawText: seen,
       croppedConfidently: trusted,
     );
-  }
-
-  /// Re-cuts a photo along corners the user placed by hand.
-  ///
-  /// The same perspective correction the automatic path uses; only the corners
-  /// came from a finger. Falls back to the whole photo, because someone who
-  /// has just placed four corners deserves a picture either way.
-  Future<Uint8List?> recut(String path, CardQuad quad) async {
-    final cut = await _vision.extractCard(path, quad: quad);
-    return cut?.bytes ?? await _cropper.cropToRegion(path, Rect.largest);
   }
 
   /// Whether the crop can be trusted to have kept what matters.

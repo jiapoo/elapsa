@@ -474,11 +474,19 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     if (quad == null || !mounted) return;
 
     setState(() => _stage = _Stage.working);
-    final recut = await _scanner.recut(original, quad);
+    final result = await _scanner.recut(original, quad);
     if (!mounted) return;
 
     setState(() {
-      if (recut != null) _pages[index] = recut;
+      if (result.cardImage != null) _pages[index] = result.cardImage!;
+
+      // Read again, not just cut again. Placing the corners is new
+      // information about where the document is, and the fields should be
+      // filled from the better framing rather than left as whatever the first
+      // guess managed.
+      if (result.hasTrustedCode) _bestMrz = result.mrz;
+      _printed = result.printed.mergedWith(_printed);
+
       _stage = _controller != null ? _Stage.ready : _Stage.noCamera;
     });
   }

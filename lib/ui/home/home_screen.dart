@@ -273,6 +273,10 @@ class _Wallet extends StatelessWidget {
         crossAxisCount: 2,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
+        // Zero, explicitly. A grid nested in a scroll view still takes the
+        // ambient inset for its own padding, and under a type heading that
+        // arrived as a band of empty space nobody asked for.
+        padding: EdgeInsets.zero,
         childAspectRatio: kCardAspectRatio,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,

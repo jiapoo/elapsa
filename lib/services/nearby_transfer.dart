@@ -6,10 +6,22 @@ sealed class NearbyEvent {
   const NearbyEvent();
 }
 
-/// The devices currently visible, by the name they are advertising.
+/// One device on the network.
+///
+/// The identity and the name are separate because the name is not unique and
+/// not even stable — two phones both called "iPhone" are an ordinary thing to
+/// find in a room, and Bonjour renames one of them behind your back.
+class NearbyPeer {
+  final String id;
+  final String name;
+
+  const NearbyPeer(this.id, this.name);
+}
+
+/// The devices currently visible.
 class NearbyPeers extends NearbyEvent {
-  final List<String> names;
-  const NearbyPeers(this.names);
+  final List<NearbyPeer> peers;
+  const NearbyPeers(this.peers);
 }
 
 /// Somebody is offering to send, and is waiting to be let in.
@@ -103,9 +115,16 @@ class NearbyTransfer {
     final event = raw['event'];
 
     return switch (event) {
-      'peers' => NearbyPeers(
-        (raw['peers'] as List? ?? const []).cast<String>(),
-      ),
+      'peers' => NearbyPeers([
+        for (final peer in (raw['peers'] as List? ?? const []))
+          if (peer is Map)
+            NearbyPeer(
+              peer['id'] as String? ?? '',
+              (peer['name'] as String?)?.trim().isNotEmpty == true
+                  ? peer['name'] as String
+                  : (peer['id'] as String? ?? '?'),
+            ),
+      ]),
       'invite' => NearbyInvite(raw['name'] as String? ?? '?'),
       'declined' => const NearbyDeclined(),
       'sending' => const NearbySending(),

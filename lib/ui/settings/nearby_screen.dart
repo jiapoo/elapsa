@@ -36,7 +36,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   static const _nearby = NearbyTransfer();
 
   StreamSubscription<NearbyEvent>? _subscription;
-  List<String> _peers = const [];
+  List<NearbyPeer> _peers = const [];
   String? _status;
   double? _progress;
   bool _busy = false;
@@ -73,8 +73,8 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final l = L.of(context);
 
     switch (event) {
-      case NearbyPeers(:final names):
-        setState(() => _peers = names);
+      case NearbyPeers(:final peers):
+        setState(() => _peers = peers);
 
       case NearbyInvite(:final from):
         final accept = await _askToAccept(from);
@@ -223,11 +223,11 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     );
   }
 
-  Future<void> _sendTo(String peer) async {
+  Future<void> _sendTo(NearbyPeer peer) async {
     final l = L.of(context);
     setState(() {
       _busy = true;
-      _status = l.nearbyWaiting(peer);
+      _status = l.nearbyWaiting(peer.name);
     });
 
     final documents = await ref
@@ -240,7 +240,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final bytes = await const DocumentArchive().pack(documents);
     if (!mounted) return;
 
-    await _nearby.send(peer: peer, name: _name, bytes: bytes);
+    await _nearby.send(peer: peer.id, name: _name, bytes: bytes);
   }
 
   @override
@@ -333,7 +333,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                       // three lines it pushed the button it belongs to out of
                       // reach of the row.
                       title: Text(
-                        peer,
+                        peer.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),

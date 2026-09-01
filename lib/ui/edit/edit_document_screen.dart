@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -740,28 +739,75 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     if (!_dirty) return true;
     final l = L.of(context);
 
+    final scheme = Theme.of(context).colorScheme;
+
     final choice = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.editUnsavedTitle),
-        content: Text(l.editUnsavedBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(l.actionCancel),
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 26, 24, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.primary.withValues(alpha: 0.12),
+                ),
+                child: Icon(Icons.edit_note, size: 28, color: scheme.primary),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                l.editUnsavedTitle,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l.editUnsavedBody,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+              ),
+              const SizedBox(height: 22),
+
+              // Stacked, not squeezed into a row. Three actions along one
+              // edge give each a third of the width and a truncated label,
+              // and the one that destroys work ends up the same size and
+              // weight as the one that does nothing.
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop('save'),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
+                child: Text(l.editSave),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () => Navigator.of(context).pop('discard'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  foregroundColor: scheme.error,
+                  side: BorderSide(color: scheme.error.withValues(alpha: 0.5)),
+                ),
+                child: Text(l.editDiscard),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                style: TextButton.styleFrom(
+                  minimumSize: const Size.fromHeight(44),
+                  foregroundColor: scheme.onSurfaceVariant,
+                ),
+                child: Text(l.actionCancel),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop('discard'),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(l.editDiscard),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop('save'),
-            child: Text(l.editSave),
-          ),
-        ],
+        ),
       ),
     );
 

@@ -32,8 +32,19 @@ import UIKit
   /// Connections we have accepted but not yet been told what to do with.
   private static var pending: NWConnection?
 
-  /// What the browser can currently see, by the name shown to the user.
+  /// What the browser can currently see, keyed by the advertised identity.
   private static var found: [String: NWEndpoint] = [:]
+
+  /// This launch's identity, and the Bonjour instance name it advertises.
+  ///
+  /// A UUID rather than the device's name, which is neither unique nor stable:
+  /// Bonjour renames a service that collides with one already on the network,
+  /// so two phones both called "iPhone" end up as "iPhone" and "iPhone (2)".
+  /// Filtering ourselves out by the name we *asked* for then fails on the one
+  /// that was renamed — the phone sees itself in the list and can send to
+  /// nobody else — and both phones collide on the same key besides. An
+  /// identity nothing can rename fixes both at once.
+  private static var identity = UUID().uuidString
 
   private static let queue = DispatchQueue(label: "cc.elapsa.nearby")
 
@@ -108,9 +119,17 @@ import UIKit
     // Lets two phones talk with no router between them.
     parameters.includePeerToPeer = true
 
+    identity = UUID().uuidString
+
     do {
       let listener = try NWListener(using: parameters)
-      listener.service = NWListener.Service(name: name, type: service)
+      // The name a person reads travels in the TXT record, where nothing
+      // rewrites it, while the instance name stays machine-unique.
+      listener.service = NWListener.Service(
+        name: identity,
+        type: service,
+        txtRecord: txtRecord(["n": name])
+      )
       listener.newConnectionHandler = { connection in receive(connection) }
       listener.start(queue: queue)
       self.listener = listener
@@ -125,18 +144,53 @@ import UIKit
     )
     browser.browseResultsChangedHandler = { results, _ in
       var seen: [String: NWEndpoint] = [:]
+      var peers: [[String: String]] = []
+
       for result in results {
-        if case let .service(serviceName, _, _, _) = result.endpoint {
-          // Ourselves, seen in the mirror.
-          if serviceName == name { continue }
-          seen[serviceName] = result.endpoint
+        guard case let .service(serviceName, _, _, _) = result.endpoint else {
+          continue
         }
+        // Ourselves, seen in the mirror. Now an exact match, because it is
+        // compared against an identity nothing else chose.
+        if serviceName == identity { continue }
+
+        var shown = serviceName
+        if case let .bonjour(txt) = result.metadata,
+           let advertised = txt["n"], !advertised.isEmpty {
+          shown = advertised
+        }
+
+        seen[serviceName] = result.endpoint
+        peers.append(["id": serviceName, "name": shown])
       }
+
       found = seen
-      emit(["event": "peers", "peers": Array(seen.keys)])
+      emit(["event": "peers", "peers": peers])
     }
     browser.start(queue: queue)
     self.browser = browser
+  }
+
+  /// A DNS-SD TXT record: each entry a byte of length, then `key=value`.
+  ///
+  /// Built by hand because `NWTXTRecord.data` only exists on iOS 16, and this
+  /// app supports older phones — which are exactly the ones somebody is
+  /// migrating *away* from, and so the ones that most need to be able to send.
+  private static func txtRecord(_ pairs: [String: String]) -> Data {
+    var data = Data()
+    for (key, value) in pairs {
+      var entry = Array("\(key)=\(value)".utf8)
+      // One byte of length caps an entry at 255. Trimmed to a character
+      // boundary, since half a character is not a shorter name, it is a
+      // broken one.
+      while entry.count > 255 {
+        let shorter = String(decoding: entry.dropLast(), as: UTF8.self)
+        entry = Array(shorter.utf8)
+      }
+      data.append(UInt8(entry.count))
+      data.append(contentsOf: entry)
+    }
+    return data
   }
 
   private static func stop() {

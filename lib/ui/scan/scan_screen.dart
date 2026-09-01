@@ -563,20 +563,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                   ),
                 ),
 
-                // Top centre: the one part of this screen with nothing in it,
-                // and out of the way of both the shutter and the done button.
-                Align(
-                  alignment: Alignment.topCenter,
-                  child: Padding(
-                    // Held clear of the two round buttons in the top corners,
-                    // so a longer sentence cannot creep underneath one.
-                    padding: const EdgeInsets.fromLTRB(76, 6, 76, 0),
-                    child: _RotatingGlyphs(
-                      controller: _controller,
-                      child: _Notice(text: _notice),
-                    ),
-                  ),
-                ),
+                _NoticeLayer(controller: _controller, text: _notice),
 
                 if (_pages.isNotEmpty)
                   Align(
@@ -702,6 +689,56 @@ class _GlyphRotation extends InheritedWidget {
 }
 
 /// A glyph that keeps itself upright as the phone turns.
+/// Puts the notice at the top of the screen the *user* is looking at.
+///
+/// The layout is pinned to portrait so the controls never move under a thumb,
+/// which means the top of the layout is the left-hand edge of a phone held
+/// sideways. A line of text pinned there is at the top of nothing — so the
+/// edge it sits against turns with the device, the same way the glyphs do.
+class _NoticeLayer extends StatelessWidget {
+  const _NoticeLayer({required this.controller, required this.text});
+
+  final CameraController? controller;
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = this.controller;
+    if (controller == null) return _place(0);
+
+    return ValueListenableBuilder<CameraValue>(
+      valueListenable: controller,
+      builder: (context, value, _) =>
+          _place(_glyphTurns(value.deviceOrientation)),
+    );
+  }
+
+  Widget _place(double turns) {
+    // Kept clear of whatever lives along that edge: the two round buttons in
+    // the top corners, and the controls across the bottom.
+    final (Alignment alignment, EdgeInsets padding) = switch (turns) {
+      0.25 => (Alignment.centerRight, const EdgeInsets.fromLTRB(0, 80, 8, 80)),
+      -0.25 => (Alignment.centerLeft, const EdgeInsets.fromLTRB(8, 80, 0, 80)),
+      0.5 => (
+        Alignment.bottomCenter,
+        const EdgeInsets.fromLTRB(76, 0, 76, 150),
+      ),
+      _ => (Alignment.topCenter, const EdgeInsets.fromLTRB(76, 6, 76, 0)),
+    };
+
+    return Align(
+      alignment: alignment,
+      child: Padding(
+        padding: padding,
+        child: _GlyphRotation(
+          turns: turns,
+          child: _Notice(text: text),
+        ),
+      ),
+    );
+  }
+}
+
 /// A word or two from the app, floated over the picture.
 ///
 /// Fades rather than appearing, because something that blinks into existence

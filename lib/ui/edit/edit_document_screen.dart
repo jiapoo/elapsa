@@ -79,10 +79,6 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// one keystroke that changes the answer rather than on all of them.
   bool _wasDirty = false;
 
-  /// Set when a picture is moved or cropped. The list is the same length
-  /// afterwards, so nothing else would notice it had changed.
-  bool _imagesChanged = false;
-
   /// Whether the scan actually yielded any field, as opposed to only a
   /// picture. Claiming "filled in from the document" over an empty form is
   /// worse than saying nothing.
@@ -275,12 +271,43 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     }
 
     setState(() => _images.removeAt(index));
-    if (choice == 'delete') return;
+    if (choice == 'delete') {
+      await _persistImages();
+      return;
+    }
 
     // A retake replaces a picture, not the document. It still reads what it
     // can — a field left blank is worth filling from a better photograph —
     // but it will not overwrite an answer already on the form.
     await _scan(keepFilled: true);
+  }
+
+  /// Writes the pictures out, now.
+  ///
+  /// Cropping, retaking, deleting and reordering are finished actions on a
+  /// picture, not pending edits to a form — so they are kept the moment they
+  /// happen rather than waiting for a Save the user has no reason to think is
+  /// still owed. A crop that vanishes because you left by the back arrow is
+  /// indistinguishable from a crop that never worked.
+  ///
+  /// Only the pictures. The stored document's own fields go back untouched,
+  /// so a name half-typed in the form above is still unsaved and still asked
+  /// about on the way out.
+  Future<void> _persistImages() async {
+    final existing = widget.existing;
+    if (existing == null || !_imagesLoaded) return;
+
+    final was = existing.imageCount;
+    await ref.read(documentRepositoryProvider).setImages(existing, _images);
+
+    // Pictures are cached by document and page, and this replaces what sits
+    // behind keys that have not changed.
+    final pages = was > _images.length ? was : _images.length;
+    for (var page = 0; page < pages; page++) {
+      ref.invalidate(
+        documentImageProvider(DocumentImageRef(existing.id, page)),
+      );
+    }
   }
 
   /// Trims one picture, leaving every field exactly as it was.
@@ -314,10 +341,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       );
       if (cut == null || !mounted) return;
 
-      setState(() {
-        _imagesChanged = true;
-        _images[index] = cut.bytes;
-      });
+      setState(() => _images[index] = cut.bytes);
+      await _persistImages();
     } catch (error, stack) {
       debugPrint('Elapsa: cropping failed: $error\n$stack');
     } finally {
@@ -402,7 +427,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final session = await Navigator.of(
       context,
     ).push<ScanSession>(MaterialPageRoute(builder: (_) => const ScanScreen()));
-    if (session != null) _applySession(session, keepFilled: keepFilled);
+    if (session != null) {
+      _applySession(session, keepFilled: keepFilled);
+      await _persistImages();
+    }
   }
 
   /// Folds a scan into the form.
@@ -580,10 +608,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                       images: _images,
                       onAdd: _scan,
                       onTapImage: _pictureOptions,
-                      onReorder: (from, to) => setState(() {
-                        _imagesChanged = true;
-                        _images.insert(to, _images.removeAt(from));
-                      }),
+                      onReorder: (from, to) {
+                        setState(
+                          () => _images.insert(to, _images.removeAt(from)),
+                        );
+                        _persistImages();
+                      },
                     ),
                     const SizedBox(height: 24),
                   ] else ...[
@@ -861,11 +891,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       }
     }
 
-    if (_imagesLoaded &&
-        (_images.length != existing.imageCount || _imagesChanged)) {
-      return true;
-    }
-
+    // Pictures are not part of this question. They are written as they are
+    // changed, so by the time anyone asks whether leaving is safe, there is
+    // nothing about them left to lose.
     return false;
   }
 

@@ -17,6 +17,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:elapsa/services/card_cropper.dart';
 import 'package:elapsa/services/nearby_transfer.dart';
 import 'package:elapsa/services/vision_channel.dart';
 import 'package:elapsa/ui/scan/crop_screen.dart';
@@ -344,14 +345,19 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       );
       if (quad == null || !mounted) return;
 
-      final cut = await const VisionChannel().extractCard(
-        temp.path,
-        quad: quad,
-        byHand: true,
-      );
+      // Cut here rather than natively. The stored picture is already flat, so
+      // there is no perspective to correct — and every complaint about this
+      // crop was that the result was not the rectangle that had been drawn.
+      // A measurement straight onto the pixels cannot drift.
+      final cut = await const CardCropper().cropToQuad(temp.path, [
+        quad.topLeft,
+        quad.topRight,
+        quad.bottomRight,
+        quad.bottomLeft,
+      ]);
       if (cut == null || !mounted) return;
 
-      setState(() => _images[index] = cut.bytes);
+      setState(() => _images[index] = cut);
       await _persistImages();
     } catch (error, stack) {
       debugPrint('Elapsa: cropping failed: $error\n$stack');

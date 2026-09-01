@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
@@ -329,46 +330,72 @@ class _FactState extends State<_Fact> {
     // a colleague which card they mean.
     final hide = widget.secret && !_shown;
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 14, widget.secret ? 6 : 16, 14),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 4,
-            child: Text(
-              widget.label,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-          ),
-          Expanded(
-            flex: 6,
-            child: Text(
-              hide ? '••••••' : widget.value,
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontFeatures: widget.monospaced
-                    ? const [FontFeature.tabularFigures()]
-                    : null,
-                letterSpacing: widget.monospaced ? 0.4 : null,
+    return InkWell(
+      // Held down to copy. A document number exists to be typed into
+      // somewhere else, and reading it off a screen digit by digit is how it
+      // gets typed in wrong.
+      onLongPress: hide
+          ? null
+          : () async {
+              await Clipboard.setData(ClipboardData(text: widget.value));
+              if (!context.mounted) return;
+              HapticFeedback.mediumImpact();
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(l.settingsCopied)));
+            },
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 14, widget.secret ? 6 : 16, 14),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 4,
+              child: Text(
+                widget.label,
+                style: Theme.of(context).textTheme.bodyMedium
+                    ?.copyWith(color: scheme.onSurfaceVariant),
               ),
             ),
-          ),
-          if (widget.secret)
-            IconButton(
-              iconSize: 19,
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                _shown
-                    ? Icons.visibility_off_rounded
-                    : Icons.visibility_rounded,
-                color: scheme.onSurfaceVariant,
+            Expanded(
+              flex: 6,
+              child: Align(
+                alignment: Alignment.centerRight,
+                // Shrunk to fit rather than wrapped. A card number broken over
+                // two lines stops being a number you can read against the card
+                // in your hand — the grouping is what makes it checkable, and a
+                // line break in the middle of it destroys that.
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    hide ? '••••••' : widget.value,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: widget.monospaced
+                          ? const [FontFeature.tabularFigures()]
+                          : null,
+                      letterSpacing: widget.monospaced ? 0.4 : null,
+                    ),
+                  ),
+                ),
               ),
-              tooltip: _shown ? l.detailHide : l.detailReveal,
-              onPressed: () => setState(() => _shown = !_shown),
             ),
-        ],
+            if (widget.secret)
+              IconButton(
+                iconSize: 19,
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  _shown
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
+                tooltip: _shown ? l.detailHide : l.detailReveal,
+                onPressed: () => setState(() => _shown = !_shown),
+              ),
+          ],
+        ),
       ),
     );
   }

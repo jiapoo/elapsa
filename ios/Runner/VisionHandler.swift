@@ -545,9 +545,18 @@ enum VisionHandler {
       }
 
       if let tl = supplied("topLeft"), let tr = supplied("topRight"),
-         let br = supplied("bottomRight"), let bl = supplied("bottomLeft"),
-         let jpeg = cut((tl: tl, tr: tr, br: br, bl: bl)) {
-        answer(jpeg, (tl: tl, tr: tr, br: br, bl: bl))
+         let br = supplied("bottomRight"), let bl = supplied("bottomLeft") {
+        if let jpeg = cut((tl: tl, tr: tr, br: br, bl: bl)) {
+          answer(jpeg, (tl: tl, tr: tr, br: br, bl: bl))
+        } else {
+          // Nothing else. Looking for a rectangle of our own here is how a
+          // crop somebody drew by hand came back as a different rectangle
+          // altogether — one found by the detector, and widened by the margin
+          // the detector's corners need. The caller asked for *these* corners;
+          // if they cannot be used, that is an answer, not an invitation to
+          // substitute a guess.
+          reply(nil)
+        }
         return
       }
     }

@@ -115,10 +115,7 @@ class _CropScreenState extends State<CropScreen> {
               // because a picture being re-cropped starts with its own corners
               // there.
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 26,
-                  vertical: 20,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return _Canvas(
@@ -307,6 +304,19 @@ class _Canvas extends StatefulWidget {
 }
 
 class _CanvasState extends State<_Canvas> {
+  /// How far past the edge of the picture a touch still counts.
+  ///
+  /// This is the whole of "it is hard to start dragging". A handle sitting on
+  /// the picture's own edge — which is where all four are the moment a stored
+  /// picture is opened to be trimmed — is drawn half outside it, and the area
+  /// that heard touches stopped exactly at the edge. Aiming at the middle of
+  /// the handle meant landing outside the region entirely, so the touch went
+  /// nowhere and the drag never began. Aiming *inside* the picture worked,
+  /// which is why it succeeded on some tries and not others.
+  static const _reach = 44.0;
+
+  static const _origin = Offset(_reach, _reach);
+
   Size? _imageSize;
 
   @override
@@ -343,16 +353,17 @@ class _CanvasState extends State<_Canvas> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // The largest box of the photo's shape that fits the space available.
+    // The largest box of the photo's shape that fits the space available,
+    // less the reach kept around it.
     final scale = math.min(
-      widget.limits.width / size.width,
-      widget.limits.height / size.height,
+      (widget.limits.width - _reach * 2) / size.width,
+      (widget.limits.height - _reach * 2) / size.height,
     );
     final box = Size(size.width * scale, size.height * scale);
 
     return SizedBox(
-      width: box.width,
-      height: box.height,
+      width: box.width + _reach * 2,
+      height: box.height + _reach * 2,
       // A raw pointer listener, not a pan gesture.
       //
       // A pan is not recognised until the finger has travelled far enough to
@@ -363,16 +374,23 @@ class _CanvasState extends State<_Canvas> {
       // the screen is touched, which is when the handle is still under it.
       child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPointerDown: (event) => widget.onDragStart(event.localPosition, box),
-        onPointerMove: (event) => widget.onDragUpdate(event.localPosition, box),
+        // Coordinates are reported inside the picture, while the region that
+        // hears the touch reaches past it.
+        onPointerDown: (event) =>
+            widget.onDragStart(event.localPosition - _origin, box),
+        onPointerMove: (event) =>
+            widget.onDragUpdate(event.localPosition - _origin, box),
         onPointerUp: (_) => widget.onDragEnd(),
         onPointerCancel: (_) => widget.onDragEnd(),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.file(File(widget.imagePath), fit: BoxFit.fill),
-            CustomPaint(painter: _QuadPainter(widget.corners, widget.held)),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(_reach),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.file(File(widget.imagePath), fit: BoxFit.fill),
+              CustomPaint(painter: _QuadPainter(widget.corners, widget.held)),
+            ],
+          ),
         ),
       ),
     );

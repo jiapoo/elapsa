@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'dart:ui' show Rect;
+import 'dart:math' as math;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
@@ -95,6 +96,52 @@ class CardCropper {
       return Uint8List.fromList(img.encodeJpg(scaled, quality: 88));
     } catch (error, stack) {
       debugPrint('Elapsa: region crop failed: $error\n$stack');
+      return null;
+    }
+  }
+
+  /// Crops to the exact box four corners enclose.
+  ///
+  /// For trimming a picture that is already flat — a stored card face being
+  /// tidied up — where there is no perspective to correct and therefore
+  /// nothing a warp could add but doubt. What the user drew is measured
+  /// straight onto the pixels and cut, with no margin, no re-detection and no
+  /// second opinion: the whole complaint about cropping was that the result
+  /// was not the rectangle that had been drawn.
+  Future<Uint8List?> cropToQuad(String path, List<Offset> corners) async {
+    try {
+      final bytes = await File(path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return null;
+      final upright = img.bakeOrientation(decoded);
+
+      final xs = corners.map((c) => c.dx);
+      final ys = corners.map((c) => c.dy);
+      final left = (xs.reduce(math.min) * upright.width).round();
+      final top = (ys.reduce(math.min) * upright.height).round();
+      final right = (xs.reduce(math.max) * upright.width).round();
+      final bottom = (ys.reduce(math.max) * upright.height).round();
+
+      final x = left.clamp(0, upright.width - 1);
+      final y = top.clamp(0, upright.height - 1);
+      final width = right.clamp(1, upright.width) - x;
+      final height = bottom.clamp(1, upright.height) - y;
+      if (width < 16 || height < 16) return null;
+
+      final cropped = img.copyCrop(
+        upright,
+        x: x,
+        y: y,
+        width: width,
+        height: height,
+      );
+      final scaled = cropped.width > _maxEdge
+          ? img.copyResize(cropped, width: _maxEdge)
+          : cropped;
+
+      return Uint8List.fromList(img.encodeJpg(scaled, quality: 90));
+    } catch (error, stack) {
+      debugPrint('Elapsa: quad crop failed: $error\n$stack');
       return null;
     }
   }

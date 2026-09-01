@@ -117,8 +117,7 @@ class TrackedDocument {
     final cutoff = travelValidUntil;
     if (cutoff == null) return false;
     final today = _startOfDay(now ?? DateTime.now());
-    return !today.isBefore(_startOfDay(cutoff)) &&
-        daysRemaining(now: now) >= 0;
+    return !today.isBefore(_startOfDay(cutoff)) && daysRemaining(now: now) >= 0;
   }
 
   /// Days before expiry at which to fire reminders, longest first.
@@ -131,9 +130,13 @@ class TrackedDocument {
     if (chosen != null && chosen.isNotEmpty) {
       return chosen.toSet().toList()..sort((a, b) => b.compareTo(a));
     }
-    return <int>{renewalLeadDays, 90, 30, 7, 1}
-        .where((d) => d > 0 && d <= renewalLeadDays)
-        .toList()
+    return <int>{
+        renewalLeadDays,
+        90,
+        30,
+        7,
+        1,
+      }.where((d) => d > 0 && d <= renewalLeadDays).toList()
       ..sort((a, b) => b.compareTo(a));
   }
 
@@ -142,12 +145,28 @@ class TrackedDocument {
       _chosenOffsets != null && _chosenOffsets.isNotEmpty;
 
   /// Concrete dates on which to notify, discarding any already in the past.
+  /// The final stretch, reminded on every day of it whatever else was chosen.
+  ///
+  /// Not a preference. The whole premise of the app is that a document needs
+  /// acting on before it expires, and the last month is when that stops being
+  /// advice and starts being urgent — a single reminder on day thirty that
+  /// arrives during a meeting is a reminder that never happened.
+  static const dailyTailDays = 30;
+
   List<DateTime> reminderDates({DateTime? now}) {
     final today = _startOfDay(now ?? DateTime.now());
-    return reminderOffsetDays
-        .map((d) => _startOfDay(expiryDate).subtract(Duration(days: d)))
-        .where((d) => d.isAfter(today))
-        .toList();
+    final expiry = _startOfDay(expiryDate);
+
+    // A set, so a chosen offset that lands inside the final month does not
+    // produce two notifications on the same morning.
+    final dates = <DateTime>{
+      for (final offset in reminderOffsetDays)
+        expiry.subtract(Duration(days: offset)),
+      for (var day = dailyTailDays; day >= 0; day--)
+        expiry.subtract(Duration(days: day)),
+    };
+
+    return dates.where((d) => d.isAfter(today)).toList()..sort();
   }
 
   TrackedDocument copyWith({
@@ -202,7 +221,8 @@ class DocumentDetails {
       if (raw is! Map) return const {};
       return {
         for (final detail in DocumentDetail.values)
-          if (raw[detail.name] is String && (raw[detail.name] as String).isNotEmpty)
+          if (raw[detail.name] is String &&
+              (raw[detail.name] as String).isNotEmpty)
             detail: raw[detail.name] as String,
       };
     } on FormatException {

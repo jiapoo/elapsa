@@ -403,7 +403,7 @@ class LZh extends L {
   String get themeDark => '深色';
 
   @override
-  String get settingsWallet => '卡包';
+  String get settingsWallet => '主页';
 
   @override
   String get settingsWalletDisplay => '卡片显示方式';
@@ -616,7 +616,7 @@ class LZh extends L {
   String get scanAutoStuckAction => '手动拍摄';
 
   @override
-  String get nearbyTitle => '发送到附近的设备';
+  String get nearbyTitle => '与附近设备互传';
 
   @override
   String get nearbyBody => '在另一台手机上打开 Elapsa 并进入此页面。无需文件，也无需密码——由对方确认接收。';
@@ -668,6 +668,20 @@ class LZh extends L {
 
   @override
   String get actionCrop => '裁剪';
+
+  @override
+  String get leadCustom => '选择日期';
+
+  @override
+  String get leadDailyTitle => '最后一个月每天提醒';
+
+  @override
+  String get leadDailyBody => '距离到期不足一个月时，Elapsa 会每天提醒你。此项无法关闭。';
+
+  @override
+  String leadOnDate(String date) {
+    return '$date';
+  }
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1068,7 +1082,7 @@ class LZhHant extends LZh {
   String get themeDark => '深色';
 
   @override
-  String get settingsWallet => '卡包';
+  String get settingsWallet => '首頁';
 
   @override
   String get settingsWalletDisplay => '卡片顯示方式';
@@ -1281,7 +1295,7 @@ class LZhHant extends LZh {
   String get scanAutoStuckAction => '手動拍攝';
 
   @override
-  String get nearbyTitle => '傳送到附近的裝置';
+  String get nearbyTitle => '與附近裝置互傳';
 
   @override
   String get nearbyBody => '在另一台手機上開啟 Elapsa 並進入此頁面。無需檔案，也無需密碼——由對方確認接收。';
@@ -1333,4 +1347,18 @@ class LZhHant extends LZh {
 
   @override
   String get actionCrop => '裁切';
+
+  @override
+  String get leadCustom => '選擇日期';
+
+  @override
+  String get leadDailyTitle => '最後一個月每天提醒';
+
+  @override
+  String get leadDailyBody => '距離到期不足一個月時，Elapsa 會每天提醒你。此項無法關閉。';
+
+  @override
+  String leadOnDate(String date) {
+    return '$date';
+  }
 }

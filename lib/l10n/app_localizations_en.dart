@@ -460,7 +460,7 @@ class LEn extends L {
   String get themeDark => 'Dark';
 
   @override
-  String get settingsWallet => 'Wallet';
+  String get settingsWallet => 'Home screen';
 
   @override
   String get settingsWalletDisplay => 'Show each card as';
@@ -715,7 +715,7 @@ class LEn extends L {
   String get scanAutoStuckAction => 'Take it yourself';
 
   @override
-  String get nearbyTitle => 'Send to a nearby device';
+  String get nearbyTitle => 'Transfer with a nearby device';
 
   @override
   String get nearbyBody =>
@@ -770,4 +770,19 @@ class LEn extends L {
 
   @override
   String get actionCrop => 'Crop';
+
+  @override
+  String get leadCustom => 'Pick a date';
+
+  @override
+  String get leadDailyTitle => 'Every day in the final month';
+
+  @override
+  String get leadDailyBody =>
+      'Once a document is a month from expiring, Elapsa reminds you daily. That one is not optional.';
+
+  @override
+  String leadOnDate(String date) {
+    return 'On $date';
+  }
 }

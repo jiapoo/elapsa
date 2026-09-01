@@ -806,10 +806,10 @@ abstract class L {
   /// **'Dark'**
   String get themeDark;
 
-  /// Wallet
+  /// Home screen
   ///
   /// In en, this message translates to:
-  /// **'Wallet'**
+  /// **'Home screen'**
   String get settingsWallet;
 
   /// Show each card as
@@ -1190,10 +1190,10 @@ abstract class L {
   /// **'Take it yourself'**
   String get scanAutoStuckAction;
 
-  /// Send to a nearby device
+  /// Transfer with a nearby device
   ///
   /// In en, this message translates to:
-  /// **'Send to a nearby device'**
+  /// **'Transfer with a nearby device'**
   String get nearbyTitle;
 
   /// Open Elapsa on the other phone and come to this screen. No f
@@ -1285,6 +1285,30 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Crop'**
   String get actionCrop;
+
+  /// Pick a date
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a date'**
+  String get leadCustom;
+
+  /// Every day in the final month
+  ///
+  /// In en, this message translates to:
+  /// **'Every day in the final month'**
+  String get leadDailyTitle;
+
+  /// Once a document is a month from expiring, Elapsa reminds you
+  ///
+  /// In en, this message translates to:
+  /// **'Once a document is a month from expiring, Elapsa reminds you daily. That one is not optional.'**
+  String get leadDailyBody;
+
+  /// On {date}
+  ///
+  /// In en, this message translates to:
+  /// **'On {date}'**
+  String leadOnDate(String date);
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

@@ -8,6 +8,7 @@ TrackedDocument doc({
   DocumentType type = DocumentType.passport,
   required DateTime expiry,
   int? leadDays,
+  List<int>? offsets,
 }) {
   return TrackedDocument(
     id: 'test',
@@ -15,6 +16,7 @@ TrackedDocument doc({
     label: 'Test',
     expiryDate: expiry,
     renewalLeadDays: leadDays ?? type.defaultRenewalLeadDays,
+    reminderOffsets: offsets,
     createdAt: _now,
     updatedAt: _now,
   );
@@ -141,11 +143,36 @@ void main() {
     });
 
     test('drop dates already in the past', () {
-      // Expires in 10 days, so the 270/90/30-day reminders are long gone.
+      // Expires in 10 days, so the 270 and 90 day reminders are long gone —
+      // and every remaining day is one of them, because the last month is
+      // reminded on daily whatever was chosen.
       final p = doc(expiry: DateTime(2026, 6, 11));
       final dates = p.reminderDates(now: _now);
       expect(dates, everyElement(predicate<DateTime>((d) => d.isAfter(_now))));
-      expect(dates.length, 2); // 7 and 1 days before
+      expect(dates.length, 10);
+      expect(dates.first, DateTime(2026, 6, 2));
+      expect(dates.last, DateTime(2026, 6, 11));
+    });
+
+    test('the final month is reminded on every day, whatever was chosen', () {
+      // Not a preference. A single reminder on day thirty that arrives during
+      // a meeting is a reminder that never happened, and the last month is
+      // when that stops being advice and starts being urgent.
+      final p = doc(expiry: DateTime(2027, 1, 1), offsets: const [365]);
+      final dates = p.reminderDates(now: DateTime(2026, 12, 20));
+
+      // The 20th through to the 1st, inclusive of the day itself.
+      expect(dates.length, 12);
+      expect(dates.last, DateTime(2027, 1, 1));
+      for (var i = 1; i < dates.length; i++) {
+        expect(dates[i].difference(dates[i - 1]).inDays, 1);
+      }
+    });
+
+    test('a chosen reminder inside the last month is not doubled', () {
+      final p = doc(expiry: DateTime(2026, 6, 20), offsets: const [7, 3]);
+      final dates = p.reminderDates(now: _now);
+      expect(dates.toSet().length, dates.length);
     });
 
     test('produce no dates for an already-expired document', () {

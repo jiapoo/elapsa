@@ -6,6 +6,7 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
+import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
@@ -197,6 +198,30 @@ class _Wallet extends StatelessWidget {
       l,
     );
 
+    // Sorting by type means grouping by it. A list ordered by type without
+    // saying where each type begins is a list you have to read to navigate,
+    // which is the opposite of what sorting it was for.
+    if (sort == DocumentSort.type) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
+        children: [
+          // The triage band survives, ungrouped. It is not a sort — it is the
+          // answer to "is anything wrong", and breaking it up by type buries
+          // that answer under headings.
+          if (needsAttention.isNotEmpty) ...[
+            _SectionHeader(l.homeNeedsAttention),
+            _section(needsAttention),
+            const SizedBox(height: 24),
+          ],
+          for (final group in _byType(rest, l)) ...[
+            _SectionHeader(group.key.label(l)),
+            _section(group.value),
+            const SizedBox(height: 24),
+          ],
+        ],
+      );
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 130),
       children: [
@@ -211,6 +236,22 @@ class _Wallet extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// The documents gathered under their type, the types in the order the
+  /// user's own language puts them.
+  List<MapEntry<DocumentType, List<TrackedDocument>>> _byType(
+    List<TrackedDocument> documents,
+    L l,
+  ) {
+    final groups = <DocumentType, List<TrackedDocument>>{};
+    for (final document in documents) {
+      groups.putIfAbsent(document.type, () => []).add(document);
+    }
+
+    final entries = groups.entries.toList()
+      ..sort((a, b) => a.key.label(l).compareTo(b.key.label(l)));
+    return entries;
   }
 
   /// One section, arranged to suit the size of what is in it.

@@ -174,7 +174,9 @@ class _DefaultReminders extends ConsumerWidget {
 
   /// The same ladder the edit screen offers, so a default set here is a set
   /// the user can also recognise on the document itself.
-  static const _options = [7, 30, 60, 90, 120, 180, 270, 365];
+  /// A week and a month are absent for the same reason they are absent from
+  /// the document itself: every day of the final month is reminded on anyway.
+  static const _options = [60, 90, 120, 180, 270, 365];
 
   static String _label(int days, L l) {
     if (days % 365 == 0) return l.leadYears(days ~/ 365);

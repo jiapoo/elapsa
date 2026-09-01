@@ -267,6 +267,52 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     });
   }
 
+  /// Adds a reminder on a day the user chose outright.
+  ///
+  /// Stored as days before expiry like every other reminder, because that is
+  /// what survives the expiry date being corrected afterwards — a date pinned
+  /// to the calendar would quietly become nonsense the moment the document it
+  /// belongs to moved.
+  Future<void> _pickReminderDate() async {
+    final expiry = _expiryDate;
+    if (expiry == null) {
+      final l = L.of(context);
+      // A reminder is a number of days before the expiry; without one there
+      // is nothing to count back from.
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l.fieldExpiryRequired)));
+      return;
+    }
+
+    final today = DateTime.now();
+    final earliest = DateTime(today.year, today.month, today.day);
+    // No later than a month out, because everything inside that is reminded on
+    // daily already and a chosen date there would change nothing.
+    final latest = expiry.subtract(
+      const Duration(days: TrackedDocument.dailyTailDays),
+    );
+    if (!latest.isAfter(earliest)) return;
+
+    final chosen = await showDatePicker(
+      context: context,
+      firstDate: earliest,
+      lastDate: latest,
+      initialDate: latest,
+    );
+    if (chosen == null || !mounted) return;
+
+    setState(() {
+      _reminderOffsets.add(
+        DateTime(
+          expiry.year,
+          expiry.month,
+          expiry.day,
+        ).difference(DateTime(chosen.year, chosen.month, chosen.day)).inDays,
+      );
+      _leadDaysIsAuto = false;
+    });
+  }
+
   Future<void> _scan({bool keepFilled = false}) async {
     final session = await Navigator.of(
       context,
@@ -554,6 +600,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
             _Label(l.fieldRemindMe),
             _LeadTimeField(
+              expiry: _expiryDate,
+              onPickDate: _pickReminderDate,
               selected: _reminderOffsets,
               onToggle: (days) => setState(() {
                 if (!_reminderOffsets.remove(days)) _reminderOffsets.add(days);
@@ -563,6 +611,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                 _leadDaysIsAuto = false;
               }),
             ),
+            const _DailyTailNote(),
             const SizedBox(height: 6),
             Text(
               _leadTimeExplanation(l),
@@ -1047,28 +1096,123 @@ class _DateField extends StatelessWidget {
 /// The earliest one selected is also when renewal should begin, so the status
 /// on the list still follows it and nothing needs saying twice.
 class _LeadTimeField extends StatelessWidget {
-  const _LeadTimeField({required this.selected, required this.onToggle});
+  const _LeadTimeField({
+    required this.selected,
+    required this.onToggle,
+    required this.expiry,
+    required this.onPickDate,
+  });
 
   final Set<int> selected;
   final ValueChanged<int> onToggle;
 
-  /// Presets rather than a free-form number: the exact day is not meaningful,
-  /// and a slider that lands on "173 days" makes the app feel fiddly.
-  static const _options = [7, 30, 60, 90, 120, 180, 270, 365];
+  /// What the offsets are measured back from, so a chosen date can be shown
+  /// as a date rather than as "173 days".
+  final DateTime? expiry;
+
+  final VoidCallback onPickDate;
+
+  /// Presets rather than a free-form number: the exact day is not meaningful
+  /// at this range, and a slider that lands on "173 days" makes the app feel
+  /// fiddly.
+  ///
+  /// A week and a month are gone from the list because they are no longer a
+  /// choice — every day of the final month is reminded on regardless, so
+  /// offering them was offering something already guaranteed.
+  static const _options = [60, 90, 120, 180, 270, 365];
 
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
+
+    // Anything chosen that is not one of the presets was picked as a date, and
+    // is shown as one — the number of days back from expiry is the app's way
+    // of storing it, not the user's way of having meant it.
+    final custom = selected.where((d) => !_options.contains(d)).toList()
+      ..sort((a, b) => b.compareTo(a));
+
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: _options.map((d) {
-        return FilterChip(
-          label: Text(leadTimeLabel(l, d)),
-          selected: selected.contains(d),
-          onSelected: (_) => onToggle(d),
-        );
-      }).toList(),
+      children: [
+        for (final days in _options)
+          FilterChip(
+            label: Text(leadTimeLabel(l, days)),
+            selected: selected.contains(days),
+            onSelected: (_) => onToggle(days),
+          ),
+        for (final days in custom)
+          FilterChip(
+            label: Text(
+              expiry == null
+                  ? leadTimeLabel(l, days)
+                  : l.leadOnDate(
+                      DateFormat.yMMMd(locale)
+                          .format(expiry!.subtract(Duration(days: days))),
+                    ),
+            ),
+            selected: true,
+            onSelected: (_) => onToggle(days),
+          ),
+        ActionChip(
+          avatar: const Icon(Icons.event, size: 17),
+          label: Text(l.leadCustom),
+          onPressed: onPickDate,
+        ),
+      ],
+    );
+  }
+}
+
+/// The rule the user cannot switch off, said plainly.
+///
+/// A mandatory reminder that is never mentioned is indistinguishable from a
+/// bug the first time it fires every morning.
+class _DailyTailNote extends StatelessWidget {
+  const _DailyTailNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.notifications_active_outlined,
+            size: 17,
+            color: scheme.primary,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.leadDailyTitle,
+                  style: Theme.of(context).textTheme.labelLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  l.leadDailyBody,
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

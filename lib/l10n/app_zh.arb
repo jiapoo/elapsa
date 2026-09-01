@@ -233,7 +233,7 @@
   "themeSystem": "跟随系统",
   "themeLight": "浅色",
   "themeDark": "深色",
-  "settingsWallet": "卡包",
+  "settingsWallet": "主页",
   "settingsWalletDisplay": "卡片显示方式",
   "displayNameOnly": "仅名称",
   "displayImageOnly": "仅图片",
@@ -297,7 +297,7 @@
   "scanAutoOff": "已关闭自动识别",
   "scanAutoStuck": "找不到证件？",
   "scanAutoStuckAction": "手动拍摄",
-  "nearbyTitle": "发送到附近的设备",
+  "nearbyTitle": "与附近设备互传",
   "nearbyBody": "在另一台手机上打开 Elapsa 并进入此页面。无需文件，也无需密码——由对方确认接收。",
   "nearbySearching": "正在查找设备…",
   "nearbyNone": "尚未找到设备。两台手机都需要打开此页面，并开启 Wi-Fi。",
@@ -312,5 +312,9 @@
   "nearbyReceiving": "正在接收…",
   "nearbyUnavailable": "此设备暂不支持附近发送，请改用导出文件。",
   "nearbyName": "本机显示为",
-  "actionCrop": "裁剪"
+  "actionCrop": "裁剪",
+  "leadCustom": "选择日期",
+  "leadDailyTitle": "最后一个月每天提醒",
+  "leadDailyBody": "距离到期不足一个月时，Elapsa 会每天提醒你。此项无法关闭。",
+  "leadOnDate": "{date}"
 }

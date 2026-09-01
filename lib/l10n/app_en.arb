@@ -248,9 +248,9 @@
   "@themeDark": {
     "description": "Dark"
   },
-  "settingsWallet": "Wallet",
+  "settingsWallet": "Home screen",
   "@settingsWallet": {
-    "description": "Wallet"
+    "description": "Home screen"
   },
   "settingsWalletDisplay": "Show each card as",
   "@settingsWalletDisplay": {
@@ -549,9 +549,9 @@
   "@scanAutoStuckAction": {
     "description": "Take it yourself"
   },
-  "nearbyTitle": "Send to a nearby device",
+  "nearbyTitle": "Transfer with a nearby device",
   "@nearbyTitle": {
-    "description": "Send to a nearby device"
+    "description": "Transfer with a nearby device"
   },
   "nearbyBody": "Open Elapsa on the other phone and come to this screen. No file, no passphrase — the other side has to accept.",
   "@nearbyBody": {
@@ -627,5 +627,26 @@
   "actionCrop": "Crop",
   "@actionCrop": {
     "description": "Crop a picture"
+  },
+  "leadCustom": "Pick a date",
+  "@leadCustom": {
+    "description": "Pick a date"
+  },
+  "leadDailyTitle": "Every day in the final month",
+  "@leadDailyTitle": {
+    "description": "Every day in the final month"
+  },
+  "leadDailyBody": "Once a document is a month from expiring, Elapsa reminds you daily. That one is not optional.",
+  "@leadDailyBody": {
+    "description": "Once a document is a month from expiring, Elapsa reminds you"
+  },
+  "leadOnDate": "On {date}",
+  "@leadOnDate": {
+    "description": "On {date}",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
   }
 }

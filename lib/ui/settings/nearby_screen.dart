@@ -256,7 +256,15 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       leading: Icon(Icons.smartphone, color: scheme.primary),
-                      title: Text(peer),
+                      // A device name is whatever its owner typed — "刘嘉的
+                      // iPhone 15 Pro Max" is ordinary — and wrapped across
+                      // three lines it pushed the button it belongs to out of
+                      // reach of the row.
+                      title: Text(
+                        peer,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       trailing: FilledButton(
                         onPressed: _busy ? null : () => _sendTo(peer),
                         child: Text(l.nearbySend),

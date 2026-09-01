@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
@@ -37,7 +38,21 @@ class ArchivedDocument {
   final TrackedDocument document;
   final List<Uint8List> images;
 
-  const ArchivedDocument(this.document, this.images);
+  /// The definition of this document's invented type, when it has one, so the
+  /// far end can file it correctly without having been told in advance.
+  final CustomType? customType;
+
+  const ArchivedDocument(this.document, this.images, {this.customType});
+}
+
+/// What came out of an archive.
+class ArchiveContents {
+  final List<ArchivedDocument> documents;
+
+  /// The invented types those documents need in order to be filed properly.
+  final List<CustomType> types;
+
+  const ArchiveContents({required this.documents, required this.types});
 }
 
 /// Every document in one encrypted file.
@@ -87,6 +102,18 @@ class DocumentArchive {
     final payload = utf8.encode(
       jsonEncode({
         'exported': DateTime.now().toIso8601String(),
+        // The definitions of any invented types used by these documents,
+        // carried inside the archive.
+        //
+        // This is the whole answer to "what happens when a card arrives on a
+        // phone that has never heard of its type". Nothing is looked up at the
+        // far end, because a reference to a list the receiver does not have is
+        // a card that lands as "Other" and quietly loses what it was. The
+        // definition travels with the data that needs it, and the receiver
+        // adds it to their own list if it is new — keeping their icon and
+        // lead time if the name is one they already use, since that choice is
+        // theirs and an import has no business overwriting it.
+        'types': [for (final type in _typesUsedBy(documents)) type.toJson()],
         'documents': [for (final entry in documents) _encodeDocument(entry)],
       }),
     );
@@ -136,10 +163,7 @@ class DocumentArchive {
   ///
   /// Throws [ArchiveException] rather than returning null, because every way
   /// this fails is something the user needs told about in different words.
-  Future<List<ArchivedDocument>> unpack(
-    Uint8List file, {
-    String? passphrase,
-  }) async {
+  Future<ArchiveContents> unpack(Uint8List file, {String? passphrase}) async {
     final Map<String, dynamic> envelope;
     try {
       envelope = jsonDecode(utf8.decode(file)) as Map<String, dynamic>;
@@ -184,10 +208,16 @@ class DocumentArchive {
 
     try {
       final body = jsonDecode(utf8.decode(plain)) as Map<String, dynamic>;
-      return [
-        for (final raw in body['documents'] as List)
-          _decodeDocument(raw as Map<String, dynamic>),
-      ];
+      return ArchiveContents(
+        documents: [
+          for (final raw in body['documents'] as List)
+            _decodeDocument(raw as Map<String, dynamic>),
+        ],
+        types: [
+          for (final raw in (body['types'] as List? ?? const []))
+            CustomType.fromJson(raw),
+        ].whereType<CustomType>().toList(),
+      );
     } catch (_) {
       // Decryption succeeded, so the passphrase was right and the file is
       // intact; it is the contents that make no sense.
@@ -195,11 +225,23 @@ class DocumentArchive {
     }
   }
 
+  /// Every invented type these documents are filed under, deduplicated.
+  static List<CustomType> _typesUsedBy(List<ArchivedDocument> documents) {
+    final seen = <String, CustomType>{};
+    for (final entry in documents) {
+      final type = entry.customType;
+      if (type != null) seen[type.name] = type;
+    }
+    return seen.values.toList();
+  }
+
   static Map<String, dynamic> _encodeDocument(ArchivedDocument entry) {
     final doc = entry.document;
     return {
       'id': doc.id,
       'type': doc.type.name,
+      if (doc.customType != null) 'customType': doc.customType,
+      if (doc.scanText != null) 'scanText': doc.scanText,
       'label': doc.label,
       'holder': doc.holder,
       'documentNumber': doc.documentNumber,
@@ -249,6 +291,8 @@ class DocumentArchive {
               if (detail.name == entry.key) detail: entry.value as String,
         },
         imageCount: images.length,
+        customType: raw['customType'] as String?,
+        scanText: raw['scanText'] as String?,
         createdAt: _date(raw['createdAt']) ?? DateTime.now(),
         updatedAt: _date(raw['updatedAt']) ?? DateTime.now(),
       ),

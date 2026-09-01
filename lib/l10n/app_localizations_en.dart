@@ -830,4 +830,68 @@ class LEn extends L {
 
   @override
   String get homeShowAs => 'Show each card as';
+
+  @override
+  String get detailTitle => 'Document';
+
+  @override
+  String get actionEdit => 'Edit';
+
+  @override
+  String get detailReminders => 'Reminders';
+
+  @override
+  String detailNextReminder(String date) {
+    return 'Next reminder $date';
+  }
+
+  @override
+  String get detailNoReminders => 'No reminders scheduled.';
+
+  @override
+  String detailPages(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count pictures',
+      one: '1 picture',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get settingsTypes => 'Your own types';
+
+  @override
+  String get typesBody =>
+      'Elapsa ships eleven kinds of document and will never ship the right eleven. Name your own, and they travel with the cards filed under them.';
+
+  @override
+  String get typesAdd => 'Add a type';
+
+  @override
+  String get typesName => 'Name';
+
+  @override
+  String get typesLead => 'Start reminding';
+
+  @override
+  String get typesEmpty => 'None yet.';
+
+  @override
+  String typesInUse(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count documents',
+      one: '1 document',
+    );
+    return 'In use by $_temp0';
+  }
+
+  @override
+  String get typesRemove => 'Remove';
+
+  @override
+  String get editLastScan => 'What the camera read';
 }

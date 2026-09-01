@@ -330,5 +330,20 @@
   "actionShare": "分享",
   "homeArrange": "排列",
   "homeSortBy": "排序方式",
-  "homeShowAs": "卡片显示方式"
+  "homeShowAs": "卡片显示方式",
+  "detailTitle": "证件",
+  "actionEdit": "编辑",
+  "detailReminders": "提醒",
+  "detailNextReminder": "下次提醒 {date}",
+  "detailNoReminders": "暂无提醒安排。",
+  "detailPages": "{count} 张图片",
+  "settingsTypes": "自定义类型",
+  "typesBody": "Elapsa 内置十一种证件类型，但永远不可能刚好是你需要的那十一种。你可以自己命名，并且它会随证件一起传给对方。",
+  "typesAdd": "添加类型",
+  "typesName": "名称",
+  "typesLead": "提前提醒",
+  "typesEmpty": "暂无。",
+  "typesInUse": "{count} 份证件正在使用",
+  "typesRemove": "删除",
+  "editLastScan": "相机读到的内容"
 }

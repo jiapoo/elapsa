@@ -51,6 +51,8 @@ class DocumentRepository {
     /// Pictures from a scan, already flattened. Encrypted into the app's own
     /// storage before anything is written to the database.
     List<Uint8List> images = const [],
+    String? customType,
+    String? scanText,
   }) async {
     final now = DateTime.now();
     final id = _uuid.v4();
@@ -71,6 +73,8 @@ class DocumentRepository {
       imageCount: images.length,
       details: details,
       reminderOffsets: reminderOffsets,
+      customType: customType,
+      scanText: scanText,
       createdAt: now,
       updatedAt: now,
     );
@@ -109,12 +113,22 @@ class DocumentRepository {
   /// Takes ids rather than documents so the pictures — the expensive part, and
   /// the part that has to be decrypted one file at a time — are only loaded
   /// for what is actually being sent.
-  Future<List<ArchivedDocument>> exportDocuments(Set<String> ids) async {
+  Future<List<ArchivedDocument>> exportDocuments(
+    Set<String> ids, {
+    List<CustomType> knownTypes = const [],
+  }) async {
+    final byName = {for (final type in knownTypes) type.name: type};
     final documents = await getAll();
+
     return [
       for (final doc in documents)
         if (ids.contains(doc.id))
-          ArchivedDocument(doc, await _images.loadAll(doc.id, doc.imageCount)),
+          ArchivedDocument(
+            doc,
+            await _images.loadAll(doc.id, doc.imageCount),
+            // Sent with the document, not looked up at the far end.
+            customType: byName[doc.customType],
+          ),
     ];
   }
 
@@ -179,6 +193,8 @@ class DocumentRepository {
       imageCount: row.imageCount,
       details: domain.DocumentDetails.decode(row.details),
       reminderOffsets: _decodeOffsets(row.reminderOffsets),
+      customType: row.typeName,
+      scanText: row.scanText,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -211,6 +227,8 @@ class DocumentRepository {
       imagePath: Value(doc.imagePath),
       imageCount: Value(doc.imageCount),
       details: Value(domain.DocumentDetails.encode(doc.details)),
+      typeName: Value(doc.customType),
+      scanText: Value(doc.scanText),
       reminderOffsets: Value(
         doc.hasChosenReminders ? doc.reminderOffsetDays.join(',') : null,
       ),

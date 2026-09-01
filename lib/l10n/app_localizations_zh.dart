@@ -724,6 +724,58 @@ class LZh extends L {
 
   @override
   String get homeShowAs => '卡片显示方式';
+
+  @override
+  String get detailTitle => '证件';
+
+  @override
+  String get actionEdit => '编辑';
+
+  @override
+  String get detailReminders => '提醒';
+
+  @override
+  String detailNextReminder(String date) {
+    return '下次提醒 $date';
+  }
+
+  @override
+  String get detailNoReminders => '暂无提醒安排。';
+
+  @override
+  String detailPages(int count) {
+    return '$count 张图片';
+  }
+
+  @override
+  String get settingsTypes => '自定义类型';
+
+  @override
+  String get typesBody =>
+      'Elapsa 内置十一种证件类型，但永远不可能刚好是你需要的那十一种。你可以自己命名，并且它会随证件一起传给对方。';
+
+  @override
+  String get typesAdd => '添加类型';
+
+  @override
+  String get typesName => '名称';
+
+  @override
+  String get typesLead => '提前提醒';
+
+  @override
+  String get typesEmpty => '暂无。';
+
+  @override
+  String typesInUse(int count) {
+    return '$count 份证件正在使用';
+  }
+
+  @override
+  String get typesRemove => '删除';
+
+  @override
+  String get editLastScan => '相机读到的内容';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1445,4 +1497,56 @@ class LZhHant extends LZh {
 
   @override
   String get homeShowAs => '卡片顯示方式';
+
+  @override
+  String get detailTitle => '證件';
+
+  @override
+  String get actionEdit => '編輯';
+
+  @override
+  String get detailReminders => '提醒';
+
+  @override
+  String detailNextReminder(String date) {
+    return '下次提醒 $date';
+  }
+
+  @override
+  String get detailNoReminders => '暫無提醒安排。';
+
+  @override
+  String detailPages(int count) {
+    return '$count 張圖片';
+  }
+
+  @override
+  String get settingsTypes => '自訂類型';
+
+  @override
+  String get typesBody =>
+      'Elapsa 內建十一種證件類型，但永遠不可能剛好是你需要的那十一種。你可以自己命名，而且它會隨證件一起傳給對方。';
+
+  @override
+  String get typesAdd => '新增類型';
+
+  @override
+  String get typesName => '名稱';
+
+  @override
+  String get typesLead => '提前提醒';
+
+  @override
+  String get typesEmpty => '暫無。';
+
+  @override
+  String typesInUse(int count) {
+    return '$count 份證件正在使用';
+  }
+
+  @override
+  String get typesRemove => '刪除';
+
+  @override
+  String get editLastScan => '相機讀到的內容';
 }

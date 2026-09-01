@@ -69,6 +69,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// True while the "keep your changes?" question is on screen.
   bool _asking = false;
 
+  /// What the recogniser read for this document, kept so the question "why is
+  /// this field empty" can be answered by whoever is holding the card.
+  String? _scanText;
+
+  /// The name of the user's own type this document is filed under, if any.
+  String? _customType;
+
   /// What [_dirty] said at the last rebuild.
   ///
   /// Typing into a field changes a controller, not this widget, so nothing
@@ -105,6 +112,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           ? groupCardNumber(existing.documentNumber ?? '')
           : existing.documentNumber ?? '',
     );
+    _scanText = existing?.scanText;
+    _customType = existing?.customType;
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
@@ -464,6 +473,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     bool free(Object? current) => !keepFilled || current == null;
 
+    if (session.rawText.trim().isNotEmpty) _scanText = session.rawText;
+
     setState(() {
       _fromScan = true;
       _readAnything = mrz != null || !session.printed.isEmpty;
@@ -657,29 +668,57 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   ],
 
                   _Label(l.fieldType),
-                  DropdownButtonFormField<DocumentType>(
-                    initialValue: _type,
-                    items: DocumentType.values
-                        .map(
-                          (t) => DropdownMenuItem(
-                            value: t,
-                            child: Row(
-                              children: [
-                                Icon(t.icon, size: 18),
-                                const SizedBox(width: 10),
-                                Text(t.label(l)),
-                              ],
-                            ),
+                  // The user's own kinds sit in the same list as the eleven
+                  // that ship. A separate picker for them would make an
+                  // invented type feel like a lesser sort of type, which is
+                  // the opposite of the point.
+                  DropdownButtonFormField<String>(
+                    initialValue: _customType == null
+                        ? _type.name
+                        : 'custom:$_customType',
+                    isExpanded: true,
+                    items: [
+                      for (final t in DocumentType.values)
+                        DropdownMenuItem(
+                          value: t.name,
+                          child: _TypeLine(icon: t.icon, label: t.label(l)),
+                        ),
+                      for (final custom in ref.watch(customTypesProvider))
+                        DropdownMenuItem(
+                          value: 'custom:${custom.name}',
+                          child: _TypeLine(
+                            icon: custom.glyph,
+                            label: custom.name,
                           ),
-                        )
-                        .toList(),
+                        ),
+                    ],
                     onChanged: (value) {
                       if (value == null) return;
+                      final custom = value.startsWith('custom:')
+                          ? ref
+                                .read(customTypesProvider)
+                                .where((t) => t.name == value.substring(7))
+                                .firstOrNull
+                          : null;
+
                       setState(() {
-                        _type = value;
+                        _customType = custom?.name;
+                        // An invented type is filed under "other" underneath,
+                        // so everything that reasons about a document — the
+                        // travel rule, the detail fields — keeps working
+                        // without having to know about it.
+                        _type = custom != null
+                            ? DocumentType.other
+                            : DocumentType.values.firstWhere(
+                                (t) => t.name == value,
+                                orElse: () => DocumentType.other,
+                              );
+
                         if (_leadDaysIsAuto) {
                           _reminderOffsets = {
-                            ..._defaultOffsets(value.defaultRenewalLeadDays),
+                            ..._defaultOffsets(
+                              custom?.leadDays ?? _type.defaultRenewalLeadDays,
+                            ),
                           };
                         }
                       });
@@ -795,6 +834,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                       prefixIcon: const Icon(Icons.person_rounded),
                     ),
                   ),
+
+                  if (_scanText != null && _scanText!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 28),
+                    _ScanTextButton(text: _scanText!),
+                  ],
 
                   const SizedBox(height: 32),
                   FilledButton(onPressed: _save, child: Text(l.editSave)),
@@ -1064,6 +1108,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         renewalLeadDays: _renewalLeadDays,
         reminderOffsets: _reminderOffsets.toList(),
         details: details,
+        scanText: _scanText,
+        customType: _customType,
+        clearCustomType: _customType == null,
       );
       if (_imagesLoaded) {
         // The editor holds the whole set, in the order shown, so it is written
@@ -1106,6 +1153,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         issueDate: _issueDate,
         images: _images,
         details: details,
+        scanText: _scanText,
+        customType: _customType,
       );
     }
 
@@ -1667,6 +1716,118 @@ class _Ask extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             ...children,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One line in the type picker.
+class _TypeLine extends StatelessWidget {
+  const _TypeLine({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    );
+  }
+}
+
+/// What the camera read, kept out of the way until it is wanted.
+///
+/// It used to be one screen in Settings showing whatever was scanned last,
+/// which answered the question only for whoever asked it within the minute.
+/// Attached to its own document it answers "why is this field empty" for the
+/// person actually holding that card, however long afterwards.
+///
+/// Deliberately not on the detail page: that page is for reading the document,
+/// and a wall of recogniser output is about the app rather than about the
+/// passport.
+class _ScanTextButton extends StatelessWidget {
+  const _ScanTextButton({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(Radii.control),
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (context) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.6,
+          maxChildSize: 0.9,
+          builder: (context, scroll) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.editLastScan,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  l.settingsLastScanBody,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: scroll,
+                    child: SelectableText(
+                      text,
+                      style: TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 11.5,
+                        height: 1.55,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHigh.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(Radii.control),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.document_scanner_rounded,
+              size: 19,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                l.editLastScan,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
           ],
         ),
       ),

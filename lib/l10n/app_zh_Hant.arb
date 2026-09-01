@@ -330,5 +330,20 @@
   "actionShare": "分享",
   "homeArrange": "排列",
   "homeSortBy": "排序方式",
-  "homeShowAs": "卡片顯示方式"
+  "homeShowAs": "卡片顯示方式",
+  "detailTitle": "證件",
+  "actionEdit": "編輯",
+  "detailReminders": "提醒",
+  "detailNextReminder": "下次提醒 {date}",
+  "detailNoReminders": "暫無提醒安排。",
+  "detailPages": "{count} 張圖片",
+  "settingsTypes": "自訂類型",
+  "typesBody": "Elapsa 內建十一種證件類型，但永遠不可能剛好是你需要的那十一種。你可以自己命名，而且它會隨證件一起傳給對方。",
+  "typesAdd": "新增類型",
+  "typesName": "名稱",
+  "typesLead": "提前提醒",
+  "typesEmpty": "暫無。",
+  "typesInUse": "{count} 份證件正在使用",
+  "typesRemove": "刪除",
+  "editLastScan": "相機讀到的內容"
 }

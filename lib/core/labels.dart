@@ -34,6 +34,16 @@ extension DocumentSortLabel on DocumentSort {
   };
 }
 
+extension DocumentTypeName on TrackedDocument {
+  /// What this document is called a kind of.
+  ///
+  /// The user's own name for it when they gave it one, and the built-in name
+  /// otherwise — so a wallet sorted by type files "Gym pass" under Gym pass
+  /// rather than burying it in Other with everything else nobody had a word
+  /// for.
+  String typeLabel(L l) => customType ?? type.label(l);
+}
+
 extension WalletDisplayLabel on WalletDisplay {
   String label(L l) => switch (this) {
     WalletDisplay.nameOnly => l.displayNameOnly,

@@ -6,7 +6,6 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
-import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
@@ -282,7 +281,7 @@ class _Wallet extends StatelessWidget {
           // that separates the triage band from everything else; at that
           // spacing a wallet of eight documents reads as eight lists.
           for (final group in _byType(documents, l)) ...[
-            _SectionHeader(group.key.label(l), tight: true),
+            _SectionHeader(group.key, tight: true),
             _section(group.value),
             const SizedBox(height: 6),
           ],
@@ -308,18 +307,20 @@ class _Wallet extends StatelessWidget {
 
   /// The documents gathered under their type, the types in the order the
   /// user's own language puts them.
-  List<MapEntry<DocumentType, List<TrackedDocument>>> _byType(
+  List<MapEntry<String, List<TrackedDocument>>> _byType(
     List<TrackedDocument> documents,
     L l,
   ) {
-    final groups = <DocumentType, List<TrackedDocument>>{};
+    // Keyed by the name the user reads, so an invented type gets its own
+    // heading instead of being buried in Other with everything nobody had a
+    // word for.
+    final groups = <String, List<TrackedDocument>>{};
     for (final document in documents) {
-      groups.putIfAbsent(document.type, () => []).add(document);
+      groups.putIfAbsent(document.typeLabel(l), () => []).add(document);
     }
 
-    final entries = groups.entries.toList()
-      ..sort((a, b) => a.key.label(l).compareTo(b.key.label(l)));
-    return entries;
+    return groups.entries.toList()
+      ..sort((a, b) => a.key.toLowerCase().compareTo(b.key.toLowerCase()));
   }
 
   /// One section, arranged to suit the size of what is in it.

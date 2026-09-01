@@ -9,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:elapsa/core/theme.dart';
-import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/mrz.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
@@ -28,7 +27,15 @@ class ScanSession {
   final MrzResult? mrz;
   final PrintedFields printed;
 
-  const ScanSession(this.images, this.mrz, this.printed);
+  /// Everything the recogniser read across every page of this scan.
+  ///
+  /// Kept with the document rather than for the session, so "why is this field
+  /// empty" can still be answered a week later by the person holding the card
+  /// rather than only by whoever happened to be looking at the diagnostics
+  /// screen that minute.
+  final String rawText;
+
+  const ScanSession(this.images, this.mrz, this.printed, {this.rawText = ''});
 }
 
 class ScanScreen extends ConsumerStatefulWidget {
@@ -120,6 +127,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// from its own output — so the original stays available for the whole
   /// session and is never written to the library.
   final _originals = <String>[];
+
+  /// What every page of this scan read, kept together.
+  String _seen = '';
   MrzResult? _bestMrz;
   PrintedFields _printed = PrintedFields.empty;
 
@@ -434,7 +444,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     // Held in memory only, for the diagnostics screen. Never written to disk:
     // this is the raw contents of someone's card.
     if (result.rawText.trim().isNotEmpty) {
-      ref.read(lastScanTextProvider.notifier).state = result.rawText;
+      _seen = _seen.isEmpty ? result.rawText : '$_seen\n\n${result.rawText}';
     }
 
     setState(() {
@@ -512,7 +522,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       return;
     }
     HapticFeedback.mediumImpact();
-    Navigator.of(context).pop(ScanSession(List.of(_pages), _bestMrz, _printed));
+    Navigator.of(context)
+        .pop(ScanSession(List.of(_pages), _bestMrz, _printed, rawText: _seen));
   }
 
   @override

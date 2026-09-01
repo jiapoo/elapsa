@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
 import 'package:elapsa/services/nearby_transfer.dart';
@@ -121,10 +122,14 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
   Future<void> _import(Uint8List bytes) async {
     final l = L.of(context);
     try {
-      final archived = await const DocumentArchive().unpack(bytes);
+      final contents = await const DocumentArchive().unpack(bytes);
+
+      // The types first, so nothing lands as "Other" for want of a name that
+      // was sitting in the same file.
+      await ref.read(customTypesProvider.notifier).adopt(contents.types);
       final count = await ref
           .read(documentRepositoryProvider)
-          .importAll(archived);
+          .importAll(contents.documents);
 
       // Pictures are cached by document and page, and an import replaces the
       // contents behind keys that have not changed.
@@ -236,7 +241,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
 
     final documents = await ref
         .read(documentRepositoryProvider)
-        .exportDocuments(widget.selected);
+        .exportDocuments(
+          widget.selected,
+          knownTypes: ref.read(customTypesProvider),
+        );
 
     // No passphrase. The handover is guarded by a person on the other phone
     // agreeing to it, and nothing is left on disk at either end afterwards for

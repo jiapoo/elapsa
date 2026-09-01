@@ -5,7 +5,7 @@ import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
-import 'package:elapsa/ui/edit/edit_document_screen.dart';
+import 'package:elapsa/ui/detail/document_detail_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 /// One section of the wallet, in the order the user asked for.
@@ -30,7 +30,7 @@ List<TrackedDocument> orderedWallet(
       });
     case DocumentSort.type:
       sorted.sort((a, b) {
-        final byType = a.type.label(l).compareTo(b.type.label(l));
+        final byType = a.typeLabel(l).compareTo(b.typeLabel(l));
         return byType != 0 ? byType : a.expiryDate.compareTo(b.expiryDate);
       });
   }
@@ -45,9 +45,11 @@ class WalletEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The detail page, not the form. Checking when a passport expires should
+    // not put anyone in front of fifteen fields and a Save button.
     void open() => Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => EditDocumentScreen(existing: document),
+        builder: (_) => DocumentDetailScreen(id: document.id),
       ),
     );
 

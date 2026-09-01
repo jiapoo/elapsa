@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/ui/settings/custom_types_section.dart';
 import 'package:elapsa/ui/settings/transfer_section.dart';
 
 /// Everything the app can be told about itself, in one place.
@@ -35,6 +35,10 @@ class SettingsScreen extends ConsumerWidget {
           // new phone is something you came here to do.
           _SectionLabel(l.settingsTransfer),
           const TransferSection(),
+
+          const SizedBox(height: 28),
+          _SectionLabel(l.settingsTypes),
+          const CustomTypesSection(),
 
           const SizedBox(height: 28),
           _SectionLabel(l.settingsWallet),
@@ -79,10 +83,6 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 28),
           _SectionLabel(l.settingsRemindersTitle),
           const _DefaultReminders(),
-
-          const SizedBox(height: 28),
-          _SectionLabel(l.settingsDiagnostics),
-          const _LastScan(),
 
           const SizedBox(height: 28),
           _SectionLabel(l.settingsAbout),
@@ -254,73 +254,6 @@ class _DefaultReminders extends ConsumerWidget {
                   .showSnackBar(SnackBar(content: Text(l.settingsResyncDone)));
             },
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// What the recogniser last read, verbatim.
-///
-/// This exists because a field coming back empty has two very different
-/// causes — the camera did not read it, or the parser did not understand what
-/// it read — and from outside the app they are indistinguishable. Showing the
-/// text settles it in one glance.
-class _LastScan extends ConsumerWidget {
-  const _LastScan();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = L.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    final text = ref.watch(lastScanTextProvider);
-
-    return _Card(
-      title: l.settingsLastScan,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l.settingsLastScanBody,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(maxHeight: 260),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: SingleChildScrollView(
-              child: SelectableText(
-                text.trim().isEmpty ? l.settingsLastScanEmpty : text,
-                style: TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11.5,
-                  height: 1.5,
-                  color: text.trim().isEmpty
-                      ? scheme.onSurfaceVariant
-                      : scheme.onSurface,
-                ),
-              ),
-            ),
-          ),
-          if (text.trim().isNotEmpty) ...[
-            const SizedBox(height: 6),
-            _Action(
-              icon: Icons.copy_all_rounded,
-              label: l.actionCopy,
-              onTap: () async {
-                await Clipboard.setData(ClipboardData(text: text));
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context)
-                    .showSnackBar(SnackBar(content: Text(l.settingsCopied)));
-              },
-            ),
-          ],
         ],
       ),
     );

@@ -704,5 +704,80 @@
   "homeShowAs": "Show each card as",
   "@homeShowAs": {
     "description": "Show each card as"
+  },
+  "detailTitle": "Document",
+  "@detailTitle": {
+    "description": "Document"
+  },
+  "actionEdit": "Edit",
+  "@actionEdit": {
+    "description": "Edit"
+  },
+  "detailReminders": "Reminders",
+  "@detailReminders": {
+    "description": "Reminders"
+  },
+  "detailNextReminder": "Next reminder {date}",
+  "@detailNextReminder": {
+    "description": "Next reminder {date}",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "detailNoReminders": "No reminders scheduled.",
+  "@detailNoReminders": {
+    "description": "No reminders scheduled."
+  },
+  "detailPages": "{count, plural, =1{1 picture} other{{count} pictures}}",
+  "@detailPages": {
+    "description": "{count, plural, =1{1 picture} other{{count} pictures}}",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsTypes": "Your own types",
+  "@settingsTypes": {
+    "description": "Your own types"
+  },
+  "typesBody": "Elapsa ships eleven kinds of document and will never ship the right eleven. Name your own, and they travel with the cards filed under them.",
+  "@typesBody": {
+    "description": "Elapsa ships eleven kinds of document and will never ship th"
+  },
+  "typesAdd": "Add a type",
+  "@typesAdd": {
+    "description": "Add a type"
+  },
+  "typesName": "Name",
+  "@typesName": {
+    "description": "Name"
+  },
+  "typesLead": "Start reminding",
+  "@typesLead": {
+    "description": "Start reminding"
+  },
+  "typesEmpty": "None yet.",
+  "@typesEmpty": {
+    "description": "None yet."
+  },
+  "typesInUse": "In use by {count, plural, =1{1 document} other{{count} documents}}",
+  "@typesInUse": {
+    "description": "In use by {count, plural, =1{1 document} other{{count} docum",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "typesRemove": "Remove",
+  "@typesRemove": {
+    "description": "Remove"
+  },
+  "editLastScan": "What the camera read",
+  "@editLastScan": {
+    "description": "What the camera read"
   }
 }

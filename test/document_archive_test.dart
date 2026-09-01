@@ -3,6 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
@@ -37,7 +40,7 @@ void main() {
   group('round trip', () {
     test('everything that went in comes back out', () async {
       final packed = await archive.pack([_passport()], passphrase: 'open sesame');
-      final out = await archive.unpack(packed, passphrase: 'open sesame');
+      final out = (await archive.unpack(packed, passphrase: 'open sesame')).documents;
 
       expect(out, hasLength(1));
       final doc = out.single.document;
@@ -61,7 +64,7 @@ void main() {
 
     test('the pictures come back byte for byte', () async {
       final packed = await archive.pack([_passport()], passphrase: 'hunter2!!');
-      final out = await archive.unpack(packed, passphrase: 'hunter2!!');
+      final out = (await archive.unpack(packed, passphrase: 'hunter2!!')).documents;
 
       expect(out.single.images, hasLength(2));
       expect(out.single.images.first, _passport().images.first);
@@ -70,7 +73,10 @@ void main() {
 
     test('an empty library is still a valid archive', () async {
       final packed = await archive.pack([], passphrase: 'nothing here');
-      expect(await archive.unpack(packed, passphrase: 'nothing here'), isEmpty);
+      expect(
+        (await archive.unpack(packed, passphrase: 'nothing here')).documents,
+        isEmpty,
+      );
     });
 
     test('a document that chose no reminders keeps choosing none', () async {
@@ -89,10 +95,10 @@ void main() {
         const [],
       );
 
-      final out = await archive.unpack(
+      final out = (await archive.unpack(
         await archive.pack([doc], passphrase: 'passphrase'),
         passphrase: 'passphrase',
-      );
+      )).documents;
       expect(out.single.document.hasChosenReminders, isFalse);
     });
   });
@@ -187,7 +193,7 @@ void main() {
       // What a nearby transfer will carry: the handover is already guarded by
       // the other device having to accept it, so there is nothing to type.
       final packed = await archive.pack([_passport()]);
-      final out = await archive.unpack(packed);
+      final out = (await archive.unpack(packed)).documents;
 
       expect(out.single.document.id, 'a1b2');
       expect(out.single.images, hasLength(2));
@@ -221,5 +227,101 @@ void main() {
     expect(text, isNot(contains('LIU JIA')));
     expect(text, isNot(contains('EM1234567')));
     expect(text, isNot(contains('a passphrase')));
+  });
+
+  group('a document filed under a type the app does not ship', () {
+    ArchivedDocument gymPass() => ArchivedDocument(
+      TrackedDocument(
+        id: 'gym',
+        type: DocumentType.other,
+        label: 'Gym',
+        expiryDate: DateTime(2027, 3, 1),
+        renewalLeadDays: 30,
+        customType: 'Gym pass',
+        createdAt: DateTime(2026, 1, 1),
+        updatedAt: DateTime(2026, 1, 1),
+      ),
+      const [],
+      customType: const CustomType(name: 'Gym pass', leadDays: 21, icon: 8),
+    );
+
+    test('the definition travels with it', () async {
+      // The point of carrying it rather than referring to it: the receiving
+      // phone looks nothing up, so a card cannot land as "Other" for want of a
+      // name that was sitting in the same file.
+      final out = await archive.unpack(await archive.pack([gymPass()]));
+
+      expect(out.documents.single.document.customType, 'Gym pass');
+      expect(out.types.single.name, 'Gym pass');
+      expect(out.types.single.leadDays, 21);
+      expect(out.types.single.icon, 8);
+    });
+
+    test('a type is carried once however many documents use it', () async {
+      final out = await archive.unpack(
+        await archive.pack([gymPass(), gymPass()]),
+      );
+      expect(out.types, hasLength(1));
+    });
+
+    test('nothing is carried for the built-in types', () async {
+      final out = await archive.unpack(await archive.pack([_passport()]));
+      expect(out.types, isEmpty);
+      expect(out.documents.single.document.customType, isNull);
+    });
+  });
+
+  group('what the receiver does with an arriving type', () {
+    late CustomTypeController receiver;
+
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    Future<CustomTypeController> controller(List<CustomType> existing) async {
+      final settings = SettingsRepository(await SharedPreferences.getInstance());
+      await settings.setCustomTypes(existing);
+      return CustomTypeController(settings);
+    }
+
+    test('one it has never seen is added', () async {
+      receiver = await controller([]);
+      await receiver.adopt(const [CustomType(name: 'Gym pass', icon: 8)]);
+
+      expect(receiver.state.single.name, 'Gym pass');
+      expect(receiver.state.single.icon, 8);
+    });
+
+    test('one it already has keeps the receiver own settings', () async {
+      // The icon and the lead time on this phone are its owner's choice. A
+      // card arriving from someone else has no business rewriting them, and
+      // the name is what files the document either way.
+      receiver = await controller(
+        const [CustomType(name: 'Gym pass', leadDays: 90, icon: 3)],
+      );
+      await receiver.adopt(
+        const [CustomType(name: 'Gym pass', leadDays: 7, icon: 8)],
+      );
+
+      expect(receiver.state, hasLength(1));
+      expect(receiver.state.single.leadDays, 90);
+      expect(receiver.state.single.icon, 3);
+    });
+
+    test('two arriving, one known: only the new one is added', () async {
+      receiver = await controller(const [CustomType(name: 'Gym pass')]);
+      await receiver.adopt(const [
+        CustomType(name: 'Gym pass'),
+        CustomType(name: 'Diving licence'),
+      ]);
+
+      expect(receiver.state.map((t) => t.name), ['Diving licence', 'Gym pass']);
+    });
+
+    test('adopting nothing new writes nothing', () async {
+      receiver = await controller(const [CustomType(name: 'Gym pass')]);
+      await receiver.adopt(const [CustomType(name: 'Gym pass')]);
+      expect(receiver.state, hasLength(1));
+    });
   });
 }

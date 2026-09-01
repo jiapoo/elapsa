@@ -43,6 +43,15 @@ class Documents extends Table {
   /// passport has no security code.
   TextColumn get details => text().nullable()();
 
+  /// A name the user invented for this kind of document, if they did.
+  ///
+  /// Not called customType: Drift's own Table already has a member by that
+  /// name, and a column that shadows the base class compiles into nonsense.
+  TextColumn get typeName => text().nullable()();
+
+  /// What the recogniser read, kept with the document it was read from.
+  TextColumn get scanText => text().nullable()();
+
   /// The reminder times the user chose, in days before expiry, comma
   /// separated. Null means they never chose and the conventional set applies.
   TextColumn get reminderOffsets => text().nullable()();
@@ -62,7 +71,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -82,6 +91,12 @@ class AppDatabase extends _$AppDatabase {
         // Left null, so every existing document keeps the conventional
         // set it has been reminding on.
         await m.addColumn(documents, documents.reminderOffsets);
+      }
+      if (from < 5) {
+        // Both null for everything already stored: an old document has no
+        // invented type, and nothing kept the text it was read from.
+        await m.addColumn(documents, documents.typeName);
+        await m.addColumn(documents, documents.scanText);
       }
     },
   );

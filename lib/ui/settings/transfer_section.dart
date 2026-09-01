@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
 import 'package:elapsa/ui/settings/document_picker_screen.dart';
@@ -90,7 +91,10 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
 
     setState(() => _busy = true);
     try {
-      final documents = await repo.exportDocuments(choice.ids);
+      final documents = await repo.exportDocuments(
+        choice.ids,
+        knownTypes: ref.read(customTypesProvider),
+      );
       final bytes = await const DocumentArchive().pack(
         documents,
         passphrase: passphrase,
@@ -219,13 +223,17 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
 
     setState(() => _busy = true);
     try {
-      final archived = await const DocumentArchive().unpack(
+      final contents = await const DocumentArchive().unpack(
         bytes,
         passphrase: passphrase,
       );
+
+      // The types first: a document filed under a name this phone has never
+      // heard of should find that name waiting for it.
+      await ref.read(customTypesProvider.notifier).adopt(contents.types);
       final count = await ref
           .read(documentRepositoryProvider)
-          .importAll(archived, replace: replace);
+          .importAll(contents.documents, replace: replace);
 
       // Pictures are cached by document and page, and an import replaces the
       // contents behind keys that have not changed.

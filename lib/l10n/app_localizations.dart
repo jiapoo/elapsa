@@ -1393,6 +1393,96 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Show each card as'**
   String get homeShowAs;
+
+  /// Document
+  ///
+  /// In en, this message translates to:
+  /// **'Document'**
+  String get detailTitle;
+
+  /// Edit
+  ///
+  /// In en, this message translates to:
+  /// **'Edit'**
+  String get actionEdit;
+
+  /// Reminders
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders'**
+  String get detailReminders;
+
+  /// Next reminder {date}
+  ///
+  /// In en, this message translates to:
+  /// **'Next reminder {date}'**
+  String detailNextReminder(String date);
+
+  /// No reminders scheduled.
+  ///
+  /// In en, this message translates to:
+  /// **'No reminders scheduled.'**
+  String get detailNoReminders;
+
+  /// {count, plural, =1{1 picture} other{{count} pictures}}
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 picture} other{{count} pictures}}'**
+  String detailPages(int count);
+
+  /// Your own types
+  ///
+  /// In en, this message translates to:
+  /// **'Your own types'**
+  String get settingsTypes;
+
+  /// Elapsa ships eleven kinds of document and will never ship th
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsa ships eleven kinds of document and will never ship the right eleven. Name your own, and they travel with the cards filed under them.'**
+  String get typesBody;
+
+  /// Add a type
+  ///
+  /// In en, this message translates to:
+  /// **'Add a type'**
+  String get typesAdd;
+
+  /// Name
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get typesName;
+
+  /// Start reminding
+  ///
+  /// In en, this message translates to:
+  /// **'Start reminding'**
+  String get typesLead;
+
+  /// None yet.
+  ///
+  /// In en, this message translates to:
+  /// **'None yet.'**
+  String get typesEmpty;
+
+  /// In use by {count, plural, =1{1 document} other{{count} docum
+  ///
+  /// In en, this message translates to:
+  /// **'In use by {count, plural, =1{1 document} other{{count} documents}}'**
+  String typesInUse(int count);
+
+  /// Remove
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get typesRemove;
+
+  /// What the camera read
+  ///
+  /// In en, this message translates to:
+  /// **'What the camera read'**
+  String get editLastScan;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

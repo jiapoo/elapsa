@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -72,6 +74,68 @@ enum AppTheme {
   };
 }
 
+/// A kind of document the user invented.
+///
+/// Elapsa ships eleven types and will never ship the right eleven — a fishing
+/// licence, a diving certificate, a parking permit, a season ticket. Rather
+/// than guess wider, people name their own.
+///
+/// The name is the identity. That matters most when a document travels: a card
+/// sent to a phone that has never heard of "Diving licence" arrives carrying
+/// the name it was filed under, so it is never orphaned into "Other" at the
+/// far end.
+class CustomType {
+  final String name;
+
+  /// How far ahead this kind of thing needs renewing, in days.
+  final int leadDays;
+
+  /// Which of [icons] stands for it.
+  final int icon;
+
+  const CustomType({required this.name, this.leadDays = 60, this.icon = 0});
+
+  /// A small, deliberately finite set. A picker of two thousand glyphs is a
+  /// worse question than a picker of twelve.
+  static const icons = <IconData>[
+    Icons.folder_rounded,
+    Icons.badge_rounded,
+    Icons.description_rounded,
+    Icons.card_membership_rounded,
+    Icons.workspace_premium_rounded,
+    Icons.verified_user_rounded,
+    Icons.directions_car_rounded,
+    Icons.house_rounded,
+    Icons.fitness_center_rounded,
+    Icons.pets_rounded,
+    Icons.school_rounded,
+    Icons.local_hospital_rounded,
+    Icons.sailing_rounded,
+    Icons.build_rounded,
+    Icons.confirmation_number_rounded,
+    Icons.key_rounded,
+  ];
+
+  IconData get glyph => icons[icon.clamp(0, icons.length - 1)];
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'leadDays': leadDays,
+    'icon': icon,
+  };
+
+  static CustomType? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final name = (raw['name'] as String?)?.trim();
+    if (name == null || name.isEmpty) return null;
+    return CustomType(
+      name: name,
+      leadDays: (raw['leadDays'] as num?)?.toInt() ?? 60,
+      icon: (raw['icon'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 /// Persists the handful of choices the user makes about the app itself.
 class SettingsRepository {
   SettingsRepository(this._prefs);
@@ -83,6 +147,7 @@ class SettingsRepository {
   static const _displayKey = 'wallet_display';
   static const _themeKey = 'app_theme';
   static const _remindersKey = 'default_reminders';
+  static const _typesKey = 'custom_types';
 
   AppLanguage get language {
     final stored = _prefs.getString(_languageKey);
@@ -147,6 +212,26 @@ class SettingsRepository {
 
   Future<void> setDefaultReminders(List<int> days) =>
       _prefs.setStringList(_remindersKey, days.map((d) => '$d').toList());
+
+  List<CustomType> get customTypes {
+    final stored = _prefs.getString(_typesKey);
+    if (stored == null) return const [];
+    try {
+      return (jsonDecode(stored) as List)
+          .map(CustomType.fromJson)
+          .whereType<CustomType>()
+          .toList();
+    } catch (_) {
+      // Written by a newer build, or damaged. Either way a broken list is
+      // better dropped than allowed to take the settings screen down with it.
+      return const [];
+    }
+  }
+
+  Future<void> setCustomTypes(List<CustomType> types) => _prefs.setString(
+    _typesKey,
+    jsonEncode([for (final type in types) type.toJson()]),
+  );
 }
 
 /// Overridden in main() once SharedPreferences has loaded, so no screen has to
@@ -232,15 +317,58 @@ class DefaultRemindersController extends StateNotifier<List<int>> {
   }
 }
 
+/// The kinds of document the user has invented.
+class CustomTypeController extends StateNotifier<List<CustomType>> {
+  CustomTypeController(this._settings) : super(_settings.customTypes);
+
+  final SettingsRepository _settings;
+
+  Future<void> add(CustomType type) async {
+    // By name, so adding one that already exists updates it rather than
+    // leaving two entries that look identical and are not.
+    final next = [
+      for (final existing in state)
+        if (existing.name != type.name) existing,
+      type,
+    ]..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+
+    state = next;
+    await _settings.setCustomTypes(next);
+  }
+
+  Future<void> remove(String name) async {
+    final next = [
+      for (final type in state)
+        if (type.name != name) type,
+    ];
+    state = next;
+    await _settings.setCustomTypes(next);
+  }
+
+  /// Registers anything arriving from another phone that this one has never
+  /// seen. Existing definitions win: the receiver's own choice of icon and
+  /// lead time is theirs, and an import should not overwrite it.
+  Future<void> adopt(Iterable<CustomType> types) async {
+    final known = {for (final type in state) type.name};
+    final missing = [
+      for (final type in types)
+        if (!known.contains(type.name)) type,
+    ];
+    if (missing.isEmpty) return;
+
+    final next = [...state, ...missing]
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    state = next;
+    await _settings.setCustomTypes(next);
+  }
+}
+
+final customTypesProvider =
+    StateNotifierProvider<CustomTypeController, List<CustomType>>((ref) {
+      return CustomTypeController(ref.watch(settingsRepositoryProvider));
+    });
+
 final defaultRemindersProvider =
     StateNotifierProvider<DefaultRemindersController, List<int>>((ref) {
       return DefaultRemindersController(ref.watch(settingsRepositoryProvider));
     });
-
-/// The text the recogniser last returned.
-///
-/// Held in memory and nowhere else. It is the single most useful thing to see
-/// when a field comes back empty — it separates "the camera never read it"
-/// from "the parser did not understand it" — but it is also the raw contents
-/// of someone's card, so it is never written to disk.
-final lastScanTextProvider = StateProvider<String>((ref) => '');

@@ -52,6 +52,21 @@ class TrackedDocument {
   final List<int>? _chosenOffsets;
 
   /// Relative path to the first encrypted scan, if one was captured.
+  /// A name the user invented for this kind of document.
+  ///
+  /// Null for the built-in types. When set, the document is filed under this
+  /// name instead — and the name travels with the document, so a card sent to
+  /// a phone that has never heard of "Gym pass" still knows what it is.
+  final String? customType;
+
+  /// Everything the recogniser read from this document, verbatim.
+  ///
+  /// Kept per document rather than for the session, so the question "why is
+  /// this field empty" can still be answered a week later. It lives in the
+  /// encrypted database, which is the same protection the document number
+  /// beside it already has.
+  final String? scanText;
+
   final String? imagePath;
 
   /// How many pictures this document has — a card has two sides, and some
@@ -81,6 +96,8 @@ class TrackedDocument {
     this.imageCount = 0,
     this.details = const {},
     List<int>? reminderOffsets,
+    this.customType,
+    this.scanText,
   }) : _chosenOffsets = reminderOffsets;
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -183,6 +200,9 @@ class TrackedDocument {
     Map<DocumentDetail, String>? details,
     List<int>? reminderOffsets,
     DateTime? updatedAt,
+    String? customType,
+    String? scanText,
+    bool clearCustomType = false,
   }) {
     return TrackedDocument(
       id: id,
@@ -198,6 +218,8 @@ class TrackedDocument {
       imageCount: imageCount ?? this.imageCount,
       details: details ?? this.details,
       reminderOffsets: reminderOffsets ?? _chosenOffsets,
+      customType: clearCustomType ? null : (customType ?? this.customType),
+      scanText: scanText ?? this.scanText,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

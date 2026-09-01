@@ -821,4 +821,13 @@ class LEn extends L {
 
   @override
   String get actionShare => 'Share';
+
+  @override
+  String get homeArrange => 'Arrange';
+
+  @override
+  String get homeSortBy => 'Sort by';
+
+  @override
+  String get homeShowAs => 'Show each card as';
 }

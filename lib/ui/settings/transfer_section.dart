@@ -38,7 +38,7 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
     return Column(
       children: [
         _Panel(
-          icon: Icons.ios_share,
+          icon: Icons.ios_share_rounded,
           title: l.transferExport,
           body: l.transferExportBody,
           busy: _busy,
@@ -46,7 +46,7 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
         ),
         const SizedBox(height: 12),
         _Panel(
-          icon: Icons.wifi_tethering,
+          icon: Icons.wifi_tethering_rounded,
           title: l.nearbyTitle,
           body: l.nearbyBody,
           busy: _busy,
@@ -54,7 +54,7 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
         ),
         const SizedBox(height: 12),
         _Panel(
-          icon: Icons.download_outlined,
+          icon: Icons.download_rounded,
           title: l.transferImport,
           body: l.transferImportBody,
           busy: _busy,
@@ -175,14 +175,14 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
               ),
               const SizedBox(height: 12),
               _RoleChoice(
-                icon: Icons.upload_outlined,
+                icon: Icons.upload_rounded,
                 title: l.nearbyRoleSend,
                 body: l.nearbyRoleSendBody,
                 onTap: () => Navigator.of(context).pop(true),
               ),
               const SizedBox(height: 8),
               _RoleChoice(
-                icon: Icons.download_outlined,
+                icon: Icons.download_rounded,
                 title: l.nearbyRoleReceive,
                 body: l.nearbyRoleReceiveBody,
                 onTap: () => Navigator.of(context).pop(false),
@@ -372,7 +372,9 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
               errorText: _error,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _shown ? Icons.visibility_off : Icons.visibility_outlined,
+                  _shown
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                 ),
                 onPressed: () => setState(() => _shown = !_shown),
               ),
@@ -561,7 +563,7 @@ class _RoleChoice extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+            Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
           ],
         ),
       ),

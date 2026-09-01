@@ -76,9 +76,8 @@ class MrzResult {
   List<String> get failedChecks =>
       checks.where((c) => !c.valid).map((c) => c.field).toList();
 
-  String get fullName => [givenNames, surname]
-      .where((p) => p.isNotEmpty)
-      .join(' ');
+  String get fullName =>
+      [givenNames, surname].where((p) => p.isNotEmpty).join(' ');
 
   @override
   String toString() =>
@@ -231,7 +230,8 @@ class MrzParser {
       }
     }
 
-    final composite = rawDocNumber +
+    final composite =
+        rawDocNumber +
         docCheck +
         dob +
         dobCheck +
@@ -321,7 +321,8 @@ class MrzParser {
     final optional2 = l2.substring(18, 29);
     final compositeCheck = l2[29];
 
-    final composite = docNumber +
+    final composite =
+        docNumber +
         docCheck +
         optional1 +
         dob +
@@ -413,7 +414,17 @@ class MrzParser {
   /// legitimate — and the result is re-validated against the check digits, so
   /// a wrong repair simply fails to validate rather than corrupting data.
   static String _repairLine(String line) {
-    const toDigit = {'O': '0', 'Q': '0', 'D': '0', 'I': '1', 'L': '1', 'S': '5', 'B': '8', 'G': '6', 'Z': '2'};
+    const toDigit = {
+      'O': '0',
+      'Q': '0',
+      'D': '0',
+      'I': '1',
+      'L': '1',
+      'S': '5',
+      'B': '8',
+      'G': '6',
+      'Z': '2',
+    };
     final buffer = StringBuffer();
 
     for (var i = 0; i < line.length; i++) {

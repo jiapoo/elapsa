@@ -27,47 +27,42 @@ enum DocumentDetail {
 
   /// Short values that should not wrap or be spell-checked.
   bool get isShort => switch (this) {
-        DocumentDetail.securityCode ||
-        DocumentDetail.licenceClass ||
-        DocumentDetail.nationality =>
-          true,
-        _ => false,
-      };
+    DocumentDetail.securityCode ||
+    DocumentDetail.licenceClass ||
+    DocumentDetail.nationality => true,
+    _ => false,
+  };
 }
 
 extension DocumentTypeDetails on DocumentType {
   /// The extra fields worth keeping for this kind of document, in the order
   /// they should be shown.
   List<DocumentDetail> get details => switch (this) {
-        DocumentType.bankCard => const [
-            DocumentDetail.cardholderName,
-            DocumentDetail.securityCode,
-          ],
-        DocumentType.passport => const [
-            DocumentDetail.nationality,
-            DocumentDetail.placeOfIssue,
-          ],
-        DocumentType.nationalId => const [DocumentDetail.issuingAuthority],
-        DocumentType.driversLicence => const [
-            DocumentDetail.licenceClass,
-            DocumentDetail.issuingAuthority,
-          ],
-        DocumentType.visa => const [
-            DocumentDetail.nationality,
-            DocumentDetail.placeOfIssue,
-          ],
-        DocumentType.residencePermit => const [
-            DocumentDetail.issuingAuthority,
-          ],
-        DocumentType.vehicleRegistration => const [
-            DocumentDetail.plateNumber,
-            DocumentDetail.vehicleIdentification,
-          ],
-        DocumentType.insurance => const [DocumentDetail.policyNumber],
-        DocumentType.professionalLicence => const [
-            DocumentDetail.issuingAuthority,
-          ],
-        DocumentType.membership => const [DocumentDetail.membershipLevel],
-        DocumentType.other => const [],
-      };
+    DocumentType.bankCard => const [
+      DocumentDetail.cardholderName,
+      DocumentDetail.securityCode,
+    ],
+    DocumentType.passport => const [
+      DocumentDetail.nationality,
+      DocumentDetail.placeOfIssue,
+    ],
+    DocumentType.nationalId => const [DocumentDetail.issuingAuthority],
+    DocumentType.driversLicence => const [
+      DocumentDetail.licenceClass,
+      DocumentDetail.issuingAuthority,
+    ],
+    DocumentType.visa => const [
+      DocumentDetail.nationality,
+      DocumentDetail.placeOfIssue,
+    ],
+    DocumentType.residencePermit => const [DocumentDetail.issuingAuthority],
+    DocumentType.vehicleRegistration => const [
+      DocumentDetail.plateNumber,
+      DocumentDetail.vehicleIdentification,
+    ],
+    DocumentType.insurance => const [DocumentDetail.policyNumber],
+    DocumentType.professionalLicence => const [DocumentDetail.issuingAuthority],
+    DocumentType.membership => const [DocumentDetail.membershipLevel],
+    DocumentType.other => const [],
+  };
 }

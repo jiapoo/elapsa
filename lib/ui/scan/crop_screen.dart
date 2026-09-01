@@ -20,13 +20,25 @@ import 'package:elapsa/services/vision_channel.dart';
 /// detector produces, so the extraction that follows is the identical
 /// perspective correction — the corners just came from a finger instead.
 class CropScreen extends StatefulWidget {
-  const CropScreen({super.key, required this.imagePath, this.initial});
+  const CropScreen({
+    super.key,
+    required this.imagePath,
+    this.initial,
+    this.startFull = false,
+  });
 
   final String imagePath;
 
   /// Where the detector thought the document was, if it thought anything.
   /// Starting from its guess is usually one drag from correct.
   final CardQuad? initial;
+
+  /// Start with the whole picture inside the frame rather than inset.
+  ///
+  /// For trimming something already cropped, where the picture *is* the
+  /// document: opening with a box that cuts the corners off it invites the
+  /// user to undo a crop nobody asked for.
+  final bool startFull;
 
   @override
   State<CropScreen> createState() => _CropScreenState();
@@ -52,14 +64,9 @@ class _CropScreenState extends State<CropScreen> {
     // Growable and non-const. As a const list this was unmodifiable, and the
     // manual path — a photograph with no detected quad to start from — got
     // exactly this list, so the first drag threw before it moved anything.
-    const a = _defaultInset;
-    const b = 1 - _defaultInset;
-    return [
-      const Offset(a, a),
-      const Offset(b, a),
-      const Offset(b, b),
-      const Offset(a, b),
-    ];
+    final a = widget.startFull ? 0.0 : _defaultInset;
+    final b = 1 - a;
+    return [Offset(a, a), Offset(b, a), Offset(b, b), Offset(a, b)];
   }
 
   @override
@@ -86,18 +93,29 @@ class _CropScreenState extends State<CropScreen> {
         children: [
           Expanded(
             child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return _Canvas(
-                    imagePath: widget.imagePath,
-                    corners: _corners,
-                    held: _dragging,
-                    limits: constraints.biggest,
-                    onDragStart: _grab,
-                    onDragUpdate: _move,
-                    onDragEnd: () => setState(() => _dragging = null),
-                  );
-                },
+              // Room around the picture, always. A handle sitting on the very
+              // edge of the screen is one a thumb cannot get behind — and the
+              // corners that matter most are exactly the ones at the edge,
+              // because a picture being re-cropped starts with its own corners
+              // there.
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 26,
+                  vertical: 20,
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return _Canvas(
+                      imagePath: widget.imagePath,
+                      corners: _corners,
+                      held: _dragging,
+                      limits: constraints.biggest,
+                      onDragStart: _grab,
+                      onDragUpdate: _move,
+                      onDragEnd: () => setState(() => _dragging = null),
+                    );
+                  },
+                ),
               ),
             ),
           ),

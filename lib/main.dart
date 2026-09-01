@@ -24,10 +24,7 @@ Future<void> main() async {
   await container.read(notificationServiceProvider).init();
 
   runApp(
-    UncontrolledProviderScope(
-      container: container,
-      child: const ElapsaApp(),
-    ),
+    UncontrolledProviderScope(container: container, child: const ElapsaApp()),
   );
 }
 

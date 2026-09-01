@@ -188,7 +188,11 @@ class _Selectable extends StatelessWidget {
                 border: Border.all(color: Colors.white, width: 1.6),
               ),
               child: chosen
-                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                  ? const Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: Colors.white,
+                    )
                   : null,
             ),
           ),

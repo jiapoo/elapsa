@@ -69,6 +69,16 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// True while the "keep your changes?" question is on screen.
   bool _asking = false;
 
+  /// What [_dirty] said at the last rebuild.
+  ///
+  /// Typing into a field changes a controller, not this widget, so nothing
+  /// rebuilt and the guard on leaving kept whatever answer it had been given
+  /// when the screen opened — which on an untouched document is "there is
+  /// nothing to lose". Every edit made by typing therefore swiped away in
+  /// silence. The controllers are watched now, and a rebuild happens on the
+  /// one keystroke that changes the answer rather than on all of them.
+  bool _wasDirty = false;
+
   /// Set when a picture is moved or cropped. The list is the same length
   /// afterwards, so nothing else would notice it had changed.
   bool _imagesChanged = false;
@@ -114,6 +124,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       );
     }
 
+    for (final field in _watched) {
+      field.addListener(_recheckDirty);
+    }
+
     final existingImages = widget.existing;
     if (existingImages != null && existingImages.imageCount > 0) {
       _loadStoredImages(existingImages);
@@ -129,8 +143,17 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     }
   }
 
+  /// Rebuilds only when the answer to "is there anything to lose" changes.
+  void _recheckDirty() {
+    final now = _dirty;
+    if (now != _wasDirty && mounted) setState(() => _wasDirty = now);
+  }
+
   @override
   void dispose() {
+    for (final field in _watched) {
+      field.removeListener(_recheckDirty);
+    }
     _label.dispose();
     _holder.dispose();
     _documentNumber.dispose();
@@ -184,7 +207,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                 child: Column(
                   children: [
                     _SheetAction(
-                      icon: Icons.crop,
+                      icon: Icons.crop_rounded,
                       label: l.actionCrop,
                       onTap: () => Navigator.of(context).pop('crop'),
                     ),
@@ -194,7 +217,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                       color: scheme.outlineVariant.withValues(alpha: 0.5),
                     ),
                     _SheetAction(
-                      icon: Icons.photo_camera_outlined,
+                      icon: Icons.photo_camera_rounded,
                       label: l.actionRetake,
                       onTap: () => Navigator.of(context).pop('retake'),
                     ),
@@ -204,7 +227,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                       color: scheme.outlineVariant.withValues(alpha: 0.5),
                     ),
                     _SheetAction(
-                      icon: Icons.delete_outline,
+                      icon: Icons.delete_outline_rounded,
                       label: l.actionDelete,
                       colour: scheme.error,
                       onTap: () => Navigator.of(context).pop('delete'),
@@ -279,7 +302,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (!mounted) return;
 
       final quad = await Navigator.of(context).push<CardQuad>(
-        MaterialPageRoute(builder: (_) => CropScreen(imagePath: temp!.path)),
+        MaterialPageRoute(
+          builder: (_) => CropScreen(imagePath: temp!.path, startFull: true),
+        ),
       );
       if (quad == null || !mounted) return;
 
@@ -364,6 +389,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       _leadDaysIsAuto = false;
     });
   }
+
+  /// Every text field whose contents decide whether leaving is safe.
+  Iterable<TextEditingController> get _watched => [
+    _label,
+    _holder,
+    _documentNumber,
+    ..._details.values,
+  ];
 
   Future<void> _scan({bool keepFilled = false}) async {
     final session = await Navigator.of(
@@ -522,13 +555,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                 // Not the system share glyph: this sends to a device in the
                 // room, and offering the sheet that writes files would be
                 // promising the wrong thing.
-                icon: const Icon(Icons.wifi_tethering),
+                icon: const Icon(Icons.wifi_tethering_rounded),
                 tooltip: l.nearbyTitle,
                 onPressed: _share,
               ),
             if (_isEditing)
               IconButton(
-                icon: const Icon(Icons.delete_outline),
+                icon: const Icon(Icons.delete_outline_rounded),
                 tooltip: l.actionDelete,
                 onPressed: _confirmDelete,
               ),
@@ -556,7 +589,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   ] else ...[
                     OutlinedButton.icon(
                       onPressed: _scan,
-                      icon: const Icon(Icons.document_scanner_outlined),
+                      icon: const Icon(Icons.document_scanner_rounded),
                       label: Text(l.actionScan),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size.fromHeight(52),
@@ -584,7 +617,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
                   if (_fromScan) ...[
                     _InfoNote(
-                      icon: Icons.verified_outlined,
+                      icon: Icons.verified_rounded,
                       text: _readAnything
                           ? l.editFromScanNote
                           : l.editScanNothingRead,
@@ -657,7 +690,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                         : null,
                     decoration: InputDecoration(
                       hintText: l.fieldNumberHint,
-                      prefixIcon: const Icon(Icons.tag),
+                      prefixIcon: const Icon(Icons.tag_rounded),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -702,7 +735,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   if (_type.hasSixMonthTravelRule) ...[
                     const SizedBox(height: 14),
                     _InfoNote(
-                      icon: Icons.flight_takeoff,
+                      icon: Icons.flight_takeoff_rounded,
                       text: l.sixMonthRuleNote,
                     ),
                   ],
@@ -728,7 +761,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                     textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
                       hintText: l.fieldHolderHint,
-                      prefixIcon: const Icon(Icons.person_outline),
+                      prefixIcon: const Icon(Icons.person_rounded),
                     ),
                   ),
 
@@ -880,7 +913,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final choice = await showDialog<String>(
       context: context,
       builder: (context) => _Ask(
-        icon: Icons.edit_note,
+        icon: Icons.edit_note_rounded,
         tint: scheme.primary,
         title: l.editUnsavedTitle,
         body: l.editUnsavedBody,
@@ -1057,7 +1090,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => _Ask(
-        icon: Icons.delete_outline,
+        icon: Icons.delete_outline_rounded,
         tint: scheme.error,
         title: l.editDeleteTitle,
         body: l.editDeleteBody,
@@ -1191,7 +1224,7 @@ class _AddPageTile extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_a_photo_outlined, color: scheme.onSurfaceVariant),
+            Icon(Icons.add_a_photo_rounded, color: scheme.onSurfaceVariant),
             const SizedBox(height: 6),
             Text(
               L.of(context).scanAddAnother,
@@ -1259,7 +1292,7 @@ class _DetailField extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  Icons.lock_outline,
+                  Icons.lock_rounded,
                   size: 13,
                   color: scheme.onSurfaceVariant,
                 ),
@@ -1368,7 +1401,7 @@ class _DateField extends StatelessWidget {
       },
       child: InputDecorator(
         decoration: const InputDecoration(
-          prefixIcon: Icon(Icons.event_outlined),
+          prefixIcon: Icon(Icons.event_rounded),
         ),
         child: Text(
           value == null
@@ -1453,7 +1486,7 @@ class _LeadTimeField extends StatelessWidget {
             onSelected: (_) => onToggle(days),
           ),
         ActionChip(
-          avatar: const Icon(Icons.event, size: 17),
+          avatar: const Icon(Icons.event_rounded, size: 17),
           label: Text(l.leadCustom),
           onPressed: onPickDate,
         ),
@@ -1485,7 +1518,7 @@ class _DailyTailNote extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.notifications_active_outlined,
+            Icons.notifications_active_rounded,
             size: 17,
             color: scheme.primary,
           ),

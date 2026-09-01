@@ -173,7 +173,11 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                   shape: BoxShape.circle,
                   color: scheme.primary.withValues(alpha: 0.12),
                 ),
-                child: Icon(Icons.smartphone, size: 30, color: scheme.primary),
+                child: Icon(
+                  Icons.smartphone_rounded,
+                  size: 30,
+                  color: scheme.primary,
+                ),
               ),
               const SizedBox(height: 18),
               Text(
@@ -285,7 +289,7 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                       child: (!widget.sending || _peers.isEmpty) && !_busy
                           ? const CircularProgressIndicator(strokeWidth: 2)
                           : Icon(
-                              Icons.wifi_tethering,
+                              Icons.wifi_tethering_rounded,
                               size: 16,
                               color: scheme.primary,
                             ),
@@ -327,7 +331,10 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                   for (final peer in _peers)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.smartphone, color: scheme.primary),
+                      leading: Icon(
+                        Icons.smartphone_rounded,
+                        color: scheme.primary,
+                      ),
                       // A device name is whatever its owner typed — "刘嘉的
                       // iPhone 15 Pro Max" is ordinary — and wrapped across
                       // three lines it pushed the button it belongs to out of

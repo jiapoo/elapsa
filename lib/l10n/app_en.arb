@@ -692,5 +692,17 @@
   "actionShare": "Share",
   "@actionShare": {
     "description": "Share"
+  },
+  "homeArrange": "Arrange",
+  "@homeArrange": {
+    "description": "Arrange"
+  },
+  "homeSortBy": "Sort by",
+  "@homeSortBy": {
+    "description": "Sort by"
+  },
+  "homeShowAs": "Show each card as",
+  "@homeShowAs": {
+    "description": "Show each card as"
   }
 }

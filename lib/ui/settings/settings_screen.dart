@@ -133,8 +133,8 @@ class _DisplayChoice extends StatelessWidget {
                   children: [
                     Icon(
                       display == selected
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
+                          ? Icons.radio_button_checked_rounded
+                          : Icons.radio_button_unchecked_rounded,
                       size: 20,
                       color: display == selected
                           ? scheme.primary
@@ -225,7 +225,11 @@ class _DefaultReminders extends ConsumerWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                Icon(Icons.auto_awesome, size: 15, color: scheme.primary),
+                Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 15,
+                  color: scheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -241,7 +245,7 @@ class _DefaultReminders extends ConsumerWidget {
           const Divider(height: 1),
           const SizedBox(height: 6),
           _Action(
-            icon: Icons.refresh,
+            icon: Icons.refresh_rounded,
             label: l.settingsResync,
             onTap: () async {
               await ref.read(documentRepositoryProvider).resync();
@@ -307,7 +311,7 @@ class _LastScan extends ConsumerWidget {
           if (text.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
             _Action(
-              icon: Icons.copy_all_outlined,
+              icon: Icons.copy_all_rounded,
               label: l.actionCopy,
               onTap: () async {
                 await Clipboard.setData(ClipboardData(text: text));
@@ -337,7 +341,7 @@ class _Privacy extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.lock_outline, size: 18, color: scheme.primary),
+              Icon(Icons.lock_rounded, size: 18, color: scheme.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(

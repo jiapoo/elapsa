@@ -715,6 +715,15 @@ class LZh extends L {
 
   @override
   String get actionShare => '分享';
+
+  @override
+  String get homeArrange => '排列';
+
+  @override
+  String get homeSortBy => '排序方式';
+
+  @override
+  String get homeShowAs => '卡片显示方式';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1427,4 +1436,13 @@ class LZhHant extends LZh {
 
   @override
   String get actionShare => '分享';
+
+  @override
+  String get homeArrange => '排列';
+
+  @override
+  String get homeSortBy => '排序方式';
+
+  @override
+  String get homeShowAs => '卡片顯示方式';
 }

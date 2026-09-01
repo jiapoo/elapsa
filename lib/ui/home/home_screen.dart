@@ -25,38 +25,23 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(l.appTitle),
         actions: [
-          PopupMenuButton<DocumentSort>(
-            icon: const Icon(Icons.swap_vert),
-            tooltip: l.sortTitle,
-            initialValue: ref.watch(sortProvider),
-            onSelected: (sort) => ref.read(sortProvider.notifier).select(sort),
-            itemBuilder: (context) => [
-              for (final sort in DocumentSort.values)
-                PopupMenuItem(value: sort, child: Text(sort.label(l))),
-            ],
-          ),
-          PopupMenuButton<WalletDisplay>(
-            icon: const Icon(Icons.dashboard_customize_outlined),
-            tooltip: l.settingsWalletDisplay,
-            initialValue: ref.watch(displayProvider),
-            onSelected: (d) => ref.read(displayProvider.notifier).select(d),
-            itemBuilder: (context) => [
-              for (final display in WalletDisplay.values)
-                PopupMenuItem(value: display, child: Text(display.label(l))),
-            ],
+          // One control where there were two menus and a bell. Sorting and
+          // density are the same question asked twice — how do I want to look
+          // at this — so they are answered on one surface, where the options
+          // can be read as words rather than guessed from an icon.
+          IconButton(
+            icon: const Icon(Icons.tune_rounded),
+            tooltip: l.homeArrange,
+            onPressed: () => _arrange(context, ref),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            tooltip: l.remindersTitle(0),
-            onPressed: () => _showPendingReminders(context, ref),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            icon: const Icon(Icons.settings_rounded),
             tooltip: l.settingsTitle,
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: documents.when(
@@ -87,7 +72,7 @@ class HomeScreen extends ConsumerWidget {
                 builder: (_) => const EditDocumentScreen(),
               ),
             ),
-            child: const Icon(Icons.add),
+            child: const Icon(Icons.add_rounded),
           ),
           const SizedBox(height: 12),
           // Scanning is the way in that the app is actually built around.
@@ -95,7 +80,7 @@ class HomeScreen extends ConsumerWidget {
             heroTag: 'scan',
             tooltip: l.actionScan,
             onPressed: () => _scan(context),
-            child: const Icon(Icons.photo_camera_outlined),
+            child: const Icon(Icons.document_scanner_rounded),
           ),
         ],
       ),
@@ -115,52 +100,127 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _showPendingReminders(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final pending = await ref.read(notificationServiceProvider).pending();
-    if (!context.mounted) return;
+  /// How the wallet is laid out, asked once.
+  Future<void> _arrange(BuildContext context, WidgetRef ref) {
     final l = L.of(context);
 
-    showModalBottomSheet<void>(
+    return showModalBottomSheet<void>(
       context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l.remindersTitle(pending.length),
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                pending.isEmpty ? l.remindersEmptyBody : l.remindersBody,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.homeArrange,
+                  style: Theme.of(context).textTheme.titleLarge,
                 ),
-              ),
-              const SizedBox(height: 16),
-              ...pending
-                  .take(8)
-                  .map(
-                    (p) => Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.schedule, size: 18),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text(p.title ?? '—')),
-                        ],
+                const SizedBox(height: 20),
+
+                _ArrangeGroup(
+                  title: l.homeSortBy,
+                  children: [
+                    for (final sort in DocumentSort.values)
+                      _ArrangeOption(
+                        label: sort.label(l),
+                        chosen: ref.watch(sortProvider) == sort,
+                        onTap: () =>
+                            ref.read(sortProvider.notifier).select(sort),
                       ),
-                    ),
-                  ),
-            ],
+                  ],
+                ),
+                const SizedBox(height: 22),
+
+                _ArrangeGroup(
+                  title: l.homeShowAs,
+                  children: [
+                    for (final display in WalletDisplay.values)
+                      _ArrangeOption(
+                        label: display.label(l),
+                        chosen: ref.watch(displayProvider) == display,
+                        onTap: () =>
+                            ref.read(displayProvider.notifier).select(display),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A heading and its choices.
+class _ArrangeGroup extends StatelessWidget {
+  const _ArrangeGroup({required this.title, required this.children});
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(spacing: 8, runSpacing: 8, children: children),
+      ],
+    );
+  }
+}
+
+/// One choice, shown as what it says rather than as a symbol to decode.
+class _ArrangeOption extends StatelessWidget {
+  const _ArrangeOption({
+    required this.label,
+    required this.chosen,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool chosen;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: chosen
+          ? scheme.primary.withValues(alpha: 0.12)
+          : scheme.surfaceContainerHigh.withValues(alpha: 0.7),
+      borderRadius: BorderRadius.circular(Radii.chip),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(Radii.chip),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(Radii.chip),
+            border: Border.all(
+              color: chosen ? scheme.primary : Colors.transparent,
+              width: 1.4,
+            ),
+          ),
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: chosen ? scheme.primary : scheme.onSurface,
+              fontWeight: chosen ? FontWeight.w700 : FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -341,7 +401,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.hourglass_empty, size: 56, color: muted),
+            Icon(Icons.style_rounded, size: 56, color: muted),
             const SizedBox(height: 20),
             Text(
               l.homeEmptyTitle,

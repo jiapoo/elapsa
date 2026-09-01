@@ -194,7 +194,7 @@ class _Tile extends StatelessWidget {
             right: 8,
             top: 8,
             child: Icon(
-              Icons.flight_takeoff,
+              Icons.flight_takeoff_rounded,
               size: 14,
               color: StatusPalette.from(context).critical,
             ),
@@ -266,7 +266,7 @@ class _Listed extends StatelessWidget {
           if (document.isTravelRestricted()) ...[
             const SizedBox(width: 8),
             Icon(
-              Icons.flight_takeoff,
+              Icons.flight_takeoff_rounded,
               size: 15,
               color: StatusPalette.from(context).critical,
             ),
@@ -354,7 +354,7 @@ class _PageCount extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.collections_outlined, size: 11, color: Colors.white),
+          const Icon(Icons.collections_rounded, size: 11, color: Colors.white),
           const SizedBox(width: 5),
           Text(
             '$count',
@@ -379,7 +379,7 @@ class _TravelWarning extends StatelessWidget {
 
     return Row(
       children: [
-        Icon(Icons.flight_takeoff, size: 13, color: critical),
+        Icon(Icons.flight_takeoff_rounded, size: 13, color: critical),
         const SizedBox(width: 6),
         Expanded(
           child: Text(

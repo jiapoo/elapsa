@@ -549,7 +549,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                 Align(
                   alignment: Alignment.topLeft,
                   child: _GlyphButton(
-                    icon: Icons.arrow_back_ios_new,
+                    icon: Icons.arrow_back_ios_new_rounded,
                     semantic: l.actionCancel,
                     onTap: busy ? null : () => Navigator.of(context).pop(),
                   ),
@@ -559,7 +559,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                   Align(
                     alignment: Alignment.topRight,
                     child: _GlyphButton(
-                      icon: Icons.check,
+                      icon: Icons.check_rounded,
                       semantic: l.actionDone,
                       filled: true,
                       onTap: busy ? null : _finish,
@@ -590,7 +590,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               _GlyphButton(
-                                icon: Icons.photo_library_outlined,
+                                icon: Icons.photo_library_rounded,
                                 semantic: l.scanChoosePhoto,
                                 onTap: busy ? null : _pickFromLibrary,
                               ),
@@ -613,8 +613,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                               // itself was missing.
                               _GlyphButton(
                                 icon: _autoDetect
-                                    ? Icons.auto_fix_high
-                                    : Icons.auto_fix_off,
+                                    ? Icons.auto_fix_high_rounded
+                                    : Icons.auto_fix_off_rounded,
                                 semantic: _autoDetect
                                     ? l.scanAutoOn
                                     : l.scanAutoOff,
@@ -724,11 +724,7 @@ class _NoCameraLayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: Icon(
-        Icons.photo_library_outlined,
-        size: 52,
-        color: Colors.white38,
-      ),
+      child: Icon(Icons.photo_library_rounded, size: 52, color: Colors.white38),
     );
   }
 }
@@ -1003,7 +999,7 @@ class _Shutter extends StatelessWidget {
             ),
           ),
           child: _UprightIcon(
-            Icons.photo_camera_outlined,
+            Icons.photo_camera_rounded,
             color: Colors.white.withValues(alpha: armed ? 1 : 0.6),
             size: 30,
           ),
@@ -1114,7 +1110,11 @@ class _StuckHint extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.auto_fix_off, size: 17, color: Colors.white70),
+                const Icon(
+                  Icons.auto_fix_off_rounded,
+                  size: 17,
+                  color: Colors.white70,
+                ),
                 const SizedBox(width: 10),
                 Flexible(
                   child: Text(

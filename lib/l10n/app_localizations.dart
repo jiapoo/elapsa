@@ -1375,6 +1375,24 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Share'**
   String get actionShare;
+
+  /// Arrange
+  ///
+  /// In en, this message translates to:
+  /// **'Arrange'**
+  String get homeArrange;
+
+  /// Sort by
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by'**
+  String get homeSortBy;
+
+  /// Show each card as
+  ///
+  /// In en, this message translates to:
+  /// **'Show each card as'**
+  String get homeShowAs;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

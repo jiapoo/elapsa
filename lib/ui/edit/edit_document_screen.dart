@@ -684,11 +684,20 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                         : 'custom:$_customType',
                     isExpanded: true,
                     items: [
+                      // Named kinds first, ours and theirs together, then
+                      // "other" at the very end.
+                      //
+                      // "Other" is not a kind of document, it is the absence
+                      // of one — so it belongs after everything that has a
+                      // name, and in particular after the names the user
+                      // invented, which exist precisely because "other" was
+                      // not good enough.
                       for (final t in DocumentType.values)
-                        DropdownMenuItem(
-                          value: t.name,
-                          child: _TypeLine(icon: t.icon, label: t.label(l)),
-                        ),
+                        if (t != DocumentType.other)
+                          DropdownMenuItem(
+                            value: t.name,
+                            child: _TypeLine(icon: t.icon, label: t.label(l)),
+                          ),
                       for (final custom in ref.watch(customTypesProvider))
                         DropdownMenuItem(
                           value: 'custom:${custom.name}',
@@ -697,6 +706,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                             label: custom.name,
                           ),
                         ),
+                      DropdownMenuItem(
+                        value: DocumentType.other.name,
+                        child: _TypeLine(
+                          icon: DocumentType.other.icon,
+                          label: DocumentType.other.label(l),
+                        ),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;

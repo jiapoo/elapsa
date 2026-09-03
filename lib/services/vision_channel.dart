@@ -161,10 +161,19 @@ class VisionChannel {
   /// contrast at all becomes something a recogniser can see. It is worth
   /// running only when the plain pass came back without one: the same
   /// treatment blooms fine flat print and costs the fields that already read.
-  Future<Recognition> recognize(String path, {bool boost = false}) async {
+  /// [variant] picks which treatment: 0 flattens the illumination away, which
+  /// is what a pale digit on a pale card needs; 1 sharpens and stretches,
+  /// which is the better tool on a dark card. They fail in opposite
+  /// conditions, so both are worth trying before giving up on a number.
+  Future<Recognition> recognize(
+    String path, {
+    bool boost = false,
+    int variant = 0,
+  }) async {
     final reply = await _channel.invokeMapMethod<String, dynamic>('recognize', {
       'path': path,
       'boost': boost,
+      'variant': variant,
     });
     if (reply == null) return Recognition.empty;
 

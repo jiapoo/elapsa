@@ -436,4 +436,38 @@ National Immigration Administration,PRC
           isNull);
     });
   });
+
+  group('a number the checksum cannot rescue', () {
+    test('four groups are a card number even with two digits wrong', () {
+      // Two misreads defeat Luhn, and two is not many on embossed figures.
+      // What survives is the shape: four groups in a row is a card number and
+      // is almost nothing else.
+      expect(
+        parser.parse('招商银行\n4539 1488 0343 6461').documentNumber,
+        '4539148803436461',
+      );
+    });
+
+    test('and even with letters where digits should be', () {
+      // S for 5 and O for 0, twice over, so neither the checksum nor a
+      // pattern that insists on digits can help. The layout still can.
+      expect(
+        parser.parse('4S39 1488 O343 6461').documentNumber,
+        '4539148803436461',
+      );
+    });
+
+    test('two groups are not a layout', () {
+      // A phone number is one group or two. Without the checksum the layout
+      // has to carry the claim on its own.
+      expect(parser.parse('CALL 4539 1488').documentNumber, isNull);
+    });
+
+    test('a service number on the back is still not a card number', () {
+      expect(
+        parser.parse('24 Hours 400 820 5555 8008 2055').documentNumber,
+        isNull,
+      );
+    });
+  });
 }

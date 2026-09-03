@@ -545,7 +545,7 @@
   "@scanAutoStuck": {
     "description": "Can't find the document?"
   },
-  "scanAutoStuckAction": "Take it yourself",
+  "scanAutoStuckAction": "Switch to manual",
   "@scanAutoStuckAction": {
     "description": "Take it yourself"
   },

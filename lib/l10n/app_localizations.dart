@@ -1187,7 +1187,7 @@ abstract class L {
   /// Take it yourself
   ///
   /// In en, this message translates to:
-  /// **'Take it yourself'**
+  /// **'Switch to manual'**
   String get scanAutoStuckAction;
 
   /// Transfer with a nearby device

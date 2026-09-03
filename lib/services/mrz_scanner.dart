@@ -29,6 +29,15 @@ class ScanResult {
   /// not be decoded.
   final Uint8List? cardImage;
 
+  /// Where in the photograph the document was cut from, when it was cut from
+  /// somewhere in particular.
+  ///
+  /// Handed back so the crop screen can open on the cut that was made rather
+  /// than on a guess — adjusting a good crop by a few millimetres is a
+  /// different job from drawing one from scratch, and only one of them is what
+  /// somebody who tapped an existing picture is there to do.
+  final Rect? region;
+
   /// Whether the crop came from a rectangle the detector actually found and
   /// that survived checking, rather than from a fallback.
   ///
@@ -50,6 +59,7 @@ class ScanResult {
     this.cardImage,
     this.rawText = '',
     this.croppedConfidently = false,
+    this.region,
   });
 
   /// True when an MRZ was found *and* every check digit agreed.
@@ -114,7 +124,11 @@ class MrzScanner {
   /// in one clears it comfortably in the other. It is also the whole reason a
   /// document held at arm's length reads worse than the same document filling
   /// the frame.
-  Future<String> _readCrop(Uint8List cropped, {bool boost = false}) async {
+  Future<String> _readCrop(
+    Uint8List cropped, {
+    bool boost = false,
+    int variant = 0,
+  }) async {
     File? temp;
     try {
       final dir = await getTemporaryDirectory();
@@ -125,7 +139,11 @@ class MrzScanner {
         ),
       );
       await temp.writeAsBytes(cropped);
-      return (await _vision.recognize(temp.path, boost: boost)).text;
+      return (await _vision.recognize(
+        temp.path,
+        boost: boost,
+        variant: variant,
+      )).text;
     } catch (error) {
       debugPrint('Elapsa: reading the crop failed: $error');
       return '';
@@ -224,13 +242,29 @@ class MrzScanner {
     // the old test needed the bank's name to have been read — and a photo that
     // lost the number is exactly the kind that also loses the wording.
     if (parsed == null && printed.documentNumber == null) {
-      for (final boosted in [
-        if (card != null) await _readCrop(card, boost: true),
-        (await _vision.recognize(path, boost: true)).text,
+      // Both treatments, on the card first and the whole frame after. They
+      // fail in opposite conditions — one cannot cope with a pale digit on a
+      // pale card, the other cannot cope with a dark one — so trying a single
+      // treatment was a coin toss dressed up as a rescue.
+      for (final attempt in [
+        if (card != null)
+          ('crop flattened', () => _readCrop(card, boost: true)),
+        if (card != null)
+          ('crop hardened', () => _readCrop(card, boost: true, variant: 1)),
+        (
+          'frame flattened',
+          () async => (await _vision.recognize(path, boost: true)).text,
+        ),
+        (
+          'frame hardened',
+          () async =>
+              (await _vision.recognize(path, boost: true, variant: 1)).text,
+        ),
       ]) {
-        if (boosted.trim().isEmpty) continue;
-        seen = '$seen\n--- boosted ---\n$boosted';
-        printed = printed.mergedWith(_printed.parse(boosted));
+        final read = await attempt.$2();
+        if (read.trim().isEmpty) continue;
+        seen = '$seen\n--- ${attempt.$1} ---\n$read';
+        printed = printed.mergedWith(_printed.parse(read));
         if (printed.documentNumber != null) break;
       }
     }
@@ -241,6 +275,7 @@ class MrzScanner {
       cardImage: card,
       rawText: seen,
       croppedConfidently: trusted,
+      region: trusted ? cut?.bounds : null,
     );
   }
 

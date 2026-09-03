@@ -613,7 +613,7 @@ class LZh extends L {
   String get scanAutoStuck => '找不到证件？';
 
   @override
-  String get scanAutoStuckAction => '手动拍摄';
+  String get scanAutoStuckAction => '切换为手动';
 
   @override
   String get nearbyTitle => '与附近设备互传';
@@ -1386,7 +1386,7 @@ class LZhHant extends LZh {
   String get scanAutoStuck => '找不到證件？';
 
   @override
-  String get scanAutoStuckAction => '手動拍攝';
+  String get scanAutoStuckAction => '切換為手動';
 
   @override
   String get nearbyTitle => '與附近裝置互傳';

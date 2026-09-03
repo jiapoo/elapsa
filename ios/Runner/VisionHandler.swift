@@ -47,6 +47,7 @@ enum VisionHandler {
         recognize(
           path: path,
           boost: args["boost"] as? Bool ?? false,
+          variant: args["variant"] as? Int ?? 0,
           result: result
         )
 
@@ -92,7 +93,12 @@ enum VisionHandler {
   /// Tuned for machine-readable zones rather than prose: accurate over fast,
   /// and language correction **off**, because an MRZ is not words and nudging
   /// `L898902C36` towards a dictionary is exactly how check digits break.
-  private static func recognize(path: String, boost: Bool, result: @escaping FlutterResult) {
+  private static func recognize(
+    path: String,
+    boost: Bool,
+    variant: Int,
+    result: @escaping FlutterResult
+  ) {
     guard
       let image = UIImage(contentsOfFile: path),
       let full = image.cgImage
@@ -106,7 +112,7 @@ enum VisionHandler {
     // and the expiry date — the two fields the whole app exists to capture.
     // Small print on a card needs every pixel the sensor gave it.
     let started = CFAbsoluteTimeGetCurrent()
-    let cgImage = boost ? embossed(full) ?? full : full
+    let cgImage = boost ? boosted(full, variant: variant) ?? full : full
 
     let request = VNRecognizeTextRequest { request, error in
       if let error = error {
@@ -117,7 +123,7 @@ enum VisionHandler {
       let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
       NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)%@",
             observations.count, elapsed, cgImage.width, cgImage.height,
-            boost ? " boosted" : "")
+            boost ? (variant == 0 ? " flattened" : " hardened") : "")
 
       // Where the writing is, as well as what it says.
       //
@@ -167,20 +173,25 @@ enum VisionHandler {
   ///
   /// A card number is *embossed*, not printed: the digits are the same colour
   /// as the card and exist only as a shadow along one side of each stroke and
-  /// a highlight along the other. There is almost no tonal difference for a
-  /// recogniser to work with, which is why the flat-printed name and dates on
-  /// the same card come back perfectly while the number comes back as nothing
-  /// at all.
+  /// a highlight along the other. There is almost no tone for a recogniser to
+  /// find, which is why the flat-printed name and dates on the same card come
+  /// back perfectly and the number comes back as nothing at all.
   ///
-  /// So the shadow is turned into contrast. Colour goes first — it carries no
-  /// information here and only dilutes the edges. An unsharp mask then pulls
-  /// each stroke away from the card around it, and a hard contrast stretch
-  /// turns what is left into something with actual black in it.
+  /// Two treatments, because they fail in opposite conditions and one of them
+  /// was making things worse:
   ///
-  /// This is a second pass, run only when the first found no number, because
-  /// the same treatment hurts flat print: it blooms fine text and would cost
-  /// the very fields that already read correctly.
-  private static func embossed(_ cgImage: CGImage) -> CGImage? {
+  /// - `flatten` divides the image by a heavily blurred copy of itself. That
+  ///   removes the *illumination* — whatever is smooth and large-scale — and
+  ///   leaves only what varies within a few pixels, which is exactly what an
+  ///   embossed stroke is. It works on a pale digit on a pale card, where a
+  ///   plain contrast stretch cannot: stretching contrast on something already
+  ///   near white simply clips it to white, taking the digits with it, which
+  ///   is the likeliest reason the first attempt at this never helped.
+  ///
+  /// - `harden` is that first attempt, kept because it is the better tool on a
+  ///   dark card, where the digits are lighter than their background and there
+  ///   is real tone to pull apart.
+  private static func boosted(_ cgImage: CGImage, variant: Int) -> CGImage? {
     let source = CIImage(cgImage: cgImage)
 
     guard let mono = CIFilter(name: "CIColorControls") else { return nil }
@@ -188,6 +199,45 @@ enum VisionHandler {
     mono.setValue(0.0, forKey: kCIInputSaturationKey)
     guard let grey = mono.outputImage else { return nil }
 
+    let treated: CIImage?
+    switch variant {
+    case 0:
+      treated = flatten(grey)
+    default:
+      treated = harden(grey)
+    }
+
+    guard let output = treated else { return nil }
+    return ciContext.createCGImage(output, from: source.extent)
+  }
+
+  /// Local contrast: the image divided by a blur of itself.
+  private static func flatten(_ grey: CIImage) -> CIImage? {
+    guard let blur = CIFilter(name: "CIGaussianBlur") else { return nil }
+    blur.setValue(grey, forKey: kCIInputImageKey)
+    // Wide enough to smooth away the digits themselves, so what remains after
+    // the division is the digits and nothing else.
+    blur.setValue(18.0, forKey: kCIInputRadiusKey)
+    guard let background = blur.outputImage?.cropped(to: grey.extent) else {
+      return nil
+    }
+
+    guard let divide = CIFilter(name: "CIDivideBlendMode") else { return nil }
+    divide.setValue(grey, forKey: kCIInputImageKey)
+    divide.setValue(background, forKey: kCIInputBackgroundImageKey)
+    guard let flat = divide.outputImage else { return nil }
+
+    // The division lands everything near white; this pulls the strokes back
+    // down into something with ink in it.
+    guard let stretch = CIFilter(name: "CIColorControls") else { return nil }
+    stretch.setValue(flat, forKey: kCIInputImageKey)
+    stretch.setValue(3.2, forKey: kCIInputContrastKey)
+    stretch.setValue(-0.12, forKey: kCIInputBrightnessKey)
+    return stretch.outputImage?.cropped(to: grey.extent)
+  }
+
+  /// Sharpen, then stretch. The right tool on a dark card.
+  private static func harden(_ grey: CIImage) -> CIImage? {
     guard let sharpen = CIFilter(name: "CIUnsharpMask") else { return nil }
     sharpen.setValue(grey, forKey: kCIInputImageKey)
     sharpen.setValue(2.5, forKey: kCIInputRadiusKey)
@@ -198,9 +248,7 @@ enum VisionHandler {
     stretch.setValue(sharp, forKey: kCIInputImageKey)
     stretch.setValue(1.9, forKey: kCIInputContrastKey)
     stretch.setValue(-0.05, forKey: kCIInputBrightnessKey)
-    guard let output = stretch.outputImage else { return nil }
-
-    return ciContext.createCGImage(output, from: source.extent)
+    return stretch.outputImage?.cropped(to: grey.extent)
   }
 
   /// Narrows the languages we want to the ones this OS actually ships.

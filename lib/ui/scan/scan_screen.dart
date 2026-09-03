@@ -128,6 +128,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// session and is never written to the library.
   final _originals = <String>[];
 
+  /// Where each page was cut from its original, so reopening one for
+  /// adjustment starts from the cut that was made. Opening on a guess — or
+  /// worse, on whatever the camera happens to be looking at now — throws away
+  /// work the app had already done well.
+  final _quads = <CardQuad?>[];
+
   /// What every page of this scan read, kept together.
   String _seen = '';
   MrzResult? _bestMrz;
@@ -397,7 +403,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       }
 
       final result = await _scanner.scanFile(shot.path, quad: framed);
-      _absorb(result, original: shot.path);
+      _absorb(result, original: shot.path, quad: framed);
 
       // And when the app cropped without conviction, the corners are offered
       // rather than demanded — that is the honest moment for it, because it is
@@ -422,7 +428,8 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
         _restore();
         return;
       }
-      _absorb(await _scanner.scanFile(picked.path), original: picked.path);
+      final result = await _scanner.scanFile(picked.path);
+      _absorb(result, original: picked.path);
     } catch (error, stack) {
       debugPrint('Elapsa: scan from library failed: $error\n$stack');
       _restore();
@@ -437,7 +444,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// carries the expiry, and discarding the picture for that would be absurd.
   /// The first trusted reading wins, so a later page cannot overwrite it with
   /// something worse.
-  void _absorb(ScanResult result, {String? original}) {
+  void _absorb(ScanResult result, {String? original, CardQuad? quad}) {
     if (!mounted) return;
 
     // A photograph taken is the clock reset. Six more seconds before the offer
@@ -456,6 +463,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       if (result.cardImage != null) {
         _pages.add(result.cardImage!);
         _originals.add(original ?? '');
+        _quads.add(quad ?? _rectangleQuad(result.region));
       }
       if (result.hasTrustedCode && _bestMrz == null) _bestMrz = result.mrz;
       // Merged, not replaced. A card is two photographs — the front carries
@@ -561,11 +569,25 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       setState(() {
         _pages.removeAt(index);
         _originals.removeAt(index);
+        _quads.removeAt(index);
       });
       return;
     }
 
     await _adjust(index);
+  }
+
+  /// A quad from a plain box, for a crop that came back as a rectangle rather
+  /// than as four corners.
+  static CardQuad? _rectangleQuad(Rect? region) {
+    if (region == null) return null;
+    return CardQuad(
+      topLeft: region.topLeft,
+      topRight: region.topRight,
+      bottomRight: region.bottomRight,
+      bottomLeft: region.bottomLeft,
+      confidence: 1,
+    );
   }
 
   /// Lets the user place the corners on one page by hand.
@@ -577,7 +599,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
     final quad = await Navigator.of(context).push<CardQuad>(
       MaterialPageRoute(
-        builder: (_) => CropScreen(imagePath: original, initial: _quad),
+        builder: (_) => CropScreen(
+          imagePath: original,
+          // The cut that was made, not the one the camera is looking at now.
+          initial: index < _quads.length ? _quads[index] : null,
+          startFull: index >= _quads.length || _quads[index] == null,
+        ),
       ),
     );
     if (quad == null || !mounted) return;
@@ -588,6 +615,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
     setState(() {
       if (result.cardImage != null) _pages[index] = result.cardImage!;
+      if (index < _quads.length) _quads[index] = quad;
 
       // Read again, not just cut again. Placing the corners is new
       // information about where the document is, and the fields should be
@@ -723,15 +751,23 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                               // be. That is still one tap away on the home
                               // screen, and this is the control the scanner
                               // itself was missing.
-                              _GlyphButton(
-                                icon: _autoDetect
-                                    ? Icons.auto_fix_high_rounded
-                                    : Icons.auto_fix_off_rounded,
-                                semantic: _autoDetect
-                                    ? l.scanAutoOn
-                                    : l.scanAutoOff,
-                                filled: !_autoDetect,
-                                onTap: busy ? null : _toggleAuto,
+                              // Pulsing while the tip is up, because the tip
+                              // names a way out and this is the way out. A
+                              // sentence at the bottom of the screen and a
+                              // button in the corner are two separate things
+                              // to notice; one of them moving joins them up.
+                              _Pulse(
+                                active: _detectionStuck && !busy,
+                                child: _GlyphButton(
+                                  icon: _autoDetect
+                                      ? Icons.auto_fix_high_rounded
+                                      : Icons.auto_fix_off_rounded,
+                                  semantic: _autoDetect
+                                      ? l.scanAutoOn
+                                      : l.scanAutoOff,
+                                  filled: !_autoDetect,
+                                  onTap: busy ? null : _toggleAuto,
+                                ),
                               ),
                             ],
                           ),
@@ -1382,6 +1418,77 @@ class _PageAction extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A slow ring of light around something worth noticing.
+///
+/// Slow on purpose. A fast blink is an alarm, and nothing has gone wrong
+/// here — the app is simply out of ideas and pointing at the door.
+class _Pulse extends StatefulWidget {
+  const _Pulse({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  @override
+  State<_Pulse> createState() => _PulseState();
+}
+
+class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
+  late final _beat = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.active) _beat.repeat(reverse: true);
+  }
+
+  @override
+  void didUpdateWidget(_Pulse old) {
+    super.didUpdateWidget(old);
+    if (widget.active == old.active) return;
+    if (widget.active) {
+      _beat.repeat(reverse: true);
+    } else {
+      _beat.stop();
+      _beat.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _beat.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _beat,
+      builder: (context, child) {
+        final t = Curves.easeInOut.transform(_beat.value);
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            boxShadow: t == 0
+                ? null
+                : [
+                    BoxShadow(
+                      color: kBrand.withValues(alpha: 0.55 * t),
+                      blurRadius: 10 + 14 * t,
+                      spreadRadius: 1 + 5 * t,
+                    ),
+                  ],
+          ),
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }

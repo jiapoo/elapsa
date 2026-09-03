@@ -325,7 +325,23 @@ class PrintedFieldParser {
   /// wording has to corroborate it, and a single embossed `1488` misread as
   /// `l488` no longer throws the whole number away, because the checksum tells
   /// us which reading was right.
-  static String? _luhnCardNumber(String text) {
+  static String? _luhnCardNumber(String text) =>
+      _cardNumberIn(text, requireChecksum: true);
+
+  /// The same search with the checksum waived, but the *layout* insisted on.
+  ///
+  /// Two misread characters defeat the checksum, and two is not many on
+  /// embossed figures. What survives that is the shape of the thing: four or
+  /// five groups of digits in a row, which is a card number and is almost
+  /// nothing else — a phone number is one group or two, a policy number is one
+  /// long run. So a run of at least four groups adding up to a card-length
+  /// number is taken, and the odd wrong digit with it, because a number with
+  /// one character wrong is still enough to recognise the card and can be
+  /// corrected by eye. Nothing is better than nothing only in theory.
+  static String? _groupedCardNumberIn(String text) =>
+      _cardNumberIn(text, requireChecksum: false);
+
+  static String? _cardNumberIn(String text, {required bool requireChecksum}) {
     // Runs of adjacent digit groups. Adjacency matters: the groups are set far
     // apart on the card and come back as separate observations, so the number
     // arrives as four tokens that have to be tried joined.
@@ -355,7 +371,25 @@ class PrintedFieldParser {
           // 18-digit identity number passing on a one-in-ten fluke.
           final first = candidate.codeUnitAt(0);
           if (first < 0x32 || first > 0x36) continue;
-          if (!_passesLuhn(candidate)) continue;
+
+          if (requireChecksum) {
+            if (!_passesLuhn(candidate)) continue;
+          } else {
+            // Without a checksum the layout has to carry the claim alone, and
+            // "some groups of digits" is not a layout. A card number is four
+            // groups of exactly four, with at most a short tail — and the
+            // exactness is what does the work here: a hotline written
+            // 400 820 5555 is also a run of groups, and a rule that only
+            // counted them would have read one as a card number.
+            final width = groups.sublist(i, j + 1);
+            final tidy =
+                width.length >= 4 &&
+                width
+                    .take(width.length - 1)
+                    .every((group) => group.length == 4);
+            if (!tidy) continue;
+          }
+
           if (best == null || candidate.length > best.length) best = candidate;
         }
       }
@@ -443,13 +477,18 @@ class PrintedFieldParser {
     // number or a serial — and inventing a document number is the same failure
     // as inventing a date.
     final chineseId = _chineseIdNumber.firstMatch(normalised)?.group(1);
+    // In order of how much each reading proves about itself: a checksum that
+    // passes, then digits laid out in fours, then a long run backed by wording
+    // — and last, the layout with the odd character misread, which is what an
+    // embossed number looks like on a photograph that nearly worked.
     final card = chineseId != null
         ? null
         : luhn ??
               grouped ??
               (looksLikeCard
                   ? _cardNumber.firstMatch(normalised)?.group(1)
-                  : null);
+                  : null) ??
+              _groupedCardNumberIn(normalised);
     // A passport prints its number in one place and encodes it in another.
     // This is the printed one, for when the machine-readable zone could not be
     // read — which is exactly when the printed face is all there is.

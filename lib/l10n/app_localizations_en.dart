@@ -712,7 +712,7 @@ class LEn extends L {
   String get scanAutoStuck => 'Can\'t find the document?';
 
   @override
-  String get scanAutoStuckAction => 'Take it yourself';
+  String get scanAutoStuckAction => 'Switch to manual';
 
   @override
   String get nearbyTitle => 'Transfer with a nearby device';

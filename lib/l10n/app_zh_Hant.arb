@@ -296,7 +296,7 @@
   "scanAutoOn": "已開啟自動辨識",
   "scanAutoOff": "已關閉自動辨識",
   "scanAutoStuck": "找不到證件？",
-  "scanAutoStuckAction": "手動拍攝",
+  "scanAutoStuckAction": "切換為手動",
   "nearbyTitle": "與附近裝置互傳",
   "nearbyBody": "在另一台手機上開啟 Elapsa 並進入此頁面。無需檔案，也無需密碼——由對方確認接收。",
   "nearbySearching": "正在尋找裝置…",

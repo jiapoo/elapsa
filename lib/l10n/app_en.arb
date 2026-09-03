@@ -795,5 +795,13 @@
   "extrasValue": "Value",
   "@extrasValue": {
     "description": "Value"
+  },
+  "fieldNeverExpires": "Never expires",
+  "@fieldNeverExpires": {
+    "description": "Never expires"
+  },
+  "fieldNoExpiry": "This one has no expiry",
+  "@fieldNoExpiry": {
+    "description": "This one has no expiry"
   }
 }

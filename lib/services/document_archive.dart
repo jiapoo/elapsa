@@ -257,6 +257,7 @@ class DocumentArchive {
         for (final entry in doc.details.entries) entry.key.name: entry.value,
       },
       if (doc.extras.isNotEmpty) 'extras': doc.extras,
+      if (doc.neverExpires) 'neverExpires': true,
       'createdAt': doc.createdAt.toIso8601String(),
       'updatedAt': doc.updatedAt.toIso8601String(),
       'images': [for (final image in entry.images) base64Encode(image)],
@@ -297,6 +298,7 @@ class DocumentArchive {
             if (entry.key is String && entry.value is String)
               entry.key as String: entry.value as String,
         },
+        neverExpires: raw['neverExpires'] as bool? ?? false,
         customType: raw['customType'] as String?,
         scanText: raw['scanText'] as String?,
         createdAt: _date(raw['createdAt']) ?? DateTime.now(),

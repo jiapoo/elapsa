@@ -349,5 +349,7 @@
   "extrasTitle": "自定义字段",
   "extrasAdd": "添加字段",
   "extrasName": "字段名称",
-  "extrasValue": "内容"
+  "extrasValue": "内容",
+  "fieldNeverExpires": "长期有效",
+  "fieldNoExpiry": "这张证件没有到期日"
 }

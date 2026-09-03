@@ -77,6 +77,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// The name of the user's own type this document is filed under, if any.
   String? _customType;
 
+  /// True when this document simply has no end.
+  bool _neverExpires = false;
+
   /// Fields the user added themselves, as a list so their order is theirs.
   final _extras =
       <({TextEditingController name, TextEditingController value})>[];
@@ -127,6 +130,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         value: TextEditingController(text: field.value),
       ));
     }
+    _neverExpires = existing?.neverExpires ?? false;
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
@@ -515,6 +519,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           _reminderOffsets = {..._defaultOffsets(_type.defaultRenewalLeadDays)};
         }
       }
+      if (printed.neverExpires) _neverExpires = true;
       if (printed.expiryDate != null && free(_expiryDate)) {
         _expiryDate = printed.expiryDate;
       }
@@ -805,9 +810,43 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   const SizedBox(height: 20),
 
                   _Label(l.fieldExpiry),
-                  _DateField(
-                    value: _expiryDate,
-                    onChanged: (d) => setState(() => _expiryDate = d),
+                  if (!_neverExpires)
+                    _DateField(
+                      value: _expiryDate,
+                      onChanged: (d) => setState(() => _expiryDate = d),
+                    ),
+
+                  // Offered beside the date rather than hidden in the type,
+                  // because whether a document ends is a fact about that
+                  // document and not about its kind: two memberships, one with
+                  // a renewal date and one that runs until cancelled.
+                  Padding(
+                    padding: EdgeInsets.only(top: _neverExpires ? 0 : 10),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilterChip(
+                        avatar: Icon(
+                          _neverExpires
+                              ? Icons.all_inclusive_rounded
+                              : Icons.event_busy_rounded,
+                          size: 18,
+                          color: _neverExpires
+                              ? scheme.primary
+                              : scheme.onSurfaceVariant,
+                        ),
+                        label: Text(
+                          _neverExpires ? l.fieldNeverExpires : l.fieldNoExpiry,
+                        ),
+                        selected: _neverExpires,
+                        onSelected: (on) => setState(() {
+                          _neverExpires = on;
+                          // The date is kept, not cleared. Somebody who ticks
+                          // this by accident should not have to find the card
+                          // again to undo it.
+                          if (on) _leadDaysIsAuto = true;
+                        }),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
 
@@ -818,22 +857,28 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  _Label(l.fieldRemindMe),
-                  _LeadTimeField(
-                    expiry: _expiryDate,
-                    onPickDate: _pickReminderDate,
-                    selected: _reminderOffsets,
-                    onToggle: (days) => setState(() {
-                      if (!_reminderOffsets.remove(days)) {
-                        _reminderOffsets.add(days);
-                      }
-                      // Never leave a document with no reminder at all; that is a
-                      // silent way to fail at the app's only job.
-                      if (_reminderOffsets.isEmpty) _reminderOffsets.add(days);
-                      _leadDaysIsAuto = false;
-                    }),
-                  ),
-                  const _DailyTailNote(),
+                  // Nothing to remind about, so nothing to set. A reminder is
+                  // a number of days before a date, and there is no date.
+                  if (!_neverExpires) ...[
+                    _Label(l.fieldRemindMe),
+                    _LeadTimeField(
+                      expiry: _expiryDate,
+                      onPickDate: _pickReminderDate,
+                      selected: _reminderOffsets,
+                      onToggle: (days) => setState(() {
+                        if (!_reminderOffsets.remove(days)) {
+                          _reminderOffsets.add(days);
+                        }
+                        // Never leave a document with no reminder at all; that
+                        // is a silent way to fail at the app's only job.
+                        if (_reminderOffsets.isEmpty) {
+                          _reminderOffsets.add(days);
+                        }
+                        _leadDaysIsAuto = false;
+                      }),
+                    ),
+                    const _DailyTailNote(),
+                  ],
                   const SizedBox(height: 6),
                   Text(
                     _leadTimeExplanation(l),
@@ -1008,6 +1053,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     if (existing == null) {
       return _images.isNotEmpty ||
+          _neverExpires ||
           text(_label).isNotEmpty ||
           text(_holder).isNotEmpty ||
           text(_documentNumber).isNotEmpty ||
@@ -1026,7 +1072,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       return true;
     }
     if (_issuingCountry != existing.issuingCountry) return true;
-    if (_expiryDate != existing.expiryDate) return true;
+    if (_neverExpires != existing.neverExpires) return true;
+    if (!_neverExpires && _expiryDate != existing.expiryDate) return true;
     if (_issueDate != existing.issueDate) return true;
     if (!setEquals(_reminderOffsets, existing.reminderOffsetDays.toSet())) {
       return true;
@@ -1192,7 +1239,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     final l = L.of(context);
     if (!_formKey.currentState!.validate()) return;
 
-    if (_expiryDate == null) {
+    if (_expiryDate == null && !_neverExpires) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l.fieldExpiryRequired)));
       return;
@@ -1223,7 +1270,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         holder: holder.isEmpty ? null : holder,
         documentNumber: number.isEmpty ? null : number,
         issuingCountry: _issuingCountry,
-        expiryDate: _expiryDate,
+        expiryDate: _expiryDate ?? DateTime.now(),
+        neverExpires: _neverExpires,
         issueDate: _issueDate,
         renewalLeadDays: _renewalLeadDays,
         reminderOffsets: _reminderOffsets.toList(),
@@ -1265,7 +1313,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       await repo.create(
         type: _type,
         label: _label.text.trim(),
-        expiryDate: _expiryDate!,
+        expiryDate: _expiryDate ?? DateTime.now(),
+        neverExpires: _neverExpires,
         renewalLeadDays: _renewalLeadDays,
         reminderOffsets: _reminderOffsets.toList(),
         holder: holder.isEmpty ? null : holder,

@@ -20,7 +20,13 @@ List<TrackedDocument> orderedWallet(
   final sorted = [...documents];
   switch (sort) {
     case DocumentSort.expiry:
-      sorted.sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
+      // The ones that never end go last. Sorting by urgency puts the least
+      // urgent thing there is at the bottom, and nothing is less urgent than a
+      // document that cannot run out.
+      sorted.sort((a, b) {
+        if (a.neverExpires != b.neverExpires) return a.neverExpires ? 1 : -1;
+        return a.expiryDate.compareTo(b.expiryDate);
+      });
     case DocumentSort.added:
       sorted.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     case DocumentSort.name:
@@ -396,6 +402,8 @@ class _TravelWarning extends StatelessWidget {
 }
 
 String walletStatusLine(TrackedDocument document, L l) {
+  if (document.neverExpires) return l.fieldNeverExpires;
+
   final today = DateTime.now();
   final expiry = document.expiryDate;
 

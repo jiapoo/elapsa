@@ -156,6 +156,21 @@ class $DocumentsTable extends Documents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _neverExpiresMeta = const VerificationMeta(
+    'neverExpires',
+  );
+  @override
+  late final GeneratedColumn<bool> neverExpires = GeneratedColumn<bool>(
+    'never_expires',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("never_expires" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
   @override
   late final GeneratedColumn<String> extras = GeneratedColumn<String>(
@@ -214,6 +229,7 @@ class $DocumentsTable extends Documents
     details,
     typeName,
     scanText,
+    neverExpires,
     extras,
     reminderOffsets,
     createdAt,
@@ -323,6 +339,15 @@ class $DocumentsTable extends Documents
         scanText.isAcceptableOrUnknown(data['scan_text']!, _scanTextMeta),
       );
     }
+    if (data.containsKey('never_expires')) {
+      context.handle(
+        _neverExpiresMeta,
+        neverExpires.isAcceptableOrUnknown(
+          data['never_expires']!,
+          _neverExpiresMeta,
+        ),
+      );
+    }
     if (data.containsKey('extras')) {
       context.handle(
         _extrasMeta,
@@ -421,6 +446,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}scan_text'],
       ),
+      neverExpires: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}never_expires'],
+      )!,
       extras: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}extras'],
@@ -482,6 +511,14 @@ class Document extends DataClass implements Insertable<Document> {
   /// What the recogniser read, kept with the document it was read from.
   final String? scanText;
 
+  /// True when the document says it never expires.
+  ///
+  /// A Chinese identity card issued to someone over 46 reads 2015.01.01-长期,
+  /// and a great many memberships and licences simply have no end. The expiry
+  /// column keeps whatever date it had, because a column that must hold
+  /// something should hold something; nothing reads it while this is set.
+  final bool neverExpires;
+
   /// Fields the user added themselves, as JSON.
   ///
   /// Separate from [details], which is a fixed set this app understands and
@@ -509,6 +546,7 @@ class Document extends DataClass implements Insertable<Document> {
     this.details,
     this.typeName,
     this.scanText,
+    required this.neverExpires,
     this.extras,
     this.reminderOffsets,
     required this.createdAt,
@@ -549,6 +587,7 @@ class Document extends DataClass implements Insertable<Document> {
     if (!nullToAbsent || scanText != null) {
       map['scan_text'] = Variable<String>(scanText);
     }
+    map['never_expires'] = Variable<bool>(neverExpires);
     if (!nullToAbsent || extras != null) {
       map['extras'] = Variable<String>(extras);
     }
@@ -592,6 +631,7 @@ class Document extends DataClass implements Insertable<Document> {
       scanText: scanText == null && nullToAbsent
           ? const Value.absent()
           : Value(scanText),
+      neverExpires: Value(neverExpires),
       extras: extras == null && nullToAbsent
           ? const Value.absent()
           : Value(extras),
@@ -625,6 +665,7 @@ class Document extends DataClass implements Insertable<Document> {
       details: serializer.fromJson<String?>(json['details']),
       typeName: serializer.fromJson<String?>(json['typeName']),
       scanText: serializer.fromJson<String?>(json['scanText']),
+      neverExpires: serializer.fromJson<bool>(json['neverExpires']),
       extras: serializer.fromJson<String?>(json['extras']),
       reminderOffsets: serializer.fromJson<String?>(json['reminderOffsets']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
@@ -651,6 +692,7 @@ class Document extends DataClass implements Insertable<Document> {
       'details': serializer.toJson<String?>(details),
       'typeName': serializer.toJson<String?>(typeName),
       'scanText': serializer.toJson<String?>(scanText),
+      'neverExpires': serializer.toJson<bool>(neverExpires),
       'extras': serializer.toJson<String?>(extras),
       'reminderOffsets': serializer.toJson<String?>(reminderOffsets),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -673,6 +715,7 @@ class Document extends DataClass implements Insertable<Document> {
     Value<String?> details = const Value.absent(),
     Value<String?> typeName = const Value.absent(),
     Value<String?> scanText = const Value.absent(),
+    bool? neverExpires,
     Value<String?> extras = const Value.absent(),
     Value<String?> reminderOffsets = const Value.absent(),
     DateTime? createdAt,
@@ -696,6 +739,7 @@ class Document extends DataClass implements Insertable<Document> {
     details: details.present ? details.value : this.details,
     typeName: typeName.present ? typeName.value : this.typeName,
     scanText: scanText.present ? scanText.value : this.scanText,
+    neverExpires: neverExpires ?? this.neverExpires,
     extras: extras.present ? extras.value : this.extras,
     reminderOffsets: reminderOffsets.present
         ? reminderOffsets.value
@@ -729,6 +773,9 @@ class Document extends DataClass implements Insertable<Document> {
       details: data.details.present ? data.details.value : this.details,
       typeName: data.typeName.present ? data.typeName.value : this.typeName,
       scanText: data.scanText.present ? data.scanText.value : this.scanText,
+      neverExpires: data.neverExpires.present
+          ? data.neverExpires.value
+          : this.neverExpires,
       extras: data.extras.present ? data.extras.value : this.extras,
       reminderOffsets: data.reminderOffsets.present
           ? data.reminderOffsets.value
@@ -755,6 +802,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('details: $details, ')
           ..write('typeName: $typeName, ')
           ..write('scanText: $scanText, ')
+          ..write('neverExpires: $neverExpires, ')
           ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
@@ -779,6 +827,7 @@ class Document extends DataClass implements Insertable<Document> {
     details,
     typeName,
     scanText,
+    neverExpires,
     extras,
     reminderOffsets,
     createdAt,
@@ -802,6 +851,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.details == this.details &&
           other.typeName == this.typeName &&
           other.scanText == this.scanText &&
+          other.neverExpires == this.neverExpires &&
           other.extras == this.extras &&
           other.reminderOffsets == this.reminderOffsets &&
           other.createdAt == this.createdAt &&
@@ -823,6 +873,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<String?> details;
   final Value<String?> typeName;
   final Value<String?> scanText;
+  final Value<bool> neverExpires;
   final Value<String?> extras;
   final Value<String?> reminderOffsets;
   final Value<DateTime> createdAt;
@@ -843,6 +894,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.details = const Value.absent(),
     this.typeName = const Value.absent(),
     this.scanText = const Value.absent(),
+    this.neverExpires = const Value.absent(),
     this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -864,6 +916,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.details = const Value.absent(),
     this.typeName = const Value.absent(),
     this.scanText = const Value.absent(),
+    this.neverExpires = const Value.absent(),
     this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
     required DateTime createdAt,
@@ -891,6 +944,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<String>? details,
     Expression<String>? typeName,
     Expression<String>? scanText,
+    Expression<bool>? neverExpires,
     Expression<String>? extras,
     Expression<String>? reminderOffsets,
     Expression<DateTime>? createdAt,
@@ -912,6 +966,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (details != null) 'details': details,
       if (typeName != null) 'type_name': typeName,
       if (scanText != null) 'scan_text': scanText,
+      if (neverExpires != null) 'never_expires': neverExpires,
       if (extras != null) 'extras': extras,
       if (reminderOffsets != null) 'reminder_offsets': reminderOffsets,
       if (createdAt != null) 'created_at': createdAt,
@@ -935,6 +990,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<String?>? details,
     Value<String?>? typeName,
     Value<String?>? scanText,
+    Value<bool>? neverExpires,
     Value<String?>? extras,
     Value<String?>? reminderOffsets,
     Value<DateTime>? createdAt,
@@ -956,6 +1012,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       details: details ?? this.details,
       typeName: typeName ?? this.typeName,
       scanText: scanText ?? this.scanText,
+      neverExpires: neverExpires ?? this.neverExpires,
       extras: extras ?? this.extras,
       reminderOffsets: reminderOffsets ?? this.reminderOffsets,
       createdAt: createdAt ?? this.createdAt,
@@ -1011,6 +1068,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     if (scanText.present) {
       map['scan_text'] = Variable<String>(scanText.value);
     }
+    if (neverExpires.present) {
+      map['never_expires'] = Variable<bool>(neverExpires.value);
+    }
     if (extras.present) {
       map['extras'] = Variable<String>(extras.value);
     }
@@ -1046,6 +1106,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('details: $details, ')
           ..write('typeName: $typeName, ')
           ..write('scanText: $scanText, ')
+          ..write('neverExpires: $neverExpires, ')
           ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
@@ -1082,6 +1143,7 @@ typedef $$DocumentsTableCreateCompanionBuilder = DocumentsCompanion Function({
   Value<String?> details,
   Value<String?> typeName,
   Value<String?> scanText,
+  Value<bool> neverExpires,
   Value<String?> extras,
   Value<String?> reminderOffsets,
   required DateTime createdAt,
@@ -1103,6 +1165,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder = DocumentsCompanion Function({
   Value<String?> details,
   Value<String?> typeName,
   Value<String?> scanText,
+  Value<bool> neverExpires,
   Value<String?> extras,
   Value<String?> reminderOffsets,
   Value<DateTime> createdAt,
@@ -1187,6 +1250,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<String> get scanText => $composableBuilder(
     column: $table.scanText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get neverExpires => $composableBuilder(
+    column: $table.neverExpires,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1290,6 +1358,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get neverExpires => $composableBuilder(
+    column: $table.neverExpires,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get extras => $composableBuilder(
     column: $table.extras,
     builder: (column) => ColumnOrderings(column),
@@ -1372,6 +1445,11 @@ class $$DocumentsTableAnnotationComposer
   GeneratedColumn<String> get scanText =>
       $composableBuilder(column: $table.scanText, builder: (column) => column);
 
+  GeneratedColumn<bool> get neverExpires => $composableBuilder(
+    column: $table.neverExpires,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get extras =>
       $composableBuilder(column: $table.extras, builder: (column) => column);
 
@@ -1429,6 +1507,7 @@ class $$DocumentsTableTableManager
                 Value<String?> details = const Value.absent(),
                 Value<String?> typeName = const Value.absent(),
                 Value<String?> scanText = const Value.absent(),
+                Value<bool> neverExpires = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
@@ -1449,6 +1528,7 @@ class $$DocumentsTableTableManager
                 details: details,
                 typeName: typeName,
                 scanText: scanText,
+                neverExpires: neverExpires,
                 extras: extras,
                 reminderOffsets: reminderOffsets,
                 createdAt: createdAt,
@@ -1471,6 +1551,7 @@ class $$DocumentsTableTableManager
                 Value<String?> details = const Value.absent(),
                 Value<String?> typeName = const Value.absent(),
                 Value<String?> scanText = const Value.absent(),
+                Value<bool> neverExpires = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
                 required DateTime createdAt,
@@ -1491,6 +1572,7 @@ class $$DocumentsTableTableManager
                 details: details,
                 typeName: typeName,
                 scanText: scanText,
+                neverExpires: neverExpires,
                 extras: extras,
                 reminderOffsets: reminderOffsets,
                 createdAt: createdAt,

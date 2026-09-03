@@ -906,4 +906,10 @@ class LEn extends L {
 
   @override
   String get extrasValue => 'Value';
+
+  @override
+  String get fieldNeverExpires => 'Never expires';
+
+  @override
+  String get fieldNoExpiry => 'This one has no expiry';
 }

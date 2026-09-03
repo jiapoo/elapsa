@@ -67,6 +67,14 @@ class TrackedDocument {
   /// beside it already has.
   final String? scanText;
 
+  /// True when this document has no end.
+  ///
+  /// Not every document expires. A Chinese identity card issued after 46 reads
+  /// 长期, and plenty of memberships and licences simply run until cancelled.
+  /// Forcing a date on those meant either inventing one — and being reminded
+  /// about it — or leaving the document out of the app entirely.
+  final bool neverExpires;
+
   /// Fields the user added themselves, in the order they added them.
   ///
   /// A document is whatever its owner needs to remember about it, and no fixed
@@ -108,6 +116,7 @@ class TrackedDocument {
     this.customType,
     this.scanText,
     this.extras = const {},
+    this.neverExpires = false,
   }) : _chosenOffsets = reminderOffsets;
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -121,6 +130,9 @@ class TrackedDocument {
   }
 
   DocumentStatus status({DateTime? now}) {
+    // Nothing that never ends is ever urgent.
+    if (neverExpires) return DocumentStatus.valid;
+
     final days = daysRemaining(now: now);
     if (days < 0) return DocumentStatus.expired;
     if (days <= 30) return DocumentStatus.critical;
@@ -141,6 +153,7 @@ class TrackedDocument {
   /// True when the document is still valid on paper but can no longer be used
   /// to enter countries that enforce the six-month rule.
   bool isTravelRestricted({DateTime? now}) {
+    if (neverExpires) return false;
     final cutoff = travelValidUntil;
     if (cutoff == null) return false;
     final today = _startOfDay(now ?? DateTime.now());
@@ -181,6 +194,9 @@ class TrackedDocument {
   static const dailyTailDays = 30;
 
   List<DateTime> reminderDates({DateTime? now}) {
+    // Nothing to count down to.
+    if (neverExpires) return const [];
+
     final today = _startOfDay(now ?? DateTime.now());
     final expiry = _startOfDay(expiryDate);
 
@@ -213,6 +229,7 @@ class TrackedDocument {
     String? customType,
     String? scanText,
     Map<String, String>? extras,
+    bool? neverExpires,
     bool clearCustomType = false,
   }) {
     return TrackedDocument(
@@ -232,6 +249,7 @@ class TrackedDocument {
       customType: clearCustomType ? null : (customType ?? this.customType),
       scanText: scanText ?? this.scanText,
       extras: extras ?? this.extras,
+      neverExpires: neverExpires ?? this.neverExpires,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

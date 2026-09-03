@@ -55,6 +55,7 @@ class DocumentRepository {
     String? customType,
     String? scanText,
     Map<String, String> extras = const {},
+    bool neverExpires = false,
   }) async {
     final now = DateTime.now();
     final id = _uuid.v4();
@@ -78,6 +79,7 @@ class DocumentRepository {
       customType: customType,
       scanText: scanText,
       extras: extras,
+      neverExpires: neverExpires,
       createdAt: now,
       updatedAt: now,
     );
@@ -216,6 +218,7 @@ class DocumentRepository {
       customType: row.typeName,
       scanText: row.scanText,
       extras: _decodeExtras(row.extras),
+      neverExpires: row.neverExpires,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -251,6 +254,7 @@ class DocumentRepository {
       typeName: Value(doc.customType),
       scanText: Value(doc.scanText),
       extras: Value(doc.extras.isEmpty ? null : jsonEncode(doc.extras)),
+      neverExpires: Value(doc.neverExpires),
       reminderOffsets: Value(
         doc.hasChosenReminders ? doc.reminderOffsetDays.join(',') : null,
       ),

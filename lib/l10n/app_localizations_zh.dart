@@ -788,6 +788,12 @@ class LZh extends L {
 
   @override
   String get extrasValue => '内容';
+
+  @override
+  String get fieldNeverExpires => '长期有效';
+
+  @override
+  String get fieldNoExpiry => '这张证件没有到期日';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1573,4 +1579,10 @@ class LZhHant extends LZh {
 
   @override
   String get extrasValue => '內容';
+
+  @override
+  String get fieldNeverExpires => '長期有效';
+
+  @override
+  String get fieldNoExpiry => '這張證件沒有到期日';
 }

@@ -179,4 +179,36 @@ void main() {
       expect(doc(expiry: DateTime(2026, 1, 1)).reminderDates(now: _now), isEmpty);
     });
   });
+
+  group('a document that never expires', () {
+    TrackedDocument endless() => TrackedDocument(
+      id: 'id-card',
+      type: DocumentType.nationalId,
+      label: '居民身份证',
+      // Whatever date it happens to carry is not read while the flag is set.
+      expiryDate: DateTime(2020, 1, 1),
+      renewalLeadDays: 90,
+      neverExpires: true,
+      createdAt: _now,
+      updatedAt: _now,
+    );
+
+    test('is never urgent, however old the date it carries', () {
+      // Without the flag this is five years expired.
+      expect(endless().status(now: _now), DocumentStatus.valid);
+    });
+
+    test('is never reminded about', () {
+      // A reminder is a number of days before a date, and there is no date.
+      expect(endless().reminderDates(now: _now), isEmpty);
+    });
+
+    test('never triggers the travel rule', () {
+      expect(endless().isTravelRestricted(now: _now), isFalse);
+    });
+
+    test('the flag survives a copyWith', () {
+      expect(endless().copyWith(label: 'x').neverExpires, isTrue);
+    });
+  });
 }

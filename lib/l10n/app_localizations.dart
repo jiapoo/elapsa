@@ -1507,6 +1507,18 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Value'**
   String get extrasValue;
+
+  /// Never expires
+  ///
+  /// In en, this message translates to:
+  /// **'Never expires'**
+  String get fieldNeverExpires;
+
+  /// This one has no expiry
+  ///
+  /// In en, this message translates to:
+  /// **'This one has no expiry'**
+  String get fieldNoExpiry;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

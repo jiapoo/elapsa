@@ -111,10 +111,11 @@ class DocumentDetailScreen extends ConsumerWidget {
 
           _Facts(
             children: [
-              _Fact(
-                label: l.fieldExpiry,
-                value: DateFormat.yMMMMd(locale).format(document.expiryDate),
-              ),
+              if (!document.neverExpires)
+                _Fact(
+                  label: l.fieldExpiry,
+                  value: DateFormat.yMMMMd(locale).format(document.expiryDate),
+                ),
               if (document.issueDate != null)
                 _Fact(
                   label: l.fieldIssueDate,
@@ -257,14 +258,17 @@ class _Countdown extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            expired
+            document.neverExpires
+                ? l.fieldNeverExpires
+                : expired
                 ? durationLabel(document.expiryDate, now, l)
                 : durationLabel(now, document.expiryDate, l),
             style: Theme.of(context).textTheme.titleLarge
                 ?.copyWith(color: colour, fontSize: 26, letterSpacing: -0.6),
           ),
-          if (status == DocumentStatus.actionNeeded ||
-              status == DocumentStatus.critical) ...[
+          if (!document.neverExpires &&
+              (status == DocumentStatus.actionNeeded ||
+                  status == DocumentStatus.critical)) ...[
             const SizedBox(height: 4),
             Text(
               l.startRenewingNow,

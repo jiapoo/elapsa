@@ -349,5 +349,7 @@
   "extrasTitle": "自訂欄位",
   "extrasAdd": "新增欄位",
   "extrasName": "欄位名稱",
-  "extrasValue": "內容"
+  "extrasValue": "內容",
+  "fieldNeverExpires": "長期有效",
+  "fieldNoExpiry": "這張證件沒有到期日"
 }

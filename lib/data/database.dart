@@ -52,6 +52,14 @@ class Documents extends Table {
   /// What the recogniser read, kept with the document it was read from.
   TextColumn get scanText => text().nullable()();
 
+  /// True when the document says it never expires.
+  ///
+  /// A Chinese identity card issued to someone over 46 reads 2015.01.01-长期,
+  /// and a great many memberships and licences simply have no end. The expiry
+  /// column keeps whatever date it had, because a column that must hold
+  /// something should hold something; nothing reads it while this is set.
+  BoolColumn get neverExpires => boolean().withDefault(const Constant(false))();
+
   /// Fields the user added themselves, as JSON.
   ///
   /// Separate from [details], which is a fixed set this app understands and
@@ -78,7 +86,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -107,6 +115,11 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 6) {
         await m.addColumn(documents, documents.extras);
+      }
+      if (from < 7) {
+        // False for everything stored: an existing document has a date, and
+        // the ones that should not have had one were made to have one anyway.
+        await m.addColumn(documents, documents.neverExpires);
       }
     },
   );

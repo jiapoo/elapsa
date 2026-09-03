@@ -417,7 +417,22 @@ class PrintedFieldParser {
       if (looksLikeCard) {
         final months = _allMonthYears(normalised);
         if (expiry == null && months.isNotEmpty) expiry = months.last;
-        if (months.length > 1) issued = months.first;
+
+        // The same month read the other way round.
+        //
+        // An expiry naming only a month is read pessimistically — the end of
+        // the month before — because it is a date to act before. A start date
+        // is not that. A card marked VALID FROM 10/23 became valid on the 1st
+        // of October, and recording it as the 30th of September put it in
+        // service a day before it existed.
+        //
+        // These come out of the same reader, so the shift is simply undone:
+        // one day past the end of the month before is the first of the month
+        // printed, and February, leap years and the turn of the year all take
+        // care of themselves.
+        if (months.length > 1) {
+          issued = months.first.add(const Duration(days: 1));
+        }
       }
 
       // A travel document writes its dates in words, under captions, in a

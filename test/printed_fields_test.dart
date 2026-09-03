@@ -141,8 +141,30 @@ Signature
       expect(parser.parse(front).expiryDate, DateTime(2028, 9, 30));
     });
 
-    test('keeps the earlier date as when it became valid', () {
-      expect(parser.parse(front).issueDate, DateTime(2023, 9, 30));
+    test('the date it became valid is the first of that month', () {
+      // VALID FROM 10/23 means the card started working on the 1st of
+      // October. The expiry is read back a month because it is a date to act
+      // before; a start date is not, and shifting it put the card in service a
+      // day before it existed.
+      expect(parser.parse(front).issueDate, DateTime(2023, 10, 1));
+    });
+
+    test('the two are read in opposite directions', () {
+      // 10/23 to 10/28 on the card is the 1st of October 2023 to the 30th of
+      // September 2028: valid from the day it starts, acted on before the
+      // month it runs out in.
+      final fields = parser.parse(front);
+      expect(fields.issueDate, DateTime(2023, 10, 1));
+      expect(fields.expiryDate, DateTime(2028, 9, 30));
+    });
+
+    test('a start date in January belongs to the right year', () {
+      expect(
+        parser
+            .parse('UnionPay VALID FROM 01/24 VALID THRU 01/29')
+            .issueDate,
+        DateTime(2024, 1, 1),
+      );
     });
 
     test('reads the name embossed on it', () {

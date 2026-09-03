@@ -138,6 +138,30 @@ enum VisionHandler {
         .joined(separator: "\n")
       var payload: [String: Any] = ["text": text]
 
+      // Every line with the box it was found in.
+      //
+      // So the caller can keep only what lies inside the document. A card
+      // photographed on a desk is a photograph of the desk as well, and one
+      // real scan came back with "return", "shift", "command" and "option" in
+      // it — the card was lying on a laptop keyboard. Handing back positions
+      // costs nothing and lets that be thrown away without a second pass over
+      // the image, and without losing the view of the whole picture that says
+      // whether the crop kept everything.
+      payload["lines"] = observations.compactMap {
+        (observation: VNRecognizedTextObservation) -> [String: Any]? in
+        guard let line = observation.topCandidates(1).first?.string else {
+          return nil
+        }
+        let box = observation.boundingBox
+        return [
+          "text": line,
+          "x": box.minX,
+          "y": 1.0 - box.maxY,
+          "width": box.width,
+          "height": box.height,
+        ]
+      }
+
       let boxes = observations.map(\.boundingBox)
       if let first = boxes.first {
         let union = boxes.dropFirst().reduce(first) { $0.union($1) }

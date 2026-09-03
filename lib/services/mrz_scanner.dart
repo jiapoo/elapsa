@@ -191,7 +191,18 @@ class MrzScanner {
       _vision.recognize(path, languages: languages),
       _vision.extractCard(path, quad: quad, byHand: byHand),
     ).wait;
-    final text = read.text;
+    // Only what is inside the document.
+    //
+    // The whole photograph is still read — it is what proves the crop kept the
+    // writing — but the desk it was taken on has no business in the fields. A
+    // card on a laptop gave up "return", "shift", "command" and "option", each
+    // of which is a chance to be mistaken for a name.
+    //
+    // The picture is not read twice for this. The lines come back with the
+    // boxes they were found in, so the ones outside the card are simply not
+    // passed on.
+    final region = cut?.bounds;
+    final text = region == null ? read.text : read.textInside(region);
 
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
@@ -201,7 +212,7 @@ class MrzScanner {
     // The crop is judged only once both passes have finished, so none of this
     // costs the user any time: the two still run side by side, and where the
     // writing was found is already known by the time it is needed.
-    final trusted = _keeps(cut, read.bounds, hasCode: parsed != null);
+    final trusted = _keeps(cut, read.lines, hasCode: parsed != null);
     final card = trusted ? cut!.bytes : await _fallbackFace(path, read.bounds);
 
     var printed = reading.printed;
@@ -323,15 +334,33 @@ class MrzScanner {
   /// card photographed on a desk covered in other paper has text sprawling
   /// well past its own edges, and demanding the crop swallow all of that would
   /// throw away a perfectly good card face in favour of the whole tabletop.
-  static bool _keeps(CardCut? cut, Rect? text, {required bool hasCode}) {
+  /// A line shaped like a machine-readable zone: nothing but capitals, digits
+  /// and chevrons, and far too long to be anything else on a document.
+  static final _codeLine = RegExp(r'^[A-Z0-9<]{25,}$');
+
+  static bool _keeps(
+    CardCut? cut,
+    List<RecognisedLine> lines, {
+    required bool hasCode,
+  }) {
     if (cut == null) return false;
-    if (!hasCode || text == null || text.isEmpty) return true;
+    if (!hasCode) return true;
 
-    final kept = cut.bounds.intersect(text);
-    if (kept.isEmpty) return false;
+    // The machine-readable lines specifically, not all the writing there is.
+    //
+    // Measuring against every line found was fine until a photograph turned up
+    // with a laptop keyboard in it: the union of all text then covers half the
+    // desk, no crop can contain it, and a perfectly good cut of a passport
+    // gets thrown away for failing to include the space bar. What the check
+    // was ever for is narrower than that — has the crop cut off the code? — so
+    // it now asks exactly that.
+    final code = [
+      for (final line in lines)
+        if (_codeLine.hasMatch(line.text.replaceAll(' ', ''))) line,
+    ];
+    if (code.isEmpty) return true;
 
-    final covered = (kept.width * kept.height) / (text.width * text.height);
-    return covered >= 0.95;
+    return code.every((line) => cut.bounds.contains(line.box.center));
   }
 
   /// What to keep when the document would not square up.

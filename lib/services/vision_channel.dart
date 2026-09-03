@@ -37,10 +37,23 @@ List<String> recognitionLanguagesFor(Locale locale) {
       : const ['zh-Hans', 'zh-Hant', 'en-US'];
 }
 
+/// One line of writing, and where it was found.
+class RecognisedLine {
+  final String text;
+
+  /// Normalised, top-left origin, in the space of the whole photograph.
+  final Rect box;
+
+  const RecognisedLine(this.text, this.box);
+}
+
 /// What one pass of the recogniser found.
 class Recognition {
   /// Every line it read, newline separated.
   final String text;
+
+  /// The same lines, each with the box it was found in.
+  final List<RecognisedLine> lines;
 
   /// Where all of that writing sits, as one box in normalised coordinates
   /// with a top-left origin, or null when nothing was read.
@@ -51,9 +64,30 @@ class Recognition {
   /// it is unmistakable, and the writing is the part worth keeping.
   final Rect? bounds;
 
-  const Recognition({required this.text, this.bounds});
+  const Recognition({required this.text, this.bounds, this.lines = const []});
 
   static const empty = Recognition(text: '');
+
+  /// Only the writing that lies inside [region].
+  ///
+  /// A photograph of a card is a photograph of what the card was lying on, and
+  /// every line of that is a chance to mistake a keycap for a name. Keeping
+  /// what is inside the document throws all of it away at no cost — the
+  /// reading has already happened, and the whole picture is still available
+  /// for the checks that need it.
+  ///
+  /// A line counts as inside when its middle is: a caption printed along the
+  /// very edge of a card can have its box overlap the border by a hair, and
+  /// demanding containment would drop exactly the fields nearest the edge.
+  String textInside(Rect region) {
+    if (lines.isEmpty) return text;
+
+    final kept = [
+      for (final line in lines)
+        if (region.contains(line.box.center)) line.text,
+    ];
+    return kept.join('\n');
+  }
 }
 
 /// Which edge of the card is furthest from the camera.
@@ -202,6 +236,19 @@ class VisionChannel {
     final box = (reply['bounds'] as Map?)?.cast<String, dynamic>();
     return Recognition(
       text: reply['text'] as String? ?? '',
+      lines: [
+        for (final line in (reply['lines'] as List? ?? const []))
+          if (line is Map)
+            RecognisedLine(
+              line['text'] as String? ?? '',
+              Rect.fromLTWH(
+                (line['x'] as num).toDouble(),
+                (line['y'] as num).toDouble(),
+                (line['width'] as num).toDouble(),
+                (line['height'] as num).toDouble(),
+              ),
+            ),
+      ],
       bounds: box == null
           ? null
           : Rect.fromLTWH(

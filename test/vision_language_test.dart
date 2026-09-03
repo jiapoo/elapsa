@@ -31,10 +31,16 @@ void main() {
       );
     });
 
-    test('anything else reads English first', () {
+    test('the app in English still reads Chinese first', () {
+      // Not a preference — the order decides what can be read at all. A Latin
+      // model transliterates Chinese rather than admitting it cannot read it,
+      // while a Chinese model reads Latin perfectly well. Somebody reading the
+      // app in English still owns Chinese documents, and a document should be
+      // read for what it is rather than for what its owner set the interface
+      // to.
       expect(
         recognitionLanguagesFor(const Locale('en')),
-        ['en-US', 'zh-Hans', 'zh-Hant'],
+        ['zh-Hans', 'zh-Hant', 'en-US'],
       );
     });
 

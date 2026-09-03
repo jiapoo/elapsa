@@ -116,6 +116,13 @@ enum VisionHandler {
     let started = CFAbsoluteTimeGetCurrent()
     let cgImage = boost ? boosted(full, variant: variant) ?? full : full
 
+    // Decided before the request that reports it is built, because the
+    // completion handler names it.
+    let probe = VNRecognizeTextRequest()
+    probe.recognitionLevel = .accurate
+    let chosen = supportedLanguages(for: probe, preferring: languages)
+    NSLog("Elapsa: reading in %@", chosen.joined(separator: ", "))
+
     let request = VNRecognizeTextRequest { request, error in
       if let error = error {
         result(FlutterError(code: "recognition_failed", message: error.localizedDescription, details: nil))
@@ -136,7 +143,10 @@ enum VisionHandler {
       // where its text is.
       let text = observations.compactMap { $0.topCandidates(1).first?.string }
         .joined(separator: "\n")
-      var payload: [String: Any] = ["text": text]
+      // Reported back so the diagnostics screen can say which scripts were
+      // actually enabled. Had this been visible, "Chinese is not recognised"
+      // would have been one screenshot rather than several days.
+      var payload: [String: Any] = ["text": text, "languages": chosen]
 
       // Every line with the box it was found in.
       //
@@ -198,10 +208,14 @@ enum VisionHandler {
 
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = false
-    request.recognitionLanguages = supportedLanguages(
-      for: request,
-      preferring: languages
-    )
+    request.recognitionLanguages = chosen
+
+    // And where the system can decide for itself, let it. The ordered list
+    // above is a good guess about a document nobody has looked at yet; Vision
+    // looking at the actual pixels is better than any guess.
+    if #available(iOS 16.0, *) {
+      request.automaticallyDetectsLanguage = true
+    }
 
     // How small a line may be, as a fraction of the image height. Vision
     // discards anything shorter, and the default of 1/32 is too coarse here: a
@@ -216,9 +230,23 @@ enum VisionHandler {
     // and suffers first when the budget is spread that thin.
     request.minimumTextHeight = 0.02
 
-    perform([request], on: cgImage,
-            orientation: cgOrientation(from: image.imageOrientation),
-            onFailure: result)
+    // If Vision refuses a language this OS turns out not to have, the answer
+    // is to read in English, not to give up on the picture.
+    perform(
+      [request],
+      on: cgImage,
+      orientation: cgOrientation(from: image.imageOrientation)
+    ) { error in
+      guard chosen != ["en-US"] else { result(error); return }
+      NSLog("Elapsa: retrying in English after %@", error.message ?? "a failure")
+      request.recognitionLanguages = ["en-US"]
+      perform(
+        [request],
+        on: cgImage,
+        orientation: cgOrientation(from: image.imageOrientation),
+        onFailure: result
+      )
+    }
   }
 
   /// The image rebuilt to make raised figures legible.
@@ -382,32 +410,52 @@ enum VisionHandler {
   /// Order matters: Vision reads this list as priority, not as a set, and the
   /// language it tries first is the one it resolves an ambiguous glyph
   /// towards. The app decides that order from its own language setting, which
-  /// is a statement by the user about what their documents are printed in —
-  /// better evidence than anything this side can infer. The phone's own
-  /// preference is the fallback for a caller that says nothing.
+  /// is a statement by the user about what their documents are printed in.
   ///
-  /// Asking Vision for a language it does not have throws at perform time, and
-  /// which release added which script has moved around, so the list is always
-  /// filtered against what is installed. On an older system this quietly falls
-  /// back to Latin, which is all a machine-readable zone ever needs.
+  /// The filtering is the dangerous part, and it was doing real damage. The
+  /// instance method that lists installed languages is deprecated and can
+  /// throw, and the answer to a throw here was to fall back to English alone —
+  /// silently, on every pass. A Chinese bank card then came back as
+  /// "Il thi là H", which is Vision doing exactly as it was told: reading
+  /// Chinese glyphs as Latin letters, because Chinese was never turned on.
+  ///
+  /// So the query is tried properly first, and a failure to answer is no
+  /// longer taken as an answer. If nothing can say what is installed, the list
+  /// is used as asked for — and if Vision then objects to a language it does
+  /// not have, the request is run again in English, which is where that
+  /// fallback belonged all along.
   private static func supportedLanguages(
     for request: VNRecognizeTextRequest,
     preferring wanted: [String] = []
   ) -> [String] {
-    guard let available = try? request.supportedRecognitionLanguages() else {
-      return ["en-US"]
-    }
-
     let order: [String]
     if !wanted.isEmpty {
       order = wanted
-    } else if Locale.preferredLanguages.first?.hasPrefix("zh") ?? false {
-      order = ["zh-Hans", "zh-Hant", "en-US"]
+    } else if Locale.preferredLanguages.first?.hasPrefix("zh-Hant") ?? false {
+      order = ["zh-Hant", "zh-Hans", "en-US"]
     } else {
-      order = ["en-US", "zh-Hans", "zh-Hant"]
+      // Chinese leads even here. A Latin model transliterates Chinese rather
+      // than admitting it cannot read it; a Chinese model reads Latin fine.
+      order = ["zh-Hans", "zh-Hant", "en-US"]
     }
 
-    let usable = order.filter { available.contains($0) }
+    var available: [String]?
+    if #available(iOS 15.0, *) {
+      available = try? VNRecognizeTextRequest.supportedRecognitionLanguages(
+        for: request.recognitionLevel,
+        revision: request.revision
+      )
+    }
+    if available == nil {
+      available = try? request.supportedRecognitionLanguages()
+    }
+
+    guard let installed = available, !installed.isEmpty else {
+      // Nothing could tell us. Ask for what we want rather than for less.
+      return order
+    }
+
+    let usable = order.filter { installed.contains($0) }
     return usable.isEmpty ? ["en-US"] : usable
   }
 

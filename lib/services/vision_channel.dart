@@ -29,9 +29,23 @@ class CardCut {
 /// The others always follow rather than being dropped. Somebody reading the
 /// app in Chinese still owns a passport with English on it.
 List<String> recognitionLanguagesFor(Locale locale) {
-  if (locale.languageCode != 'zh') {
-    return const ['en-US', 'zh-Hans', 'zh-Hant'];
-  }
+  // Chinese first, whatever the app is set to.
+  //
+  // The order is not a preference, it decides what can be read at all. With
+  // English leading, a Chinese bank card came back as "Il thi là H" — the
+  // Latin model doing its best with glyphs it has no idea about. With Chinese
+  // leading, the same card gave up 招商銀行 *and* CHINA MERCHANTS BANK.
+  //
+  // The asymmetry is the point: a Chinese model is trained on text with Latin
+  // mixed through it, because Chinese documents are full of it, while a Latin
+  // model has never seen a Chinese character and will transliterate one rather
+  // than admit it. So leading with Chinese costs nothing and leading with
+  // English costs the Chinese entirely.
+  //
+  // Which is also why this cannot be left to the app's language setting.
+  // Someone reading the app in English still owns Chinese documents, and a
+  // document should be read for what it is rather than for what its owner has
+  // the interface set to. The setting only chooses which Chinese leads.
   return locale.scriptCode == 'Hant'
       ? const ['zh-Hant', 'zh-Hans', 'en-US']
       : const ['zh-Hans', 'zh-Hant', 'en-US'];
@@ -60,6 +74,13 @@ class Recognition {
   /// The same lines, each with the box it was found in.
   final List<RecognisedLine> lines;
 
+  /// The scripts that were actually enabled for this pass.
+  ///
+  /// Worth carrying back. "Chinese is not recognised" and "Chinese was never
+  /// switched on" look identical from outside, and telling them apart took
+  /// several days when it should have taken one screenshot.
+  final List<String> languages;
+
   /// Where all of that writing sits, as one box in normalised coordinates
   /// with a top-left origin, or null when nothing was read.
   ///
@@ -69,7 +90,12 @@ class Recognition {
   /// it is unmistakable, and the writing is the part worth keeping.
   final Rect? bounds;
 
-  const Recognition({required this.text, this.bounds, this.lines = const []});
+  const Recognition({
+    required this.text,
+    this.bounds,
+    this.lines = const [],
+    this.languages = const [],
+  });
 
   static const empty = Recognition(text: '');
 
@@ -282,6 +308,7 @@ class VisionChannel {
     final box = (reply['bounds'] as Map?)?.cast<String, dynamic>();
     return Recognition(
       text: reply['text'] as String? ?? '',
+      languages: (reply['languages'] as List? ?? const []).cast<String>(),
       lines: [
         for (final line in (reply['lines'] as List? ?? const []))
           if (line is Map)

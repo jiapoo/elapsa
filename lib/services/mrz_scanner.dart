@@ -256,9 +256,13 @@ class MrzScanner {
     // Both, labelled. When a field is missing, the thing worth knowing is
     // whether the writing was never read or was read and then filtered away
     // as belonging to the desk — and one list cannot say which.
+    final header = read.languages.isEmpty
+        ? ''
+        : 'read in ${read.languages.join(", ")}\n\n';
+
     var seen = text == read.text
-        ? text
-        : '--- inside the document ---\n$text'
+        ? '$header$text'
+        : '$header--- inside the document ---\n$text'
               '\n--- the whole picture ---\n${read.text}';
 
     // Read the document on its own as well as in its surroundings.

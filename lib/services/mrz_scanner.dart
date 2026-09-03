@@ -215,13 +215,20 @@ class MrzScanner {
     // a capture that fills the form in and one that appears to have read
     // nothing at all.
     //
-    // Always when the corners were placed by hand — that is the whole point of
-    // having placed them — and otherwise only when the frame gave nothing
-    // worth having, since it costs another full pass.
-    final worthACloserLook =
-        byHand ||
-        (parsed == null && printed.expiryDate == null && !printed.neverExpires);
-    if (worthACloserLook && card != null) {
+    // Always, now, rather than only when the frame gave nothing.
+    //
+    // A photograph of a card is a photograph of whatever the card was lying
+    // on. One diagnostic from a real scan came back with "return", "shift",
+    // "command" and "option" in it — the card was on a laptop keyboard, and
+    // the recogniser dutifully read the keyboard. Every one of those lines is
+    // a chance to mistake something for a name or a number, and all of them
+    // are competing for attention with the document.
+    //
+    // Inside the crop there is nothing but the document, and it fills the
+    // frame, so its print is several times the size. Skipping that pass
+    // whenever the whole picture happened to yield *an* expiry meant the best
+    // reading available was the one most often not taken.
+    if (card != null) {
       final closer = await _readCrop(card, languages: languages);
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(closer);

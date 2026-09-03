@@ -201,9 +201,10 @@ enum VisionHandler {
 
     let treated: CIImage?
     switch variant {
-    case 0: treated = flatten(grey)
-    case 1: treated = harden(grey)
-    case 2: treated = enhance(source)
+    case 0: treated = relief(grey)
+    case 1: treated = flatten(grey)
+    case 2: treated = harden(grey)
+    case 3: treated = enhance(source)
     default: treated = flatten(grey).flatMap(invert)
     }
 
@@ -245,6 +246,42 @@ enum VisionHandler {
     guard let filter = CIFilter(name: "CIColorInvert") else { return nil }
     filter.setValue(image, forKey: kCIInputImageKey)
     return filter.outputImage?.cropped(to: image.extent)
+  }
+
+  /// Every edge in the picture, and nothing else.
+  ///
+  /// A morphological gradient — the image dilated minus the image eroded — is
+  /// bright wherever brightness changes sharply within a couple of pixels and
+  /// black everywhere it does not. An embossed digit is nothing *but* such a
+  /// change: a shadow one side of the stroke and a highlight the other. The
+  /// artwork it is printed over, however loud, is broad smooth colour, and
+  /// broad smooth colour has no edges to give.
+  ///
+  /// This is the treatment for the hard case — a number stamped across a
+  /// painted card, where it is dark against the light parts and light against
+  /// the dark ones, so no single threshold anywhere on the card can separate
+  /// it. Edges do not care which way round the contrast runs.
+  ///
+  /// Inverted at the end because what comes out is white strokes on black, and
+  /// a recogniser trained on print expects ink on paper.
+  private static func relief(_ grey: CIImage) -> CIImage? {
+    guard let edges = CIFilter(name: "CIMorphologyGradient") else { return nil }
+    edges.setValue(grey, forKey: kCIInputImageKey)
+    // About the width of an embossed stroke's shadow. Wider starts joining
+    // neighbouring digits into a blob.
+    edges.setValue(3.0, forKey: kCIInputRadiusKey)
+    guard let outline = edges.outputImage?.cropped(to: grey.extent) else {
+      return nil
+    }
+
+    guard let stretch = CIFilter(name: "CIColorControls") else { return nil }
+    stretch.setValue(outline, forKey: kCIInputImageKey)
+    stretch.setValue(2.4, forKey: kCIInputContrastKey)
+    stretch.setValue(0.15, forKey: kCIInputBrightnessKey)
+
+    return stretch.outputImage
+      .flatMap(invert)?
+      .cropped(to: grey.extent)
   }
 
   /// Local contrast: the image divided by a blur of itself.

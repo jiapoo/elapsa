@@ -758,14 +758,17 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                               // to notice; one of them moving joins them up.
                               _Pulse(
                                 active: _detectionStuck && !busy,
-                                child: _GlyphButton(
+                                resting: _autoDetect
+                                    ? Colors.black.withValues(alpha: 0.4)
+                                    : kBrand,
+                                builder: (colour) => _GlyphButton(
                                   icon: _autoDetect
                                       ? Icons.auto_fix_high_rounded
                                       : Icons.auto_fix_off_rounded,
                                   semantic: _autoDetect
                                       ? l.scanAutoOn
                                       : l.scanAutoOff,
-                                  filled: !_autoDetect,
+                                  background: colour,
                                   onTap: busy ? null : _toggleAuto,
                                 ),
                               ),
@@ -1258,12 +1261,16 @@ class _GlyphButton extends StatelessWidget {
     required this.semantic,
     required this.onTap,
     this.filled = false,
+    this.background,
   });
 
   final IconData icon;
   final String semantic;
   final VoidCallback? onTap;
   final bool filled;
+
+  /// Overrides the fill, for a button being drawn attention to.
+  final Color? background;
 
   @override
   Widget build(BuildContext context) {
@@ -1279,7 +1286,9 @@ class _GlyphButton extends StatelessWidget {
             height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: filled ? kBrand : Colors.black.withValues(alpha: 0.4),
+              color:
+                  background ??
+                  (filled ? kBrand : Colors.black.withValues(alpha: 0.4)),
             ),
             child: _UprightIcon(icon, color: Colors.white, size: 21),
           ),
@@ -1422,15 +1431,28 @@ class _PageAction extends StatelessWidget {
   }
 }
 
-/// A slow ring of light around something worth noticing.
+/// The button itself, changing colour, while there is something to notice.
 ///
-/// Slow on purpose. A fast blink is an alarm, and nothing has gone wrong
-/// here — the app is simply out of ideas and pointing at the door.
+/// The colour rather than a halo around it: a glow reads as decoration on a
+/// screen where the brackets and the shutter already light up at various
+/// moments, while the button turning the brand colour and back is
+/// unmistakably *that button* asking to be pressed.
+///
+/// Slowly. A fast blink is an alarm, and nothing has gone wrong here — the app
+/// is out of ideas and pointing at the door.
 class _Pulse extends StatefulWidget {
-  const _Pulse({required this.active, required this.child});
+  const _Pulse({
+    required this.active,
+    required this.resting,
+    required this.builder,
+  });
 
   final bool active;
-  final Widget child;
+
+  /// What the button looks like when it is not asking for anything.
+  final Color resting;
+
+  final Widget Function(Color colour) builder;
 
   @override
   State<_Pulse> createState() => _PulseState();
@@ -1439,7 +1461,7 @@ class _Pulse extends StatefulWidget {
 class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   late final _beat = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 1200),
+    duration: const Duration(milliseconds: 900),
   );
 
   @override
@@ -1470,25 +1492,13 @@ class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _beat,
-      builder: (context, child) {
-        final t = Curves.easeInOut.transform(_beat.value);
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: t == 0
-                ? null
-                : [
-                    BoxShadow(
-                      color: kBrand.withValues(alpha: 0.55 * t),
-                      blurRadius: 10 + 14 * t,
-                      spreadRadius: 1 + 5 * t,
-                    ),
-                  ],
-          ),
-          child: child,
-        );
-      },
-      child: widget.child,
+      builder: (context, _) => widget.builder(
+        Color.lerp(
+          widget.resting,
+          kBrand,
+          Curves.easeInOut.transform(_beat.value),
+        )!,
+      ),
     );
   }
 }

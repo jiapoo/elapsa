@@ -235,7 +235,7 @@ class _Countdown extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = L.of(context);
     final status = document.status();
-    final expired = document.daysRemaining() < 0;
+    final expired = !document.neverExpires && document.daysRemaining() < 0;
     final now = DateTime.now();
 
     return Container(

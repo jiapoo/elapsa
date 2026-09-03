@@ -267,7 +267,8 @@ class _ExpiryStamp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expired = document.daysRemaining() < 0;
+    final endless = document.neverExpires;
+    final expired = !endless && document.daysRemaining() < 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -283,8 +284,13 @@ class _ExpiryStamp extends StatelessWidget {
         ),
         const SizedBox(height: 1),
         Text(
-          DateFormat.yMMM(Localizations.localeOf(context).toLanguageTag())
-              .format(document.expiryDate),
+          // The stored date is meaningless on a document with no end, and
+          // printing it on the face of the card is the one place it would be
+          // read as the answer rather than as leftovers.
+          endless
+              ? l.fieldNeverExpires
+              : DateFormat.yMMM(Localizations.localeOf(context).toLanguageTag())
+                    .format(document.expiryDate),
           style: TextStyle(
             color: Colors.white,
             fontSize: compact ? 13 : 15,

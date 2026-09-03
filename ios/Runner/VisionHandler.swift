@@ -153,13 +153,32 @@ enum VisionHandler {
           return nil
         }
         let box = observation.boundingBox
-        return [
+
+        // The best all-digit reading of this line, if it has one.
+        //
+        // A group of embossed figures often comes back as letters — one real
+        // scan turned 6176 into Cyrillic — while the correct digits sit a
+        // little further down the same list of candidates. Vision is asked for
+        // several and the first that is nothing but digits is kept alongside
+        // the winner, for the one job where a run of digits is exactly what is
+        // being looked for. The winning candidate is untouched: this is extra
+        // material for finding a card number, not a correction to the text.
+        let digits = observation.topCandidates(6)
+          .map { $0.string.replacingOccurrences(of: " ", with: "") }
+          .first { candidate in
+            candidate.count >= 3 && candidate.count <= 6
+              && candidate.allSatisfy(\.isNumber)
+          }
+
+        var entry: [String: Any] = [
           "text": line,
           "x": box.minX,
           "y": 1.0 - box.maxY,
           "width": box.width,
           "height": box.height,
         ]
+        if let digits = digits { entry["digits"] = digits }
+        return entry
       }
 
       let boxes = observations.map(\.boundingBox)

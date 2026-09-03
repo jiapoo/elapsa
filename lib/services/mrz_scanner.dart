@@ -98,6 +98,17 @@ class MrzScanner {
   /// Text is read from the **full-resolution original**, so the recogniser
   /// sees every pixel, while the stored face is the cropped card. Reading the
   /// crop instead would throw away detail the parsers depend on.
+  /// The text as the recogniser returned it, and again as it was printed.
+  ///
+  /// Both, because neither is enough alone: the returned order is what carries
+  /// captions next to their values, and the printed rows are what carry a card
+  /// number as one number instead of as three pieces with other writing
+  /// between them.
+  static String _withRows(String text, Recognition read) {
+    final rows = read.rows;
+    return rows.trim().isEmpty || rows == text ? text : '$text\n$rows';
+  }
+
   /// What one pass of reading produced.
   Future<({MrzResult? mrz, PrintedFields printed})> _interpret(
     String text,
@@ -124,7 +135,7 @@ class MrzScanner {
   /// in one clears it comfortably in the other. It is also the whole reason a
   /// document held at arm's length reads worse than the same document filling
   /// the frame.
-  Future<String> _readCrop(
+  Future<Recognition> _readCrop(
     Uint8List cropped, {
     bool boost = false,
     int variant = 0,
@@ -140,14 +151,15 @@ class MrzScanner {
         ),
       );
       await temp.writeAsBytes(cropped);
-      return (await _vision.recognize(
+      return await _vision.recognize(
         temp.path,
         boost: boost,
         variant: variant,
-      )).text;
+        languages: languages,
+      );
     } catch (error) {
       debugPrint('Elapsa: reading the crop failed: $error');
-      return '';
+      return Recognition.empty;
     } finally {
       // The crop is a decrypted picture of someone's passport. It does not
       // stay on disk a moment longer than the read takes.
@@ -201,13 +213,37 @@ class MrzScanner {
     // The picture is not read twice for this. The lines come back with the
     // boxes they were found in, so the ones outside the card are simply not
     // passed on.
-    final region = cut?.bounds;
-    final text = region == null ? read.text : read.textInside(region);
+    // Generously. The corners the crop was cut along come from the preview,
+    // and the preview and the still do not always share a field of view — so
+    // the region can sit a little off the card without anything being wrong
+    // enough to notice. Trimming to it exactly threw away the bank's name,
+    // which lives in the top corner where that error lands first.
+    final region = cut?.bounds.inflate(0.06);
+    final inside = region == null ? read.text : read.textInside(region);
+    final text = inside.trim().isEmpty ? read.text : inside;
 
     if (kDebugMode) debugPrint('Elapsa OCR >>>\n$text\n<<< end OCR');
 
-    var reading = await _interpret(text);
+    // Read as printed as well as as returned.
+    var reading = await _interpret(_withRows(text, read));
     var parsed = reading.mrz;
+
+    // Whatever the card itself did not give up, the rest of the picture may.
+    //
+    // Filtering to the document is right for what it removes — a keyboard
+    // under a card is not part of the card — but wrong if it also removes the
+    // document. It cannot be told which it has done, so the whole picture
+    // stays available to fill gaps and never to overrule: the worst case is a
+    // field found in the wrong place, and the worst case of not doing it is a
+    // field not found at all.
+    if (text != read.text) {
+      final whole = await _interpret(_withRows(read.text, read));
+      parsed ??= whole.mrz;
+      reading = (
+        mrz: parsed,
+        printed: reading.printed.mergedWith(whole.printed),
+      );
+    }
 
     // The crop is judged only once both passes have finished, so none of this
     // costs the user any time: the two still run side by side, and where the
@@ -216,7 +252,14 @@ class MrzScanner {
     final card = trusted ? cut!.bytes : await _fallbackFace(path, read.bounds);
 
     var printed = reading.printed;
-    var seen = text;
+
+    // Both, labelled. When a field is missing, the thing worth knowing is
+    // whether the writing was never read or was read and then filtered away
+    // as belonging to the desk — and one list cannot say which.
+    var seen = text == read.text
+        ? text
+        : '--- inside the document ---\n$text'
+              '\n--- the whole picture ---\n${read.text}';
 
     // Read the document on its own as well as in its surroundings.
     //
@@ -240,9 +283,10 @@ class MrzScanner {
     // whenever the whole picture happened to yield *an* expiry meant the best
     // reading available was the one most often not taken.
     if (card != null) {
-      final closer = await _readCrop(card, languages: languages);
+      final look = await _readCrop(card, languages: languages);
+      final closer = look.text;
       if (closer.trim().isNotEmpty) {
-        reading = await _interpret(closer);
+        reading = await _interpret(_withRows(closer, look));
 
         // Which reading wins turns on whether the crop can be trusted, and
         // that is a question the frame answers.
@@ -284,27 +328,27 @@ class MrzScanner {
       // treatment was a coin toss dressed up as a rescue.
       for (final attempt in [
         if (card != null)
-          ('crop flattened', () => _readCrop(card, boost: true)),
-        if (card != null)
-          ('crop hardened', () => _readCrop(card, boost: true, variant: 1)),
+          for (var variant = 0; variant < 5; variant++)
+            (
+              'crop, treatment $variant',
+              () => _readCrop(
+                card,
+                boost: true,
+                variant: variant,
+                languages: languages,
+              ),
+            ),
         (
-          'frame flattened',
-          () async => (await _vision.recognize(
-            path,
-            boost: true,
-            languages: languages,
-          )).text,
-        ),
-        (
-          'frame hardened',
-          () async =>
-              (await _vision.recognize(path, boost: true, variant: 1)).text,
+          'whole frame, treatment 0',
+          () => _vision.recognize(path, boost: true, languages: languages),
         ),
       ]) {
-        final read = await attempt.$2();
-        if (read.trim().isEmpty) continue;
-        seen = '$seen\n--- ${attempt.$1} ---\n$read';
-        printed = printed.mergedWith(_printed.parse(read));
+        final look = await attempt.$2();
+        if (look.text.trim().isEmpty) continue;
+        seen = '$seen\n--- ${attempt.$1} ---\n${look.text}';
+        printed = printed.mergedWith(
+          _printed.parse(_withRows(look.text, look)),
+        );
         if (printed.documentNumber != null) break;
       }
     }

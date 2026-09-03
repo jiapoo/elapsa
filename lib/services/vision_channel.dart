@@ -44,7 +44,12 @@ class RecognisedLine {
   /// Normalised, top-left origin, in the space of the whole photograph.
   final Rect box;
 
-  const RecognisedLine(this.text, this.box);
+  /// The best reading of this line that is nothing but digits, when the
+  /// recogniser offered one. Embossed figures are often won by a run of
+  /// letters with the right digits a place or two behind them.
+  final String? digits;
+
+  const RecognisedLine(this.text, this.box, {this.digits});
 }
 
 /// What one pass of the recogniser found.
@@ -79,6 +84,47 @@ class Recognition {
   /// A line counts as inside when its middle is: a caption printed along the
   /// very edge of a card can have its box overlap the border by a hair, and
   /// demanding containment would drop exactly the fields nearest the edge.
+  /// The lines put back into the rows they were printed on.
+  ///
+  /// A recogniser returns lines in the order it happened to find them, and on
+  /// a card that order is not the order they are printed in. Two real scans
+  /// show the same thing: a card number came back as "6217 0033", then
+  /// "DEBIT", "CCB GD", "ATM", then "2000", then "2856 600" — one printed row,
+  /// broken up and interleaved with everything around it. Nothing downstream
+  /// can join those up, because by then they are not next to each other.
+  ///
+  /// Grouping by height and then sorting by position rebuilds the row as the
+  /// eye sees it, which is where a card number is a card number. The digit
+  /// readings are preferred over the winning ones here, because within a row
+  /// of a card number that is what every part of it is.
+  String get rows {
+    if (lines.isEmpty) return '';
+
+    final sorted = [...lines]
+      ..sort((a, b) => a.box.center.dy.compareTo(b.box.center.dy));
+
+    final rows = <List<RecognisedLine>>[];
+    var height = 0.0;
+    for (final line in sorted) {
+      // Within about a line's height of the row being built.
+      final near =
+          rows.isNotEmpty && (line.box.center.dy - height).abs() < 0.02;
+      if (near) {
+        rows.last.add(line);
+      } else {
+        rows.add([line]);
+        height = line.box.center.dy;
+      }
+    }
+
+    return [
+      for (final row in rows)
+        (row..sort((a, b) => a.box.left.compareTo(b.box.left)))
+            .map((line) => line.digits ?? line.text)
+            .join(' '),
+    ].join('\n');
+  }
+
   String textInside(Rect region) {
     if (lines.isEmpty) return text;
 
@@ -247,6 +293,7 @@ class VisionChannel {
                 (line['width'] as num).toDouble(),
                 (line['height'] as num).toDouble(),
               ),
+              digits: line['digits'] as String?,
             ),
       ],
       bounds: box == null

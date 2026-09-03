@@ -264,10 +264,21 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
       final controller = CameraController(
         back,
-        ResolutionPreset.high,
+        // Everything the sensor has.
+        //
+        // "High" is 1280x720. Every photograph this app has ever taken of a
+        // card was 720p — and a card filling a third of that frame leaves each
+        // embossed digit about fifteen pixels across, which is below what any
+        // recogniser can resolve. Weeks of filters were being applied to an
+        // image that did not contain the number.
+        //
+        // On iOS this asks for the photo preset: stills come off the full
+        // sensor while the preview stream stays a size the detector can keep
+        // up with, so the cost lands where it buys something.
+        ResolutionPreset.max,
         enableAudio: false,
-        // yuv420 gives a separate luminance plane, which is all the rectangle
-        // detector needs and a quarter the bytes of BGRA.
+        // yuv420 gives a separate luminance plane, which is all the detector
+        // needs and a quarter the bytes of BGRA.
         imageFormatGroup: ImageFormatGroup.yuv420,
       );
       await controller.initialize();

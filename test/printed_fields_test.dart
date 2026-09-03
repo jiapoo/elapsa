@@ -190,12 +190,16 @@ Signature
       );
     });
 
-    test('a run that fails the checksum still needs the wording', () {
-      // Sixteen digits that are not a card number could be anything.
+    test('a run that fails the checksum is not a card number at all', () {
+      // Wording used to be enough to accept one. It is not: sixteen digits
+      // that fail their own check digit are a misreading whatever is printed
+      // beside them, and the wording only ever said what *kind* of thing was
+      // being looked at.
       expect(parser.parse('4539148803436468').documentNumber, isNull);
+      expect(parser.parse('DEBIT 4539148803436468').documentNumber, isNull);
       expect(
-        parser.parse('DEBIT 4539148803436468').documentNumber,
-        '4539148803436468',
+        parser.parse('DEBIT 4539148803436467').documentNumber,
+        '4539148803436467',
       );
     });
 
@@ -437,23 +441,41 @@ National Immigration Administration,PRC
     });
   });
 
-  group('a number the checksum cannot rescue', () {
-    test('four groups are a card number even with two digits wrong', () {
-      // Two misreads defeat Luhn, and two is not many on embossed figures.
-      // What survives is the shape: four groups in a row is a card number and
-      // is almost nothing else.
+  group('a number that does not survive its checksum', () {
+    test('a perfect layout that fails the checksum is not the number', () {
+      // A real scan settled this. A card reading 6217 0033 2000 2856 600 was
+      // stored as 6819 0033 2000 2856 600, off a treated image where the first
+      // group came out wrong — laid out perfectly, and not the number.
+      //
+      // Luhn catches every single-digit error and almost every transposition,
+      // which is exactly that failure. An empty field is one the user fills in
+      // from the card in their hand; a wrong one is one they never check.
       expect(
         parser.parse('招商银行\n4539 1488 0343 6461').documentNumber,
-        '4539148803436461',
+        isNull,
+      );
+      expect(
+        parser
+            .parse('China Construction Bank\n6819 0033 2000 2856 600')
+            .documentNumber,
+        isNull,
       );
     });
 
-    test('and even with letters where digits should be', () {
-      // S for 5 and O for 0, twice over, so neither the checksum nor a
-      // pattern that insists on digits can help. The layout still can.
+    test('the same layout with the right digits is', () {
       expect(
-        parser.parse('4S39 1488 O343 6461').documentNumber,
-        '4539148803436461',
+        parser
+            .parse('China Construction Bank\n6217 0033 2000 2856 600')
+            .documentNumber,
+        '6217003320002856600',
+      );
+    });
+
+    test('letters standing in for digits are still repaired', () {
+      // The checksum is what says the repair was right.
+      expect(
+        parser.parse('4S39 1488 O343 6467').documentNumber,
+        '4539148803436467',
       );
     });
 

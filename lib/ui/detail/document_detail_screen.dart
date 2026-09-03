@@ -141,6 +141,11 @@ class DocumentDetailScreen extends ConsumerWidget {
                     secret: detail.isSensitive,
                     monospaced: detail.isSensitive,
                   ),
+              // The user's own, last and in their own order — they were added
+              // to say something this app did not think to ask.
+              for (final field in document.extras.entries)
+                if (field.value.isNotEmpty)
+                  _Fact(label: field.key, value: field.value),
             ],
           ),
 

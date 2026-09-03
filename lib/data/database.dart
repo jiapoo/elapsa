@@ -52,6 +52,13 @@ class Documents extends Table {
   /// What the recogniser read, kept with the document it was read from.
   TextColumn get scanText => text().nullable()();
 
+  /// Fields the user added themselves, as JSON.
+  ///
+  /// Separate from [details], which is a fixed set this app understands and
+  /// reasons about. These are names only the user knows the meaning of, so
+  /// they are stored and shown back and nothing more is claimed about them.
+  TextColumn get extras => text().nullable()();
+
   /// The reminder times the user chose, in days before expiry, comma
   /// separated. Null means they never chose and the conventional set applies.
   TextColumn get reminderOffsets => text().nullable()();
@@ -71,7 +78,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -97,6 +104,9 @@ class AppDatabase extends _$AppDatabase {
         // invented type, and nothing kept the text it was read from.
         await m.addColumn(documents, documents.typeName);
         await m.addColumn(documents, documents.scanText);
+      }
+      if (from < 6) {
+        await m.addColumn(documents, documents.extras);
       }
     },
   );

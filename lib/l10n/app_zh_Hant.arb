@@ -345,5 +345,9 @@
   "typesEmpty": "暫無。",
   "typesInUse": "{count} 份證件正在使用",
   "typesRemove": "刪除",
-  "editLastScan": "相機讀到的內容"
+  "editLastScan": "相機讀到的內容",
+  "extrasTitle": "自訂欄位",
+  "extrasAdd": "新增欄位",
+  "extrasName": "欄位名稱",
+  "extrasValue": "內容"
 }

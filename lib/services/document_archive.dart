@@ -256,6 +256,7 @@ class DocumentArchive {
       'details': {
         for (final entry in doc.details.entries) entry.key.name: entry.value,
       },
+      if (doc.extras.isNotEmpty) 'extras': doc.extras,
       'createdAt': doc.createdAt.toIso8601String(),
       'updatedAt': doc.updatedAt.toIso8601String(),
       'images': [for (final image in entry.images) base64Encode(image)],
@@ -291,6 +292,11 @@ class DocumentArchive {
               if (detail.name == entry.key) detail: entry.value as String,
         },
         imageCount: images.length,
+        extras: {
+          for (final entry in (raw['extras'] as Map? ?? const {}).entries)
+            if (entry.key is String && entry.value is String)
+              entry.key as String: entry.value as String,
+        },
         customType: raw['customType'] as String?,
         scanText: raw['scanText'] as String?,
         createdAt: _date(raw['createdAt']) ?? DateTime.now(),

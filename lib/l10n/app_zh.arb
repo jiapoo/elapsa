@@ -345,5 +345,9 @@
   "typesEmpty": "暂无。",
   "typesInUse": "{count} 份证件正在使用",
   "typesRemove": "删除",
-  "editLastScan": "相机读到的内容"
+  "editLastScan": "相机读到的内容",
+  "extrasTitle": "自定义字段",
+  "extrasAdd": "添加字段",
+  "extrasName": "字段名称",
+  "extrasValue": "内容"
 }

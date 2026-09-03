@@ -1483,6 +1483,30 @@ abstract class L {
   /// In en, this message translates to:
   /// **'What the camera read'**
   String get editLastScan;
+
+  /// Your own fields
+  ///
+  /// In en, this message translates to:
+  /// **'Your own fields'**
+  String get extrasTitle;
+
+  /// Add a field
+  ///
+  /// In en, this message translates to:
+  /// **'Add a field'**
+  String get extrasAdd;
+
+  /// Field name
+  ///
+  /// In en, this message translates to:
+  /// **'Field name'**
+  String get extrasName;
+
+  /// Value
+  ///
+  /// In en, this message translates to:
+  /// **'Value'**
+  String get extrasValue;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

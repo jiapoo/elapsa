@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ui';
 
 import 'package:drift/drift.dart';
@@ -53,6 +54,7 @@ class DocumentRepository {
     List<Uint8List> images = const [],
     String? customType,
     String? scanText,
+    Map<String, String> extras = const {},
   }) async {
     final now = DateTime.now();
     final id = _uuid.v4();
@@ -75,6 +77,7 @@ class DocumentRepository {
       reminderOffsets: reminderOffsets,
       customType: customType,
       scanText: scanText,
+      extras: extras,
       createdAt: now,
       updatedAt: now,
     );
@@ -178,6 +181,23 @@ class DocumentRepository {
   Future<void> _resync() async =>
       _notifications.rescheduleAll(await getAll(), _l);
 
+  /// Reads the user's own fields back, dropping anything malformed rather
+  /// than letting one bad record take the whole list down with it.
+  static Map<String, String> _decodeExtras(String? json) {
+    if (json == null || json.isEmpty) return const {};
+    try {
+      final raw = jsonDecode(json);
+      if (raw is! Map) return const {};
+      return {
+        for (final entry in raw.entries)
+          if (entry.key is String && entry.value is String)
+            entry.key as String: entry.value as String,
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
   static domain.TrackedDocument _toDomain(Document row) {
     return domain.TrackedDocument(
       id: row.id,
@@ -195,6 +215,7 @@ class DocumentRepository {
       reminderOffsets: _decodeOffsets(row.reminderOffsets),
       customType: row.typeName,
       scanText: row.scanText,
+      extras: _decodeExtras(row.extras),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -229,6 +250,7 @@ class DocumentRepository {
       details: Value(domain.DocumentDetails.encode(doc.details)),
       typeName: Value(doc.customType),
       scanText: Value(doc.scanText),
+      extras: Value(doc.extras.isEmpty ? null : jsonEncode(doc.extras)),
       reminderOffsets: Value(
         doc.hasChosenReminders ? doc.reminderOffsetDays.join(',') : null,
       ),

@@ -779,5 +779,21 @@
   "editLastScan": "What the camera read",
   "@editLastScan": {
     "description": "What the camera read"
+  },
+  "extrasTitle": "Your own fields",
+  "@extrasTitle": {
+    "description": "Your own fields"
+  },
+  "extrasAdd": "Add a field",
+  "@extrasAdd": {
+    "description": "Add a field"
+  },
+  "extrasName": "Field name",
+  "@extrasName": {
+    "description": "Field name"
+  },
+  "extrasValue": "Value",
+  "@extrasValue": {
+    "description": "Value"
   }
 }

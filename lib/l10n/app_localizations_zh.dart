@@ -776,6 +776,18 @@ class LZh extends L {
 
   @override
   String get editLastScan => '相机读到的内容';
+
+  @override
+  String get extrasTitle => '自定义字段';
+
+  @override
+  String get extrasAdd => '添加字段';
+
+  @override
+  String get extrasName => '字段名称';
+
+  @override
+  String get extrasValue => '内容';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1549,4 +1561,16 @@ class LZhHant extends LZh {
 
   @override
   String get editLastScan => '相機讀到的內容';
+
+  @override
+  String get extrasTitle => '自訂欄位';
+
+  @override
+  String get extrasAdd => '新增欄位';
+
+  @override
+  String get extrasName => '欄位名稱';
+
+  @override
+  String get extrasValue => '內容';
 }

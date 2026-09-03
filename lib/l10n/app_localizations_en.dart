@@ -894,4 +894,16 @@ class LEn extends L {
 
   @override
   String get editLastScan => 'What the camera read';
+
+  @override
+  String get extrasTitle => 'Your own fields';
+
+  @override
+  String get extrasAdd => 'Add a field';
+
+  @override
+  String get extrasName => 'Field name';
+
+  @override
+  String get extrasValue => 'Value';
 }

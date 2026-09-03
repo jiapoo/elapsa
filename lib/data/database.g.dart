@@ -156,6 +156,15 @@ class $DocumentsTable extends Documents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _extrasMeta = const VerificationMeta('extras');
+  @override
+  late final GeneratedColumn<String> extras = GeneratedColumn<String>(
+    'extras',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _reminderOffsetsMeta = const VerificationMeta(
     'reminderOffsets',
   );
@@ -205,6 +214,7 @@ class $DocumentsTable extends Documents
     details,
     typeName,
     scanText,
+    extras,
     reminderOffsets,
     createdAt,
     updatedAt,
@@ -313,6 +323,12 @@ class $DocumentsTable extends Documents
         scanText.isAcceptableOrUnknown(data['scan_text']!, _scanTextMeta),
       );
     }
+    if (data.containsKey('extras')) {
+      context.handle(
+        _extrasMeta,
+        extras.isAcceptableOrUnknown(data['extras']!, _extrasMeta),
+      );
+    }
     if (data.containsKey('reminder_offsets')) {
       context.handle(
         _reminderOffsetsMeta,
@@ -405,6 +421,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}scan_text'],
       ),
+      extras: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}extras'],
+      ),
       reminderOffsets: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}reminder_offsets'],
@@ -462,6 +482,13 @@ class Document extends DataClass implements Insertable<Document> {
   /// What the recogniser read, kept with the document it was read from.
   final String? scanText;
 
+  /// Fields the user added themselves, as JSON.
+  ///
+  /// Separate from [details], which is a fixed set this app understands and
+  /// reasons about. These are names only the user knows the meaning of, so
+  /// they are stored and shown back and nothing more is claimed about them.
+  final String? extras;
+
   /// The reminder times the user chose, in days before expiry, comma
   /// separated. Null means they never chose and the conventional set applies.
   final String? reminderOffsets;
@@ -482,6 +509,7 @@ class Document extends DataClass implements Insertable<Document> {
     this.details,
     this.typeName,
     this.scanText,
+    this.extras,
     this.reminderOffsets,
     required this.createdAt,
     required this.updatedAt,
@@ -520,6 +548,9 @@ class Document extends DataClass implements Insertable<Document> {
     }
     if (!nullToAbsent || scanText != null) {
       map['scan_text'] = Variable<String>(scanText);
+    }
+    if (!nullToAbsent || extras != null) {
+      map['extras'] = Variable<String>(extras);
     }
     if (!nullToAbsent || reminderOffsets != null) {
       map['reminder_offsets'] = Variable<String>(reminderOffsets);
@@ -561,6 +592,9 @@ class Document extends DataClass implements Insertable<Document> {
       scanText: scanText == null && nullToAbsent
           ? const Value.absent()
           : Value(scanText),
+      extras: extras == null && nullToAbsent
+          ? const Value.absent()
+          : Value(extras),
       reminderOffsets: reminderOffsets == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderOffsets),
@@ -591,6 +625,7 @@ class Document extends DataClass implements Insertable<Document> {
       details: serializer.fromJson<String?>(json['details']),
       typeName: serializer.fromJson<String?>(json['typeName']),
       scanText: serializer.fromJson<String?>(json['scanText']),
+      extras: serializer.fromJson<String?>(json['extras']),
       reminderOffsets: serializer.fromJson<String?>(json['reminderOffsets']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
@@ -616,6 +651,7 @@ class Document extends DataClass implements Insertable<Document> {
       'details': serializer.toJson<String?>(details),
       'typeName': serializer.toJson<String?>(typeName),
       'scanText': serializer.toJson<String?>(scanText),
+      'extras': serializer.toJson<String?>(extras),
       'reminderOffsets': serializer.toJson<String?>(reminderOffsets),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
@@ -637,6 +673,7 @@ class Document extends DataClass implements Insertable<Document> {
     Value<String?> details = const Value.absent(),
     Value<String?> typeName = const Value.absent(),
     Value<String?> scanText = const Value.absent(),
+    Value<String?> extras = const Value.absent(),
     Value<String?> reminderOffsets = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -659,6 +696,7 @@ class Document extends DataClass implements Insertable<Document> {
     details: details.present ? details.value : this.details,
     typeName: typeName.present ? typeName.value : this.typeName,
     scanText: scanText.present ? scanText.value : this.scanText,
+    extras: extras.present ? extras.value : this.extras,
     reminderOffsets: reminderOffsets.present
         ? reminderOffsets.value
         : this.reminderOffsets,
@@ -691,6 +729,7 @@ class Document extends DataClass implements Insertable<Document> {
       details: data.details.present ? data.details.value : this.details,
       typeName: data.typeName.present ? data.typeName.value : this.typeName,
       scanText: data.scanText.present ? data.scanText.value : this.scanText,
+      extras: data.extras.present ? data.extras.value : this.extras,
       reminderOffsets: data.reminderOffsets.present
           ? data.reminderOffsets.value
           : this.reminderOffsets,
@@ -716,6 +755,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('details: $details, ')
           ..write('typeName: $typeName, ')
           ..write('scanText: $scanText, ')
+          ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
@@ -739,6 +779,7 @@ class Document extends DataClass implements Insertable<Document> {
     details,
     typeName,
     scanText,
+    extras,
     reminderOffsets,
     createdAt,
     updatedAt,
@@ -761,6 +802,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.details == this.details &&
           other.typeName == this.typeName &&
           other.scanText == this.scanText &&
+          other.extras == this.extras &&
           other.reminderOffsets == this.reminderOffsets &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
@@ -781,6 +823,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<String?> details;
   final Value<String?> typeName;
   final Value<String?> scanText;
+  final Value<String?> extras;
   final Value<String?> reminderOffsets;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
@@ -800,6 +843,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.details = const Value.absent(),
     this.typeName = const Value.absent(),
     this.scanText = const Value.absent(),
+    this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
@@ -820,6 +864,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.details = const Value.absent(),
     this.typeName = const Value.absent(),
     this.scanText = const Value.absent(),
+    this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
@@ -846,6 +891,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<String>? details,
     Expression<String>? typeName,
     Expression<String>? scanText,
+    Expression<String>? extras,
     Expression<String>? reminderOffsets,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
@@ -866,6 +912,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (details != null) 'details': details,
       if (typeName != null) 'type_name': typeName,
       if (scanText != null) 'scan_text': scanText,
+      if (extras != null) 'extras': extras,
       if (reminderOffsets != null) 'reminder_offsets': reminderOffsets,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
@@ -888,6 +935,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<String?>? details,
     Value<String?>? typeName,
     Value<String?>? scanText,
+    Value<String?>? extras,
     Value<String?>? reminderOffsets,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
@@ -908,6 +956,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       details: details ?? this.details,
       typeName: typeName ?? this.typeName,
       scanText: scanText ?? this.scanText,
+      extras: extras ?? this.extras,
       reminderOffsets: reminderOffsets ?? this.reminderOffsets,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -962,6 +1011,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     if (scanText.present) {
       map['scan_text'] = Variable<String>(scanText.value);
     }
+    if (extras.present) {
+      map['extras'] = Variable<String>(extras.value);
+    }
     if (reminderOffsets.present) {
       map['reminder_offsets'] = Variable<String>(reminderOffsets.value);
     }
@@ -994,6 +1046,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('details: $details, ')
           ..write('typeName: $typeName, ')
           ..write('scanText: $scanText, ')
+          ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
@@ -1029,6 +1082,7 @@ typedef $$DocumentsTableCreateCompanionBuilder = DocumentsCompanion Function({
   Value<String?> details,
   Value<String?> typeName,
   Value<String?> scanText,
+  Value<String?> extras,
   Value<String?> reminderOffsets,
   required DateTime createdAt,
   required DateTime updatedAt,
@@ -1049,6 +1103,7 @@ typedef $$DocumentsTableUpdateCompanionBuilder = DocumentsCompanion Function({
   Value<String?> details,
   Value<String?> typeName,
   Value<String?> scanText,
+  Value<String?> extras,
   Value<String?> reminderOffsets,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
@@ -1132,6 +1187,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<String> get scanText => $composableBuilder(
     column: $table.scanText,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get extras => $composableBuilder(
+    column: $table.extras,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1230,6 +1290,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get extras => $composableBuilder(
+    column: $table.extras,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get reminderOffsets => $composableBuilder(
     column: $table.reminderOffsets,
     builder: (column) => ColumnOrderings(column),
@@ -1307,6 +1372,9 @@ class $$DocumentsTableAnnotationComposer
   GeneratedColumn<String> get scanText =>
       $composableBuilder(column: $table.scanText, builder: (column) => column);
 
+  GeneratedColumn<String> get extras =>
+      $composableBuilder(column: $table.extras, builder: (column) => column);
+
   GeneratedColumn<String> get reminderOffsets => $composableBuilder(
     column: $table.reminderOffsets,
     builder: (column) => column,
@@ -1361,6 +1429,7 @@ class $$DocumentsTableTableManager
                 Value<String?> details = const Value.absent(),
                 Value<String?> typeName = const Value.absent(),
                 Value<String?> scanText = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
@@ -1380,6 +1449,7 @@ class $$DocumentsTableTableManager
                 details: details,
                 typeName: typeName,
                 scanText: scanText,
+                extras: extras,
                 reminderOffsets: reminderOffsets,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
@@ -1401,6 +1471,7 @@ class $$DocumentsTableTableManager
                 Value<String?> details = const Value.absent(),
                 Value<String?> typeName = const Value.absent(),
                 Value<String?> scanText = const Value.absent(),
+                Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
@@ -1420,6 +1491,7 @@ class $$DocumentsTableTableManager
                 details: details,
                 typeName: typeName,
                 scanText: scanText,
+                extras: extras,
                 reminderOffsets: reminderOffsets,
                 createdAt: createdAt,
                 updatedAt: updatedAt,

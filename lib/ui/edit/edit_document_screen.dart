@@ -77,6 +77,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// The name of the user's own type this document is filed under, if any.
   String? _customType;
 
+  /// Fields the user added themselves, as a list so their order is theirs.
+  final _extras =
+      <({TextEditingController name, TextEditingController value})>[];
+
   /// What [_dirty] said at the last rebuild.
   ///
   /// Typing into a field changes a controller, not this widget, so nothing
@@ -115,6 +119,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     );
     _scanText = existing?.scanText;
     _customType = existing?.customType;
+
+    for (final field
+        in (existing?.extras ?? const <String, String>{}).entries) {
+      _extras.add((
+        name: TextEditingController(text: field.key),
+        value: TextEditingController(text: field.value),
+      ));
+    }
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
@@ -159,6 +171,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   void dispose() {
     for (final field in _watched) {
       field.removeListener(_recheckDirty);
+    }
+    for (final extra in _extras) {
+      extra.name.dispose();
+      extra.value.dispose();
     }
     _label.dispose();
     _holder.dispose();
@@ -437,6 +453,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     _holder,
     _documentNumber,
     ..._details.values,
+    for (final extra in _extras) ...[extra.name, extra.value],
   ];
 
   Future<void> _scan({bool keepFilled = false}) async {
@@ -857,6 +874,69 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 28),
+                  _Label(l.extrasTitle),
+                  for (var i = 0; i < _extras.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            flex: 4,
+                            child: TextFormField(
+                              controller: _extras[i].name,
+                              textCapitalization: TextCapitalization.sentences,
+                              decoration: InputDecoration(
+                                hintText: l.extrasName,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 5,
+                            child: TextFormField(
+                              controller: _extras[i].value,
+                              decoration: InputDecoration(
+                                hintText: l.extrasValue,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            iconSize: 19,
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            color: scheme.onSurfaceVariant,
+                            onPressed: () => setState(() {
+                              final removed = _extras.removeAt(i);
+                              removed.name.removeListener(_recheckDirty);
+                              removed.value.removeListener(_recheckDirty);
+                              removed.name.dispose();
+                              removed.value.dispose();
+                            }),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => setState(() {
+                        final field = (
+                          name: TextEditingController(),
+                          value: TextEditingController(),
+                        );
+                        field.name.addListener(_recheckDirty);
+                        field.value.addListener(_recheckDirty);
+                        _extras.add(field);
+                      }),
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: Text(l.extrasAdd),
+                    ),
+                  ),
+
                   if (_scanText != null && _scanText!.trim().isNotEmpty) ...[
                     const SizedBox(height: 28),
                     _ScanTextButton(text: _scanText!),
@@ -956,6 +1036,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       if (differs(text(_details[detail]!), existing.details[detail])) {
         return true;
       }
+    }
+
+    final named = {
+      for (final extra in _extras)
+        if (text(extra.name).isNotEmpty) text(extra.name): text(extra.value),
+    };
+    if (named.length != existing.extras.length) return true;
+    for (final field in named.entries) {
+      if (existing.extras[field.key] != field.value) return true;
     }
 
     // Pictures are not part of this question. They are written as they are
@@ -1118,6 +1207,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           detail: _details[detail]!.text.trim(),
     };
 
+    // A field with no name is not a field. One with a name and no value is
+    // kept, because someone who has written "Member number" and not yet found
+    // the card has said something worth keeping.
+    final extras = {
+      for (final extra in _extras)
+        if (extra.name.text.trim().isNotEmpty)
+          extra.name.text.trim(): extra.value.text.trim(),
+    };
+
     if (_isEditing) {
       final updated = widget.existing!.copyWith(
         type: _type,
@@ -1133,6 +1231,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         scanText: _scanText,
         customType: _customType,
         clearCustomType: _customType == null,
+        extras: extras,
       );
       if (_imagesLoaded) {
         // The editor holds the whole set, in the order shown, so it is written
@@ -1177,6 +1276,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         details: details,
         scanText: _scanText,
         customType: _customType,
+        extras: extras,
       );
     }
 

@@ -26,6 +26,7 @@ ArchivedDocument _passport() => ArchivedDocument(
         renewalLeadDays: 180,
         reminderOffsets: const [180, 90, 30],
         details: const {DocumentDetail.nationality: 'CHINESE'},
+        extras: const {'Visa office': 'Guangzhou', 'Sponsor': ''},
         imageCount: 2,
         createdAt: DateTime(2026, 1, 1),
         updatedAt: DateTime(2026, 2, 2),
@@ -59,6 +60,9 @@ void main() {
       expect(doc.renewalLeadDays, original.renewalLeadDays);
       expect(doc.reminderOffsetDays, original.reminderOffsetDays);
       expect(doc.details, original.details);
+      // A field the user invented is theirs, so it travels exactly as typed —
+      // including one they named and have not filled in yet.
+      expect(doc.extras, original.extras);
       expect(doc.createdAt, original.createdAt);
     });
 

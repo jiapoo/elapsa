@@ -67,6 +67,15 @@ class TrackedDocument {
   /// beside it already has.
   final String? scanText;
 
+  /// Fields the user added themselves, in the order they added them.
+  ///
+  /// A document is whatever its owner needs to remember about it, and no fixed
+  /// list of fields ever covers that: a membership has a member number, a
+  /// tenancy has a landlord's phone, a licence has a class nobody else's
+  /// licence has. These are names only the user knows the meaning of, so they
+  /// are kept and shown back and nothing more is claimed about them.
+  final Map<String, String> extras;
+
   final String? imagePath;
 
   /// How many pictures this document has — a card has two sides, and some
@@ -98,6 +107,7 @@ class TrackedDocument {
     List<int>? reminderOffsets,
     this.customType,
     this.scanText,
+    this.extras = const {},
   }) : _chosenOffsets = reminderOffsets;
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -202,6 +212,7 @@ class TrackedDocument {
     DateTime? updatedAt,
     String? customType,
     String? scanText,
+    Map<String, String>? extras,
     bool clearCustomType = false,
   }) {
     return TrackedDocument(
@@ -220,6 +231,7 @@ class TrackedDocument {
       reminderOffsets: reminderOffsets ?? _chosenOffsets,
       customType: clearCustomType ? null : (customType ?? this.customType),
       scanText: scanText ?? this.scanText,
+      extras: extras ?? this.extras,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

@@ -232,14 +232,19 @@ class MrzScanner {
       final closer = await _readCrop(card, languages: languages);
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(closer);
-        // Gaps only. The closer look used to win outright wherever the two
-        // disagreed, on the reasoning that it was taken of the document rather
-        // than of the room around it — but it is also taken of a *crop*, and a
-        // crop that clipped a line has a confident wrong answer where the
-        // whole frame had a right one. Filling what is missing is the part
-        // that was ever worth having.
-        parsed ??= reading.mrz;
-        printed = printed.mergedWith(reading.printed);
+
+        // Which reading wins turns on whether the crop can be trusted, and
+        // that is a question the frame answers.
+        //
+        // A trusted crop is the document, filling the picture, with nothing
+        // else in it — so its reading is better in every way and should win.
+        // An untrusted one is a rectangle the app is unsure of, and a crop
+        // that clipped a line has a confident wrong answer where the whole
+        // frame had a right one; there it may only fill gaps.
+        parsed = trusted ? (reading.mrz ?? parsed) : (parsed ?? reading.mrz);
+        printed = trusted
+            ? reading.printed.mergedWith(printed)
+            : printed.mergedWith(reading.printed);
         seen = '$text\n--- crop ---\n$closer';
       }
     }

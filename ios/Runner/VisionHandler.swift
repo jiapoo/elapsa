@@ -48,6 +48,7 @@ enum VisionHandler {
           path: path,
           boost: args["boost"] as? Bool ?? false,
           variant: args["variant"] as? Int ?? 0,
+          languages: args["languages"] as? [String] ?? [],
           result: result
         )
 
@@ -97,6 +98,7 @@ enum VisionHandler {
     path: String,
     boost: Bool,
     variant: Int,
+    languages: [String],
     result: @escaping FlutterResult
   ) {
     guard
@@ -153,7 +155,10 @@ enum VisionHandler {
 
     request.recognitionLevel = .accurate
     request.usesLanguageCorrection = false
-    request.recognitionLanguages = supportedLanguages(for: request)
+    request.recognitionLanguages = supportedLanguages(
+      for: request,
+      preferring: languages
+    )
 
     // How small a line may be, as a fraction of the image height. Vision
     // discards anything shorter, and the default of 1/32 is too coarse here: a
@@ -328,28 +333,38 @@ enum VisionHandler {
     return stretch.outputImage?.cropped(to: grey.extent)
   }
 
-  /// Narrows the languages we want to the ones this OS actually ships.
+  /// Narrows the languages we want to the ones this OS actually ships, in the
+  /// order the caller asked for.
+  ///
+  /// Order matters: Vision reads this list as priority, not as a set, and the
+  /// language it tries first is the one it resolves an ambiguous glyph
+  /// towards. The app decides that order from its own language setting, which
+  /// is a statement by the user about what their documents are printed in —
+  /// better evidence than anything this side can infer. The phone's own
+  /// preference is the fallback for a caller that says nothing.
   ///
   /// Asking Vision for a language it does not have throws at perform time, and
-  /// which release added which script has moved around. On an older system
-  /// this quietly falls back to Latin, which is all an MRZ ever needs.
-  private static func supportedLanguages(for request: VNRecognizeTextRequest) -> [String] {
+  /// which release added which script has moved around, so the list is always
+  /// filtered against what is installed. On an older system this quietly falls
+  /// back to Latin, which is all a machine-readable zone ever needs.
+  private static func supportedLanguages(
+    for request: VNRecognizeTextRequest,
+    preferring wanted: [String] = []
+  ) -> [String] {
     guard let available = try? request.supportedRecognitionLanguages() else {
       return ["en-US"]
     }
 
-    // Order matters. Vision reads this as priority, not as a set, and the
-    // language it tries first is the one it resolves an ambiguous glyph
-    // towards — so a list that always began with English was asking it to
-    // treat Chinese as the afterthought on a Chinese card. Whichever script
-    // the phone itself is set to goes first.
-    let chineseFirst = Locale.preferredLanguages.first?
-      .hasPrefix("zh") ?? false
-    let wanted = chineseFirst
-      ? ["zh-Hans", "zh-Hant", "en-US"]
-      : ["en-US", "zh-Hans", "zh-Hant"]
+    let order: [String]
+    if !wanted.isEmpty {
+      order = wanted
+    } else if Locale.preferredLanguages.first?.hasPrefix("zh") ?? false {
+      order = ["zh-Hans", "zh-Hant", "en-US"]
+    } else {
+      order = ["en-US", "zh-Hans", "zh-Hant"]
+    }
 
-    let usable = wanted.filter { available.contains($0) }
+    let usable = order.filter { available.contains($0) }
     return usable.isEmpty ? ["en-US"] : usable
   }
 

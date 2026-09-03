@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' show Locale;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,25 @@ class CardCut {
   final Rect bounds;
 
   const CardCut(this.bytes, this.bounds);
+}
+
+/// The scripts to read, in the order they should be tried.
+///
+/// Vision treats this list as priority rather than as a set: the language it
+/// tries first is the one it resolves an ambiguous glyph towards. So the order
+/// is a real decision, and the app already knows the answer — whichever
+/// language the user chose in Settings is the one their documents are most
+/// likely to be printed in.
+///
+/// The others always follow rather than being dropped. Somebody reading the
+/// app in Chinese still owns a passport with English on it.
+List<String> recognitionLanguagesFor(Locale locale) {
+  if (locale.languageCode != 'zh') {
+    return const ['en-US', 'zh-Hans', 'zh-Hant'];
+  }
+  return locale.scriptCode == 'Hant'
+      ? const ['zh-Hant', 'zh-Hans', 'en-US']
+      : const ['zh-Hans', 'zh-Hant', 'en-US'];
 }
 
 /// What one pass of the recogniser found.
@@ -169,11 +189,13 @@ class VisionChannel {
     String path, {
     bool boost = false,
     int variant = 0,
+    List<String>? languages,
   }) async {
     final reply = await _channel.invokeMapMethod<String, dynamic>('recognize', {
       'path': path,
       'boost': boost,
       'variant': variant,
+      'languages': languages ?? const <String>[],
     });
     if (reply == null) return Recognition.empty;
 

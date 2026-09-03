@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:elapsa/core/theme.dart';
+import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/domain/mrz.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
@@ -136,6 +137,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
 
   /// What every page of this scan read, kept together.
   String _seen = '';
+
+  /// The scripts to read, in the order the app's own language setting implies.
+  ///
+  /// Read once when the scanner opens rather than per frame: it cannot change
+  /// while this screen is up, and Vision treats the order as priority, so it
+  /// is worth being deliberate about.
+  List<String> get _languages =>
+      recognitionLanguagesFor(ref.read(activeLocaleProvider));
+
   MrzResult? _bestMrz;
   PrintedFields _printed = PrintedFields.empty;
 
@@ -402,7 +412,11 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
         return;
       }
 
-      final result = await _scanner.scanFile(shot.path, quad: framed);
+      final result = await _scanner.scanFile(
+        shot.path,
+        quad: framed,
+        languages: _languages,
+      );
       _absorb(result, original: shot.path, quad: framed);
 
       // And when the app cropped without conviction, the corners are offered
@@ -428,7 +442,10 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
         _restore();
         return;
       }
-      final result = await _scanner.scanFile(picked.path);
+      final result = await _scanner.scanFile(
+        picked.path,
+        languages: _languages,
+      );
       _absorb(result, original: picked.path);
     } catch (error, stack) {
       debugPrint('Elapsa: scan from library failed: $error\n$stack');
@@ -610,7 +627,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     if (quad == null || !mounted) return;
 
     setState(() => _stage = _Stage.working);
-    final result = await _scanner.recut(original, quad);
+    final result = await _scanner.recut(original, quad, languages: _languages);
     if (!mounted) return;
 
     setState(() {

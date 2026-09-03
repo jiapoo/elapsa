@@ -128,6 +128,7 @@ class MrzScanner {
     Uint8List cropped, {
     bool boost = false,
     int variant = 0,
+    List<String>? languages,
   }) async {
     File? temp;
     try {
@@ -159,8 +160,11 @@ class MrzScanner {
   /// Reading again is the point. Placing the corners is new information about
   /// where the document is, and the fields ought to be filled from the better
   /// framing rather than left as whatever the first guess produced.
-  Future<ScanResult> recut(String path, CardQuad quad) =>
-      scanFile(path, quad: quad, byHand: true);
+  Future<ScanResult> recut(
+    String path,
+    CardQuad quad, {
+    List<String>? languages,
+  }) => scanFile(path, quad: quad, byHand: true, languages: languages);
 
   /// Reads one captured photo.
   ///
@@ -173,13 +177,18 @@ class MrzScanner {
     String path, {
     CardQuad? quad,
     bool byHand = false,
+
+    /// The scripts to try, most likely first. Comes from the app's own
+    /// language setting: the user has already said which language they read
+    /// in, and their documents are overwhelmingly likely to be printed in it.
+    List<String>? languages,
   }) async {
     // Reading the text and cutting the card are independent passes over the
     // same photo, and each is a full Vision request. Run together they finish
     // in about the time the slower one takes; run in series the user waits for
     // both.
     final (read, cut) = await (
-      _vision.recognize(path),
+      _vision.recognize(path, languages: languages),
       _vision.extractCard(path, quad: quad, byHand: byHand),
     ).wait;
     final text = read.text;
@@ -213,7 +222,7 @@ class MrzScanner {
         byHand ||
         (parsed == null && printed.expiryDate == null && !printed.neverExpires);
     if (worthACloserLook && card != null) {
-      final closer = await _readCrop(card);
+      final closer = await _readCrop(card, languages: languages);
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(closer);
         // Gaps only. The closer look used to win outright wherever the two
@@ -257,7 +266,11 @@ class MrzScanner {
           ('crop hardened', () => _readCrop(card, boost: true, variant: 1)),
         (
           'frame flattened',
-          () async => (await _vision.recognize(path, boost: true)).text,
+          () async => (await _vision.recognize(
+            path,
+            boost: true,
+            languages: languages,
+          )).text,
         ),
         (
           'frame hardened',

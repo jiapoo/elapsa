@@ -216,10 +216,14 @@ class MrzScanner {
       final closer = await _readCrop(card);
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(closer);
-        // The closer reading wins where the two disagree: it was taken of the
-        // document rather than of the room the document was in.
-        parsed = reading.mrz ?? parsed;
-        printed = reading.printed.mergedWith(printed);
+        // Gaps only. The closer look used to win outright wherever the two
+        // disagreed, on the reasoning that it was taken of the document rather
+        // than of the room around it — but it is also taken of a *crop*, and a
+        // crop that clipped a line has a confident wrong answer where the
+        // whole frame had a right one. Filling what is missing is the part
+        // that was ever worth having.
+        parsed ??= reading.mrz;
+        printed = printed.mergedWith(reading.printed);
         seen = '$text\n--- crop ---\n$closer';
       }
     }

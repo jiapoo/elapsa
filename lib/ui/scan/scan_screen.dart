@@ -1461,7 +1461,7 @@ class _Pulse extends StatefulWidget {
 class _PulseState extends State<_Pulse> with SingleTickerProviderStateMixin {
   late final _beat = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: const Duration(milliseconds: 420),
   );
 
   @override

@@ -156,13 +156,17 @@ enum VisionHandler {
     request.recognitionLanguages = supportedLanguages(for: request)
 
     // How small a line may be, as a fraction of the image height. Vision
-    // *discards* anything shorter, and the default of 1/32 is far too coarse
-    // for this: a machine-readable zone photographed from arm's length is a
-    // couple of hundredths of the frame, so the one part of a passport that
-    // can be read with certainty was being thrown away before parsing ever
-    // saw it. Lower costs time on a big photo and buys back every document
-    // that was not held close enough to fill it.
-    request.minimumTextHeight = 0.012
+    // discards anything shorter, and the default of 1/32 is too coarse here: a
+    // machine-readable zone photographed from arm's length is a few
+    // hundredths of the frame, so the one part of a passport that can be read
+    // with certainty was being thrown away before parsing saw it.
+    //
+    // A fiftieth rather than an eightieth. The lower figure asked the
+    // recogniser to consider a vast number of tiny candidate regions on a
+    // twelve-megapixel photograph, and what it gave back was worse, not
+    // better — a Chinese character carries far more detail than a Latin one
+    // and suffers first when the budget is spread that thin.
+    request.minimumTextHeight = 0.02
 
     perform([request], on: cgImage,
             orientation: cgOrientation(from: image.imageOrientation),
@@ -330,10 +334,21 @@ enum VisionHandler {
   /// which release added which script has moved around. On an older system
   /// this quietly falls back to Latin, which is all an MRZ ever needs.
   private static func supportedLanguages(for request: VNRecognizeTextRequest) -> [String] {
-    let wanted = ["en-US", "zh-Hans", "zh-Hant"]
     guard let available = try? request.supportedRecognitionLanguages() else {
       return ["en-US"]
     }
+
+    // Order matters. Vision reads this as priority, not as a set, and the
+    // language it tries first is the one it resolves an ambiguous glyph
+    // towards — so a list that always began with English was asking it to
+    // treat Chinese as the afterthought on a Chinese card. Whichever script
+    // the phone itself is set to goes first.
+    let chineseFirst = Locale.preferredLanguages.first?
+      .hasPrefix("zh") ?? false
+    let wanted = chineseFirst
+      ? ["zh-Hans", "zh-Hant", "en-US"]
+      : ["en-US", "zh-Hans", "zh-Hant"]
+
     let usable = wanted.filter { available.contains($0) }
     return usable.isEmpty ? ["en-US"] : usable
   }

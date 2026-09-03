@@ -123,7 +123,7 @@ enum VisionHandler {
       let elapsed = (CFAbsoluteTimeGetCurrent() - started) * 1000
       NSLog("Elapsa: recognised %d lines in %.0fms (%dx%d)%@",
             observations.count, elapsed, cgImage.width, cgImage.height,
-            boost ? (variant == 0 ? " flattened" : " hardened") : "")
+            boost ? " boost#\(variant)" : "")
 
       // Where the writing is, as well as what it says.
       //
@@ -201,14 +201,50 @@ enum VisionHandler {
 
     let treated: CIImage?
     switch variant {
-    case 0:
-      treated = flatten(grey)
-    default:
-      treated = harden(grey)
+    case 0: treated = flatten(grey)
+    case 1: treated = harden(grey)
+    case 2: treated = enhance(source)
+    default: treated = flatten(grey).flatMap(invert)
     }
 
-    guard let output = treated else { return nil }
-    return ciContext.createCGImage(output, from: source.extent)
+    guard var output = treated else { return nil }
+
+    // Enlarged before it is read.
+    //
+    // A recogniser has a size below which it will not look, and an embossed
+    // number that survives this treatment as a faint relief is exactly the
+    // kind of mark it gives up on. Scaling costs nothing but time and this
+    // only runs when a number is already missing.
+    let longest = max(output.extent.width, output.extent.height)
+    if longest > 0, longest < 2400 {
+      let factor = min(2400 / longest, 3)
+      output = output.transformed(
+        by: CGAffineTransform(scaleX: factor, y: factor)
+      )
+    }
+
+    return ciContext.createCGImage(output, from: output.extent)
+  }
+
+  /// Apple's own document treatment, which is built for exactly this and
+  /// costs one filter to try.
+  private static func enhance(_ image: CIImage) -> CIImage? {
+    guard let filter = CIFilter(name: "CIDocumentEnhancer") else { return nil }
+    filter.setValue(image, forKey: kCIInputImageKey)
+    filter.setValue(10.0, forKey: "inputAmount")
+    return filter.outputImage?.cropped(to: image.extent)
+  }
+
+  /// The same relief, the other way up.
+  ///
+  /// Which way an embossed stroke reads depends on where the light was: from
+  /// one side the digit is a shadow on a pale card, from the other it is a
+  /// highlight. A recogniser trained on ink expects the former, so the frames
+  /// lit from the wrong side are worth turning over rather than discarding.
+  private static func invert(_ image: CIImage) -> CIImage? {
+    guard let filter = CIFilter(name: "CIColorInvert") else { return nil }
+    filter.setValue(image, forKey: kCIInputImageKey)
+    return filter.outputImage?.cropped(to: image.extent)
   }
 
   /// Local contrast: the image divided by a blur of itself.

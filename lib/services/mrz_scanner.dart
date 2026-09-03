@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
-import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/domain/printed_fields.dart';
 import 'package:elapsa/services/card_cropper.dart';
 import 'package:elapsa/services/vision_channel.dart';
@@ -115,7 +114,7 @@ class MrzScanner {
   /// in one clears it comfortably in the other. It is also the whole reason a
   /// document held at arm's length reads worse than the same document filling
   /// the frame.
-  Future<String> _readCrop(Uint8List cropped) async {
+  Future<String> _readCrop(Uint8List cropped, {bool boost = false}) async {
     File? temp;
     try {
       final dir = await getTemporaryDirectory();
@@ -126,7 +125,7 @@ class MrzScanner {
         ),
       );
       await temp.writeAsBytes(cropped);
-      return (await _vision.recognize(temp.path)).text;
+      return (await _vision.recognize(temp.path, boost: boost)).text;
     } catch (error) {
       debugPrint('Elapsa: reading the crop failed: $error');
       return '';
@@ -207,23 +206,32 @@ class MrzScanner {
       }
     }
 
-    // A card whose number did not read gets a second look.
+    // A document whose number did not read gets a second look, boosted.
     //
-    // This is the exact failure the app kept hitting: the bank's name, the
-    // dates and the holder all come back correctly, and the number — the one
-    // field that identifies the card — comes back as nothing. Those fields are
-    // flat print; the number is embossed, and has no tonal contrast for a
-    // recogniser to find. The second pass manufactures some.
+    // This is the failure the app keeps hitting on a bank card: the bank's
+    // name, the dates and the holder all come back correctly and the number —
+    // the one field that identifies the card — comes back as nothing. Those
+    // fields are flat print; the number is embossed, and has almost no tonal
+    // contrast for a recogniser to find. The boost manufactures some.
     //
-    // Only in that case. The treatment that rescues raised figures blooms fine
-    // print, so running it always would cost the fields that already work, and
-    // running it at all costs a second full-resolution pass.
-    if (printed.type == DocumentType.bankCard &&
-        printed.documentNumber == null) {
-      final boosted = (await _vision.recognize(path, boost: true)).text;
-      if (boosted.trim().isNotEmpty) {
-        seen = '$text\n$boosted';
+    // The *crop* is boosted first, and that is the part that was missing: a
+    // recogniser measures text against the height of the whole image, so
+    // embossed figures on a card that fills a third of a photograph are a
+    // third the size they are on the card alone. Boosting the frame and not
+    // the card was doing the harder half of the job.
+    //
+    // Widened from "looks like a bank card" to "has no number yet", because
+    // the old test needed the bank's name to have been read — and a photo that
+    // lost the number is exactly the kind that also loses the wording.
+    if (parsed == null && printed.documentNumber == null) {
+      for (final boosted in [
+        if (card != null) await _readCrop(card, boost: true),
+        (await _vision.recognize(path, boost: true)).text,
+      ]) {
+        if (boosted.trim().isEmpty) continue;
+        seen = '$seen\n--- boosted ---\n$boosted';
         printed = printed.mergedWith(_printed.parse(boosted));
+        if (printed.documentNumber != null) break;
       }
     }
 

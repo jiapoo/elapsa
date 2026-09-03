@@ -304,8 +304,6 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
       );
       if (!mounted) return;
 
-      if (found != null) _foundSomething();
-
       setState(() {
         _frameSize = Size(image.width.toDouble(), image.height.toDouble());
         final previous = _quad;
@@ -322,27 +320,22 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     }
   }
 
-  /// Notes that the detector is working, and restarts the patience clock.
+  /// Starts the clock on offering manual mode.
   ///
-  /// "Working" has to mean something. The clock was reset by any detection at
-  /// all, and the preview had a deliberately loose second pass behind it that
-  /// found *something* in almost every frame — a table edge, a shadow. So the
-  /// clock was reset several times a second, for ever, and the offer of manual
-  /// mode never arrived however long anyone waved a passport at it.
-  void _foundSomething() {
-    _stuckTimer?.cancel();
-    _stuckTimer = null;
-    if (_detectionStuck && mounted) setState(() => _detectionStuck = false);
-    _armStuckTimer();
-  }
-
+  /// Six seconds of being on this screen without a photograph being taken —
+  /// nothing to do with whether anything was detected.
+  ///
+  /// It used to wait for six seconds of finding *nothing*, and its clock was
+  /// reset by every detection. Something is detected several times a second in
+  /// most rooms, so the offer never arrived, and making the detector better
+  /// only made it arrive less. Whether the app thinks it can see a document is
+  /// its own opinion; whether the user has managed to take a photograph is the
+  /// fact worth acting on.
   void _armStuckTimer() {
     _stuckTimer?.cancel();
     if (!_autoDetect) return;
     _stuckTimer = Timer(_stuckAfter, () {
-      if (mounted && _autoDetect && _quad == null) {
-        setState(() => _detectionStuck = true);
-      }
+      if (mounted && _autoDetect) setState(() => _detectionStuck = true);
     });
   }
 
@@ -447,6 +440,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   void _absorb(ScanResult result, {String? original}) {
     if (!mounted) return;
 
+    // A photograph taken is the clock reset. Six more seconds before the offer
+    // comes back, so somebody adding a second page is not nagged about a
+    // scanner that is plainly working for them.
+    if (_detectionStuck) setState(() => _detectionStuck = false);
+    _armStuckTimer();
+
     // Held in memory only, for the diagnostics screen. Never written to disk:
     // this is the raw contents of someone's card.
     if (result.rawText.trim().isNotEmpty) {
@@ -481,6 +480,92 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
     // Losing a capture because someone changed their mind about cropping it
     // would be a poor trade.
     _absorb(await _scanner.scanFile(path, quad: quad), original: path);
+  }
+
+  /// What to do with a page already taken.
+  ///
+  /// Cropping used to be the only thing tapping one did, which left no way to
+  /// get rid of a bad shot short of leaving the scanner and starting again —
+  /// and the obvious thing to want from a photograph you have just looked at
+  /// and disliked is to be rid of it.
+  Future<void> _pageOptions(int index) async {
+    if (index < 0 || index >= _pages.length) return;
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: AspectRatio(
+                  aspectRatio: kCardAspectRatio,
+                  child: Image.memory(_pages[index], fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Container(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    _PageAction(
+                      icon: Icons.crop_rounded,
+                      label: l.actionCrop,
+                      onTap: () => Navigator.of(context).pop('crop'),
+                    ),
+                    Divider(
+                      height: 1,
+                      indent: 52,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                    _PageAction(
+                      icon: Icons.delete_outline_rounded,
+                      label: l.actionDelete,
+                      colour: scheme.error,
+                      onTap: () => Navigator.of(context).pop('delete'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              FilledButton.tonal(
+                onPressed: () => Navigator.of(context).pop(),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: scheme.surfaceContainerHighest.withValues(
+                    alpha: 0.45,
+                  ),
+                  foregroundColor: scheme.onSurface,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: Text(l.actionCancel),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    if (choice == 'delete') {
+      setState(() {
+        _pages.removeAt(index);
+        _originals.removeAt(index);
+      });
+      return;
+    }
+
+    await _adjust(index);
   }
 
   /// Lets the user place the corners on one page by hand.
@@ -609,7 +694,7 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                             const SizedBox(height: 16),
                           ],
                           if (_pages.isNotEmpty) ...[
-                            _PageStrip(pages: _pages, onTap: _adjust),
+                            _PageStrip(pages: _pages, onTap: _pageOptions),
                             const SizedBox(height: 18),
                           ],
                           Row(
@@ -1256,6 +1341,45 @@ class _StuckHint extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One choice in the captured-page sheet.
+class _PageAction extends StatelessWidget {
+  const _PageAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.colour,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? colour;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = colour ?? Theme.of(context).colorScheme.onSurface;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
+        child: Row(
+          children: [
+            Icon(icon, size: 21, color: tint),
+            const SizedBox(width: 15),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.titleMedium
+                  ?.copyWith(color: tint, fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ),
     );

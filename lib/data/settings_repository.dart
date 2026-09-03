@@ -164,7 +164,12 @@ class SettingsRepository {
     final stored = _prefs.getString(_sortKey);
     return DocumentSort.values.firstWhere(
       (s) => s.name == stored,
-      orElse: () => DocumentSort.expiry,
+      // By type until told otherwise. Urgency is already answered by the band
+      // at the top of the wallet and by the colour on every card, so ordering
+      // the rest by it repeats what is on screen. Type is how people think
+      // they own documents — the passports together, the bank cards together —
+      // and it is how they look for one.
+      orElse: () => DocumentSort.type,
     );
   }
 

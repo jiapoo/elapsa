@@ -803,5 +803,17 @@
   "fieldNoExpiry": "This one has no expiry",
   "@fieldNoExpiry": {
     "description": "This one has no expiry"
+  },
+  "homeSearch": "Search",
+  "@homeSearch": {
+    "description": "Search"
+  },
+  "homeSearchHint": "Name, type, number…",
+  "@homeSearchHint": {
+    "description": "Name, type, number…"
+  },
+  "homeNoMatches": "Nothing matches that.",
+  "@homeNoMatches": {
+    "description": "Nothing matches that."
   }
 }

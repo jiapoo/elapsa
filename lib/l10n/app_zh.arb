@@ -351,5 +351,8 @@
   "extrasName": "字段名称",
   "extrasValue": "内容",
   "fieldNeverExpires": "长期有效",
-  "fieldNoExpiry": "这张证件没有到期日"
+  "fieldNoExpiry": "这张证件没有到期日",
+  "homeSearch": "搜索",
+  "homeSearchHint": "名称、类型、号码…",
+  "homeNoMatches": "没有匹配的证件。"
 }

@@ -351,5 +351,8 @@
   "extrasName": "欄位名稱",
   "extrasValue": "內容",
   "fieldNeverExpires": "長期有效",
-  "fieldNoExpiry": "這張證件沒有到期日"
+  "fieldNoExpiry": "這張證件沒有到期日",
+  "homeSearch": "搜尋",
+  "homeSearchHint": "名稱、類型、號碼…",
+  "homeNoMatches": "沒有符合的證件。"
 }

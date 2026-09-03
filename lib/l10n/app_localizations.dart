@@ -1519,6 +1519,24 @@ abstract class L {
   /// In en, this message translates to:
   /// **'This one has no expiry'**
   String get fieldNoExpiry;
+
+  /// Search
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get homeSearch;
+
+  /// Name, type, number…
+  ///
+  /// In en, this message translates to:
+  /// **'Name, type, number…'**
+  String get homeSearchHint;
+
+  /// Nothing matches that.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing matches that.'**
+  String get homeNoMatches;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

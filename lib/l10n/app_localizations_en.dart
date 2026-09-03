@@ -912,4 +912,13 @@ class LEn extends L {
 
   @override
   String get fieldNoExpiry => 'This one has no expiry';
+
+  @override
+  String get homeSearch => 'Search';
+
+  @override
+  String get homeSearchHint => 'Name, type, number…';
+
+  @override
+  String get homeNoMatches => 'Nothing matches that.';
 }

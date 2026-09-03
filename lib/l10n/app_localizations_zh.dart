@@ -794,6 +794,15 @@ class LZh extends L {
 
   @override
   String get fieldNoExpiry => '这张证件没有到期日';
+
+  @override
+  String get homeSearch => '搜索';
+
+  @override
+  String get homeSearchHint => '名称、类型、号码…';
+
+  @override
+  String get homeNoMatches => '没有匹配的证件。';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1585,4 +1594,13 @@ class LZhHant extends LZh {
 
   @override
   String get fieldNoExpiry => '這張證件沒有到期日';
+
+  @override
+  String get homeSearch => '搜尋';
+
+  @override
+  String get homeSearchHint => '名稱、類型、號碼…';
+
+  @override
+  String get homeNoMatches => '沒有符合的證件。';
 }

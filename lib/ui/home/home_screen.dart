@@ -12,18 +12,90 @@ import 'package:elapsa/ui/scan/scan_screen.dart';
 import 'package:elapsa/ui/settings/settings_screen.dart';
 import 'package:elapsa/ui/widgets/wallet_entry.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _search = TextEditingController();
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  /// Everything the query could reasonably be looking for.
+  ///
+  /// A name, a kind, a number, a holder, a field the user added themselves —
+  /// people search for whatever they happen to remember, and it is rarely the
+  /// thing the app decided to call the title.
+  bool _matches(TrackedDocument document, String query, L l) {
+    final haystack = [
+      document.label,
+      document.typeLabel(l),
+      document.holder ?? '',
+      document.documentNumber ?? '',
+      document.issuingCountry ?? '',
+      ...document.details.values,
+      ...document.extras.keys,
+      ...document.extras.values,
+    ].join(' ').toLowerCase();
+
+    // Every word, anywhere. "bank liu" should find the card whether or not
+    // those words are next to each other or in that order.
+    return query
+        .toLowerCase()
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .every(haystack.contains);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = L.of(context);
     final documents = ref.watch(documentsProvider);
+    final query = _search.text.trim();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l.appTitle),
+        title: _searching
+            ? TextField(
+                controller: _search,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  hintText: l.homeSearchHint,
+                  filled: false,
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                style: Theme.of(context).textTheme.titleLarge,
+                onChanged: (_) => setState(() {}),
+              )
+            : Text(l.appTitle),
+        leading: _searching
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                onPressed: () => setState(() {
+                  _searching = false;
+                  _search.clear();
+                }),
+              )
+            : null,
         actions: [
+          if (!_searching)
+            IconButton(
+              icon: const Icon(Icons.search_rounded),
+              tooltip: l.homeSearch,
+              onPressed: () => setState(() => _searching = true),
+            ),
           // One control where there were two menus and a bell. Sorting and
           // density are the same question asked twice — how do I want to look
           // at this — so they are answered on one surface, where the options
@@ -46,13 +118,27 @@ class HomeScreen extends ConsumerWidget {
       body: documents.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (docs) => docs.isEmpty
-            ? const _EmptyState()
-            : _Wallet(
-                documents: docs,
-                sort: ref.watch(sortProvider),
-                display: ref.watch(displayProvider),
-              ),
+        data: (docs) {
+          if (docs.isEmpty) return const _EmptyState();
+
+          final shown = query.isEmpty
+              ? docs
+              : [
+                  for (final document in docs)
+                    if (_matches(document, query, l)) document,
+                ];
+          if (shown.isEmpty) return _NoMatches(query: query);
+
+          return _Wallet(
+            documents: shown,
+            sort: ref.watch(sortProvider),
+            display: ref.watch(displayProvider),
+            // A search is already a filter; splitting the results into
+            // "needs attention" and the rest would answer a question nobody
+            // asked while hiding how few matches there are.
+            grouped: query.isEmpty,
+          );
+        },
       ),
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
@@ -232,11 +318,18 @@ class _Wallet extends StatelessWidget {
     required this.documents,
     required this.sort,
     required this.display,
+    this.grouped = true,
   });
 
   final List<TrackedDocument> documents;
   final DocumentSort sort;
   final WalletDisplay display;
+
+  /// Whether to break the wallet into its usual sections.
+  ///
+  /// Search results are already a filter, and splitting them further answers a
+  /// question nobody asked while hiding how few matches there are.
+  final bool grouped;
 
   /// Orders one section.
   ///
@@ -388,6 +481,51 @@ class _SectionHeader extends StatelessWidget {
 /// The status always survives. Whatever else is hidden, an app whose entire
 /// purpose is telling you when to start renewing cannot show a list that does
 /// not say.
+/// A search that found nothing.
+///
+/// Says what was looked for, because a blank screen after typing reads as the
+/// app having lost everything rather than as an answer.
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.query});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 46,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              l.homeNoMatches,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '"$query"',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState();
 

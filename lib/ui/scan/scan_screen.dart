@@ -323,6 +323,12 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   }
 
   /// Notes that the detector is working, and restarts the patience clock.
+  ///
+  /// "Working" has to mean something. The clock was reset by any detection at
+  /// all, and the preview had a deliberately loose second pass behind it that
+  /// found *something* in almost every frame — a table edge, a shadow. So the
+  /// clock was reset several times a second, for ever, and the offer of manual
+  /// mode never arrived however long anyone waved a passport at it.
   void _foundSomething() {
     _stuckTimer?.cancel();
     _stuckTimer = null;

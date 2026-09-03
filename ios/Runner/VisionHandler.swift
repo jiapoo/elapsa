@@ -20,6 +20,13 @@ enum VisionHandler {
   /// photographed with the phone sideways comes out upright or inverted.
   private static let quarterTurn: CGFloat = -.pi / 2
 
+  /// Whether to log what the detector is doing, frame by frame.
+  #if DEBUG
+  private static let kDebug = true
+  #else
+  private static let kDebug = false
+  #endif
+
   static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(
       name: "cc.elapsa/vision",
@@ -227,11 +234,19 @@ enum VisionHandler {
         bitmapInfo: CGImageAlphaInfo.none.rawValue
       ), let blank = context.makeImage() else { return }
 
-      let request = VNRecognizeTextRequest()
-      request.recognitionLevel = .accurate
-      request.usesLanguageCorrection = false
-      request.recognitionLanguages = supportedLanguages(for: request)
-      try? VNImageRequestHandler(cgImage: blank, options: [:]).perform([request])
+      let text = VNRecognizeTextRequest()
+      text.recognitionLevel = .accurate
+      text.usesLanguageCorrection = false
+      text.recognitionLanguages = supportedLanguages(for: text)
+
+      // The segmentation model too, and this one matters more: it is asked
+      // for on the very first preview frame, so paying to load it there means
+      // the brackets take a second to appear the first time the scanner is
+      // opened — which reads as detection not working.
+      let document = VNDetectDocumentSegmentationRequest()
+
+      let handler = VNImageRequestHandler(cgImage: blank, options: [:])
+      try? handler.perform([text, document])
       NSLog("Elapsa: vision prewarmed")
     }
   }
@@ -272,27 +287,44 @@ enum VisionHandler {
       result(nil); return
     }
 
-    // Strict first, then loose — the same cascade the still uses.
+    // Segmentation first, geometry second.
     //
-    // The preview only ever ran the strict pass, so the brackets could not
-    // lock on to anything the strict pass rejects: a passport, which is not
-    // card-shaped, and a card held far enough back to fall under the size
-    // floor. The document was findable at capture and unfindable on screen,
-    // which is the wrong way round — the preview is where the user needs to be
-    // told it has been seen.
-    let relaxed = makeRectangleRequest(relaxed: true) { observation in
+    // VNDetectRectanglesRequest looks for four straight edges meeting at
+    // roughly square corners. That is a description of a *shape*, not of a
+    // document, so it finds table edges, laptop lids and window frames, and
+    // misses the things that actually matter here: a passport whose pages
+    // curve away from the fold, a white card on a white desk, a laminated
+    // licence with the ceiling light across it. Loosening its thresholds only
+    // trades one failure for the other — it starts finding the table.
+    //
+    // VNDetectDocumentSegmentation asks a trained model where the document is.
+    // Apple ships it, it is what their own scanner uses, and it needs no data
+    // of ours. Rectangles stay as the fallback for the frames it declines.
+    let geometry = makeRectangleRequest { observation in
       result(observation.map(corners))
     }
 
-    let strict = makeRectangleRequest { observation in
-      if let observation = observation {
-        result(corners(observation))
+    let started = CFAbsoluteTimeGetCurrent()
+    let segmentation = VNDetectDocumentSegmentationRequest { request, _ in
+      let found = (request.results as? [VNRectangleObservation])?
+        .first { $0.confidence >= 0.5 }
+
+      if kDebug {
+        NSLog("Elapsa: segmentation %@ in %.0fms",
+              found == nil ? "found nothing" : "found a document",
+              (CFAbsoluteTimeGetCurrent() - started) * 1000)
+      }
+
+      if let found = found {
+        result(corners(found))
       } else {
-        perform([relaxed], on: cgImage, orientation: .up) { _ in result(nil) }
+        perform([geometry], on: cgImage, orientation: .up) { _ in result(nil) }
       }
     }
 
-    perform([strict], on: cgImage, orientation: .up) { _ in result(nil) }
+    perform([segmentation], on: cgImage, orientation: .up) { _ in
+      perform([geometry], on: cgImage, orientation: .up) { _ in result(nil) }
+    }
   }
 
   /// Detects the card in a full-resolution capture and cuts it out.
@@ -561,7 +593,28 @@ enum VisionHandler {
       }
     }
 
-    // Otherwise find the card again in the still itself.
+    // Otherwise find the document again in the still itself, asking the
+    // trained model before falling back to looking for a shape.
+    func segment(then next: @escaping () -> Void) {
+      let request = VNDetectDocumentSegmentationRequest { request, _ in
+        guard
+          let observation = (request.results as? [VNRectangleObservation])?
+            .first(where: { $0.confidence >= 0.5 })
+        else {
+          next(); return
+        }
+        let quad = (
+          tl: point(observation.topLeft),
+          tr: point(observation.topRight),
+          br: point(observation.bottomRight),
+          bl: point(observation.bottomLeft)
+        )
+        guard let jpeg = cut(quad) else { next(); return }
+        answer(jpeg, quad)
+      }
+      perform([request], on: cgImage, orientation: orientation) { _ in next() }
+    }
+
     func find(relaxed: Bool, then next: @escaping () -> Void) {
       let request = makeRectangleRequest(relaxed: relaxed) { observation in
         guard let observation = observation else { next(); return }
@@ -583,8 +636,10 @@ enum VisionHandler {
     // passport, whose pages curve away towards the fold — has no square
     // corners to offer, and failing it outright is worse than accepting a
     // rougher quadrilateral.
-    find(relaxed: false) {
-      find(relaxed: true) { reply(nil) }
+    segment {
+      find(relaxed: false) {
+        find(relaxed: true) { reply(nil) }
+      }
     }
     }
   }

@@ -1537,6 +1537,24 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Nothing matches that.'**
   String get homeNoMatches;
+
+  /// Issuing country
+  ///
+  /// In en, this message translates to:
+  /// **'Issuing country'**
+  String get detailIssuedBy;
+
+  /// Passport number
+  ///
+  /// In en, this message translates to:
+  /// **'Passport number'**
+  String get fieldNumberPassport;
+
+  /// Document number
+  ///
+  /// In en, this message translates to:
+  /// **'Document number'**
+  String get fieldNumberGeneric;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {

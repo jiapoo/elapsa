@@ -153,3 +153,13 @@ String compactDuration(DateTime from, DateTime to, L l) {
   if (days == 0) return l.shortYears(years);
   return '${l.shortYears(years)}${l.shortDays(days)}';
 }
+
+/// What this kind of document calls the number printed on it.
+///
+/// "Card number" on a passport is wrong in the plainest way, and the label
+/// sits directly beside the value, where being wrong is most visible.
+String documentNumberLabel(L l, DocumentType type) => switch (type) {
+  DocumentType.bankCard => l.fieldNumberLabel,
+  DocumentType.passport => l.fieldNumberPassport,
+  _ => l.fieldNumberGeneric,
+};

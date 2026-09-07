@@ -354,5 +354,8 @@
   "fieldNoExpiry": "這張證件沒有到期日",
   "homeSearch": "搜尋",
   "homeSearchHint": "名稱、類型、號碼…",
-  "homeNoMatches": "沒有符合的證件。"
+  "homeNoMatches": "沒有符合的證件。",
+  "detailIssuedBy": "簽發國",
+  "fieldNumberPassport": "護照號",
+  "fieldNumberGeneric": "證件號碼"
 }

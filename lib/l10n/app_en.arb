@@ -815,5 +815,17 @@
   "homeNoMatches": "Nothing matches that.",
   "@homeNoMatches": {
     "description": "Nothing matches that."
+  },
+  "detailIssuedBy": "Issuing country",
+  "@detailIssuedBy": {
+    "description": "Issuing country"
+  },
+  "fieldNumberPassport": "Passport number",
+  "@fieldNumberPassport": {
+    "description": "Passport number"
+  },
+  "fieldNumberGeneric": "Document number",
+  "@fieldNumberGeneric": {
+    "description": "Document number"
   }
 }

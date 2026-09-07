@@ -783,7 +783,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  _Label(l.fieldNumberLabel),
+                  _Label(documentNumberLabel(l, _type)),
                   TextFormField(
                     controller: _documentNumber,
                     textCapitalization: TextCapitalization.characters,

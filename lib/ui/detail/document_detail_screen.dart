@@ -123,17 +123,17 @@ class DocumentDetailScreen extends ConsumerWidget {
                 ),
               if (document.documentNumber != null)
                 _Fact(
-                  label: l.fieldNumberLabel,
+                  label: documentNumberLabel(l, document.type),
                   value: document.documentNumber!,
                   monospaced: true,
                 ),
               if (document.holder != null && document.holder!.isNotEmpty)
                 _Fact(label: l.fieldHolderHint, value: document.holder!),
               if (document.issuingCountry != null)
-                _Fact(
-                  label: l.detailNationality,
-                  value: document.issuingCountry!,
-                ),
+                // Not "nationality": that is a field of its own, and a
+                // passport carries both — so labelling this one nationality
+                // too printed the word twice with different answers under it.
+                _Fact(label: l.detailIssuedBy, value: document.issuingCountry!),
               for (final detail in DocumentDetail.values)
                 if (document.details[detail] != null)
                   _Fact(

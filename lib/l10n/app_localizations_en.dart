@@ -921,4 +921,13 @@ class LEn extends L {
 
   @override
   String get homeNoMatches => 'Nothing matches that.';
+
+  @override
+  String get detailIssuedBy => 'Issuing country';
+
+  @override
+  String get fieldNumberPassport => 'Passport number';
+
+  @override
+  String get fieldNumberGeneric => 'Document number';
 }

@@ -803,6 +803,15 @@ class LZh extends L {
 
   @override
   String get homeNoMatches => '没有匹配的证件。';
+
+  @override
+  String get detailIssuedBy => '签发国';
+
+  @override
+  String get fieldNumberPassport => '护照号';
+
+  @override
+  String get fieldNumberGeneric => '证件号码';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1603,4 +1612,13 @@ class LZhHant extends LZh {
 
   @override
   String get homeNoMatches => '沒有符合的證件。';
+
+  @override
+  String get detailIssuedBy => '簽發國';
+
+  @override
+  String get fieldNumberPassport => '護照號';
+
+  @override
+  String get fieldNumberGeneric => '證件號碼';
 }

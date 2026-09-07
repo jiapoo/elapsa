@@ -82,7 +82,7 @@ class DocumentCardFace extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   _DesignedFace(type: document.type),
-                  _CardText(document: document, compact: compact),
+                  _CardText(document: document),
                 ],
               ),
       ),
@@ -146,10 +146,9 @@ class _DesignedFace extends StatelessWidget {
 }
 
 class _CardText extends StatelessWidget {
-  const _CardText({required this.document, required this.compact});
+  const _CardText({required this.document});
 
   final TrackedDocument document;
-  final bool compact;
 
   /// Shows only the last four characters.
   ///
@@ -161,95 +160,136 @@ class _CardText extends StatelessWidget {
     return '•••• ${trimmed.substring(trimmed.length - 4)}';
   }
 
+  /// The width this face was designed at. Everything is a fraction of it.
+  static const _reference = 350.0;
+
+  /// Below this there is room for a mark and a name and nothing else.
+  static const _tiny = 210.0;
+
   @override
   Widget build(BuildContext context) {
-    final l = L.of(context);
-    final number = document.documentNumber;
-    final holder = document.holder;
-    final padding = compact ? 14.0 : 20.0;
+    // Measured, not guessed.
+    //
+    // This face used to size itself from a boolean — compact or not — chosen
+    // by whichever screen was drawing it. Then the wallet's thumbnails got
+    // smaller, and "compact" was still a card's worth of text in a space the
+    // height of two lines: five rows of it, overflowing by sixty-one pixels,
+    // on every document without a photograph. Nobody saw it because the
+    // documents being tested all had photographs, and a photograph covers this
+    // whole widget.
+    //
+    // A card is a fixed shape, so its width settles everything. Reading that
+    // width means the face fits wherever it is put, including sizes nobody has
+    // thought of yet.
+    return LayoutBuilder(
+      builder: (context, box) {
+        final l = L.of(context);
+        final scale = (box.maxWidth / _reference).clamp(0.3, 1.0);
+        final padding = (20 * scale).clamp(7.0, 20.0);
 
-    return Padding(
-      padding: EdgeInsets.all(padding),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              if (document.issuingCountry != null)
-                _Pill(text: document.issuingCountry!),
-              const Spacer(),
-              _Pill(text: document.type.label(l).toUpperCase()),
-            ],
-          ),
-          const Spacer(),
-          Text(
-            document.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: compact ? 17 : 22,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-            ),
-          ),
-          if (holder != null && holder.isNotEmpty) ...[
-            const SizedBox(height: 2),
-            Text(
-              holder,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.78),
-                fontSize: compact ? 12.5 : 14,
-              ),
-            ),
-          ],
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (number != null && number.isNotEmpty)
-                Text(
-                  _mask(number),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.72),
-                    fontSize: compact ? 12 : 13.5,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    letterSpacing: 0.5,
+        if (box.maxWidth < _tiny) {
+          // A thumbnail. The type and the name are what tell one card from
+          // another at this size; a masked number and a date are unreadable
+          // and only crowd them out.
+          return Padding(
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Align(
+                  alignment: Alignment.topRight,
+                  child: _Pill(
+                    text: document.type.label(l).toUpperCase(),
+                    scale: scale,
                   ),
                 ),
+                const Spacer(),
+                Text(
+                  document.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: (22 * scale).clamp(10.0, 22.0),
+                    height: 1.15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final number = document.documentNumber;
+        final holder = document.holder;
+
+        return Padding(
+          padding: EdgeInsets.all(padding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (document.issuingCountry != null)
+                    _Pill(text: document.issuingCountry!, scale: scale),
+                  const Spacer(),
+                  _Pill(
+                    text: document.type.label(l).toUpperCase(),
+                    scale: scale,
+                  ),
+                ],
+              ),
               const Spacer(),
-              _ExpiryStamp(document: document, compact: compact, l: l),
+              Text(
+                document.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22 * scale,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              if (holder != null && holder.isNotEmpty) ...[
+                SizedBox(height: 2 * scale),
+                Text(
+                  holder,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    fontSize: 14 * scale,
+                  ),
+                ),
+              ],
+              SizedBox(height: 10 * scale),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (number != null && number.isNotEmpty)
+                    Flexible(
+                      child: Text(
+                        _mask(number),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 13.5 * scale,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                  const Spacer(),
+                  _ExpiryStamp(document: document, scale: scale, l: l),
+                ],
+              ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.28),
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 9.5,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.0,
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -257,12 +297,12 @@ class _Pill extends StatelessWidget {
 class _ExpiryStamp extends StatelessWidget {
   const _ExpiryStamp({
     required this.document,
-    required this.compact,
+    required this.scale,
     required this.l,
   });
 
   final TrackedDocument document;
-  final bool compact;
+  final double scale;
   final L l;
 
   @override
@@ -277,12 +317,12 @@ class _ExpiryStamp extends StatelessWidget {
           (expired ? l.statusExpired : l.fieldExpiry).toUpperCase(),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.6),
-            fontSize: 8.5,
+            fontSize: 8.5 * scale,
             fontWeight: FontWeight.w700,
-            letterSpacing: 1.1,
+            letterSpacing: 1.1 * scale,
           ),
         ),
-        const SizedBox(height: 1),
+        SizedBox(height: 1 * scale),
         Text(
           // The stored date is meaningless on a document with no end, and
           // printing it on the face of the card is the one place it would be
@@ -293,12 +333,47 @@ class _ExpiryStamp extends StatelessWidget {
                     .format(document.expiryDate),
           style: TextStyle(
             color: Colors.white,
-            fontSize: compact ? 13 : 15,
+            fontSize: 15 * scale,
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A small label on the card's own artwork — a country code, a type.
+class _Pill extends StatelessWidget {
+  const _Pill({required this.text, required this.scale});
+
+  final String text;
+
+  /// How large this face is being drawn, relative to full size.
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: (8 * scale).clamp(4.0, 8.0),
+        vertical: (3 * scale).clamp(1.5, 3.0),
+      ),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: (9.5 * scale).clamp(6.5, 9.5),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.0 * scale,
+        ),
+      ),
     );
   }
 }

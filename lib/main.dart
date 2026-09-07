@@ -1,16 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/dev/screenshot_fixture.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/ui/home/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Date symbols, before anything can want one.
+  //
+  // A reminder's text has a date in it, and it is built outside the widget
+  // tree — from the repository, whenever a document is saved. Inside the tree
+  // this works by luck: the localisation delegate loads the symbols for the
+  // app's locale as a side effect, so by the time anyone taps Save they
+  // happen to be there. Outside it there is no such luck, and DateFormat
+  // throws for any locale nobody has loaded.
+  //
+  // Depending on a side effect for something that throws is not worth the
+  // line it saves.
+  await initializeDateFormatting();
 
   // Settings are read before the first frame so no screen ever has to render
   // an "unknown language" state.
@@ -22,6 +37,9 @@ Future<void> main() async {
     ],
   );
   await container.read(notificationServiceProvider).init();
+
+  // Only under --dart-define=DEMO=true, for App Store screenshots.
+  if (kDemoMode) await seedForScreenshots(container);
 
   runApp(
     UncontrolledProviderScope(container: container, child: const ElapsaApp()),

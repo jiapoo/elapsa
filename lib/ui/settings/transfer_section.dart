@@ -9,8 +9,10 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/domain/entitlement.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/ui/paywall/paywall_sheet.dart';
 import 'package:elapsa/ui/settings/document_picker_screen.dart';
 import 'package:elapsa/ui/settings/nearby_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
@@ -227,6 +229,30 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
         bytes,
         passphrase: passphrase,
       );
+
+      // The free version's limit applies to imports too, or it would be one
+      // export-and-reimport away from meaning nothing.
+      final existing = {
+        for (final doc in await ref.read(documentRepositoryProvider).getAll())
+          doc.id,
+      };
+      if (!mounted) return;
+      final incoming = [for (final e in contents.documents) e.document.id];
+      final fits = await ensureRoom(
+        context,
+        ref,
+        (unlocked) => canImport(
+          existingIds: existing,
+          incomingIds: incoming,
+          unlocked: unlocked,
+          replace: replace,
+        ),
+      );
+      if (!mounted) return;
+      if (!fits) {
+        _say(l.paywallImportBlocked(kFreeDocumentLimit));
+        return;
+      }
 
       // The types first: a document filed under a name this phone has never
       // heard of should find that name waiting for it.

@@ -1,0 +1,116 @@
+{
+  "appPolicies": {
+    "eula": "",
+    "policies": [
+      {
+        "locale": "en_US",
+        "policyText": "",
+        "policyURL": ""
+      }
+    ]
+  },
+  "identifier": "E1A95A01",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "9.99",
+      "familyShareable": false,
+      "internalID": "E1A95A02",
+      "localizations": [
+        {
+          "description": "Keep as many documents as you like. One purchase, no subscription.",
+          "displayName": "Elapsa Unlimited",
+          "locale": "en_US"
+        },
+        {
+          "description": "无限添加证件。一次购买，不是订阅。",
+          "displayName": "Elapsa 无限版",
+          "locale": "zh_Hans"
+        },
+        {
+          "description": "無限新增證件。一次購買，不是訂閱。",
+          "displayName": "Elapsa 無限版",
+          "locale": "zh_Hant"
+        }
+      ],
+      "productID": "com.ljworkshop.elapsa.unlimited",
+      "referenceName": "Unlimited documents",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": [
+      {
+        "current": {
+          "index": 2,
+          "type": "generic"
+        },
+        "enabled": false,
+        "name": "Load Products"
+      },
+      {
+        "current": {
+          "index": 1,
+          "type": "purchase"
+        },
+        "enabled": false,
+        "name": "Purchase"
+      },
+      {
+        "current": {
+          "index": 0,
+          "type": "verification"
+        },
+        "enabled": false,
+        "name": "Verification"
+      },
+      {
+        "current": null,
+        "enabled": false,
+        "name": "App Store Sync"
+      },
+      {
+        "current": {
+          "index": 2,
+          "type": "generic"
+        },
+        "enabled": false,
+        "name": "Subscription Status"
+      },
+      {
+        "current": {
+          "index": 3,
+          "type": "generic"
+        },
+        "enabled": false,
+        "name": "App Transaction"
+      },
+      {
+        "current": null,
+        "enabled": false,
+        "name": "Manage Subscriptions Sheet"
+      },
+      {
+        "current": null,
+        "enabled": false,
+        "name": "Refund Request Sheet"
+      },
+      {
+        "current": {
+          "index": 4,
+          "type": "generic"
+        },
+        "enabled": false,
+        "name": "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

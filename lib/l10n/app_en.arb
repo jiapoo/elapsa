@@ -827,5 +827,112 @@
   "fieldNumberGeneric": "Document number",
   "@fieldNumberGeneric": {
     "description": "Document number"
+  },
+  "paywallTitle": "Keep every document in one place",
+  "@paywallTitle": {
+    "description": "Paywall heading, shown when saving a 4th document"
+  },
+  "paywallBody": "The free version keeps {limit} documents. Unlock unlimited documents with one purchase.",
+  "@paywallBody": {
+    "description": "Paywall explanation",
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallPointUnlimited": "Unlimited documents and reminders",
+  "@paywallPointUnlimited": {
+    "description": "Paywall benefit"
+  },
+  "paywallPointOnce": "Pay once. No subscription, nothing renews.",
+  "@paywallPointOnce": {
+    "description": "Paywall benefit"
+  },
+  "paywallPointPrivate": "Still no account, and nothing leaves your phone.",
+  "@paywallPointPrivate": {
+    "description": "Paywall benefit"
+  },
+  "paywallBuy": "Unlock for {price}",
+  "@paywallBuy": {
+    "description": "Purchase button; price comes formatted from the store",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "paywallLoadingPrice": "Getting the price…",
+  "@paywallLoadingPrice": {
+    "description": "Shown while the store price loads"
+  },
+  "paywallRestore": "Restore purchase",
+  "@paywallRestore": {
+    "description": "Restore button, required by Apple"
+  },
+  "paywallNotNow": "Not now",
+  "@paywallNotNow": {
+    "description": "Dismisses the paywall"
+  },
+  "paywallPending": "Waiting for approval. The unlock appears as soon as the purchase is approved.",
+  "@paywallPending": {
+    "description": "Ask to Buy / deferred purchase"
+  },
+  "paywallFailed": "The purchase didn't go through. Please try again.",
+  "@paywallFailed": {
+    "description": "Purchase failed"
+  },
+  "paywallNothingToRestore": "No earlier purchase was found for this account.",
+  "@paywallNothingToRestore": {
+    "description": "Restore found nothing"
+  },
+  "paywallStoreUnavailable": "Can't reach the store right now. Check your connection and try again.",
+  "@paywallStoreUnavailable": {
+    "description": "Offline or store unavailable"
+  },
+  "paywallRetry": "Try again",
+  "@paywallRetry": {
+    "description": "Retry loading the price"
+  },
+  "paywallThanks": "Unlimited is unlocked. Thank you for supporting Elapsa.",
+  "@paywallThanks": {
+    "description": "After a successful purchase"
+  },
+  "paywallRestored": "Welcome back — unlimited is unlocked again.",
+  "@paywallRestored": {
+    "description": "After a successful restore"
+  },
+  "paywallImportBlocked": "Not imported. The free version keeps {limit} documents.",
+  "@paywallImportBlocked": {
+    "description": "Import refused by the free limit",
+    "placeholders": {
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsUnlimited": "Elapsa Unlimited",
+  "@settingsUnlimited": {
+    "description": "Settings section for the purchase"
+  },
+  "settingsUnlimitedOn": "Unlocked. Add as many documents as you like.",
+  "@settingsUnlimitedOn": {
+    "description": "Settings, after purchase"
+  },
+  "settingsUnlimitedUsage": "{count} of {limit} free documents used",
+  "@settingsUnlimitedUsage": {
+    "description": "Settings, free tier usage",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsUnlimitedUnlock": "Unlock unlimited",
+  "@settingsUnlimitedUnlock": {
+    "description": "Settings button opening the paywall"
   }
 }

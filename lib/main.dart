@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/purchase_controller.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/dev/screenshot_fixture.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
@@ -37,6 +40,12 @@ Future<void> main() async {
     ],
   );
   await container.read(notificationServiceProvider).init();
+
+  // Not awaited: the cached entitlement is already in place, and the price
+  // and StoreKit's own answer can arrive after the first frame. Started here
+  // rather than on the paywall so a purchase that completed while the app
+  // was closed — Ask to Buy approved overnight — is picked up at launch.
+  unawaited(container.read(purchaseProvider.notifier).start());
 
   // Only under --dart-define=DEMO=true, for App Store screenshots.
   if (kDemoMode) await seedForScreenshots(container);

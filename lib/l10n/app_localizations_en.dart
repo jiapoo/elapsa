@@ -930,4 +930,82 @@ class LEn extends L {
 
   @override
   String get fieldNumberGeneric => 'Document number';
+
+  @override
+  String get paywallTitle => 'Keep every document in one place';
+
+  @override
+  String paywallBody(int limit) {
+    return 'The free version keeps $limit documents. Unlock unlimited documents with one purchase.';
+  }
+
+  @override
+  String get paywallPointUnlimited => 'Unlimited documents and reminders';
+
+  @override
+  String get paywallPointOnce => 'Pay once. No subscription, nothing renews.';
+
+  @override
+  String get paywallPointPrivate =>
+      'Still no account, and nothing leaves your phone.';
+
+  @override
+  String paywallBuy(String price) {
+    return 'Unlock for $price';
+  }
+
+  @override
+  String get paywallLoadingPrice => 'Getting the price…';
+
+  @override
+  String get paywallRestore => 'Restore purchase';
+
+  @override
+  String get paywallNotNow => 'Not now';
+
+  @override
+  String get paywallPending =>
+      'Waiting for approval. The unlock appears as soon as the purchase is approved.';
+
+  @override
+  String get paywallFailed =>
+      'The purchase didn\'t go through. Please try again.';
+
+  @override
+  String get paywallNothingToRestore =>
+      'No earlier purchase was found for this account.';
+
+  @override
+  String get paywallStoreUnavailable =>
+      'Can\'t reach the store right now. Check your connection and try again.';
+
+  @override
+  String get paywallRetry => 'Try again';
+
+  @override
+  String get paywallThanks =>
+      'Unlimited is unlocked. Thank you for supporting Elapsa.';
+
+  @override
+  String get paywallRestored => 'Welcome back — unlimited is unlocked again.';
+
+  @override
+  String paywallImportBlocked(int limit) {
+    return 'Not imported. The free version keeps $limit documents.';
+  }
+
+  @override
+  String get settingsUnlimited => 'Elapsa Unlimited';
+
+  @override
+  String get settingsUnlimitedOn =>
+      'Unlocked. Add as many documents as you like.';
+
+  @override
+  String settingsUnlimitedUsage(int count, int limit) {
+    return '$count of $limit free documents used';
+  }
+
+  @override
+  String get settingsUnlimitedUnlock => 'Unlock unlimited';
 }

@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/data/purchase_controller.dart';
 import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/domain/entitlement.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/ui/paywall/paywall_sheet.dart';
 import 'package:elapsa/ui/settings/custom_types_section.dart';
 import 'package:elapsa/ui/settings/transfer_section.dart';
 
@@ -35,6 +38,10 @@ class SettingsScreen extends ConsumerWidget {
           // new phone is something you came here to do.
           _SectionLabel(l.settingsTransfer),
           const TransferSection(),
+
+          const SizedBox(height: 28),
+          _SectionLabel(l.settingsUnlimited),
+          const _Unlimited(),
 
           const SizedBox(height: 28),
           _SectionLabel(l.settingsTypes),
@@ -254,6 +261,77 @@ class _DefaultReminders extends ConsumerWidget {
                   .showSnackBar(SnackBar(content: Text(l.settingsResyncDone)));
             },
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Where the unlock lives once the paywall has been dismissed — and where
+/// Restore can always be found, which Apple requires and a new phone needs.
+class _Unlimited extends ConsumerWidget {
+  const _Unlimited();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final purchase = ref.watch(purchaseProvider);
+    final count = ref.watch(documentsProvider).valueOrNull?.length ?? 0;
+
+    return _Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                purchase.unlocked
+                    ? Icons.verified_rounded
+                    : Icons.all_inclusive_rounded,
+                size: 18,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  purchase.unlocked
+                      ? l.settingsUnlimitedOn
+                      : l.settingsUnlimitedUsage(
+                          count.clamp(0, kFreeDocumentLimit),
+                          kFreeDocumentLimit,
+                        ),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+          if (!purchase.unlocked) ...[
+            const SizedBox(height: 6),
+            _Action(
+              icon: Icons.lock_open_rounded,
+              label: l.settingsUnlimitedUnlock,
+              onTap: () => showPaywall(context),
+            ),
+            _Action(
+              icon: Icons.restore_rounded,
+              label: l.paywallRestore,
+              onTap: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                await ref.read(purchaseProvider.notifier).restore();
+                final after = ref.read(purchaseProvider);
+                final text = switch (after.notice) {
+                  PurchaseNotice.restored => l.paywallRestored,
+                  PurchaseNotice.nothingToRestore => l.paywallNothingToRestore,
+                  PurchaseNotice.storeUnavailable => l.paywallStoreUnavailable,
+                  _ => null,
+                };
+                if (text != null) {
+                  messenger.showSnackBar(SnackBar(content: Text(text)));
+                }
+              },
+            ),
+          ],
         ],
       ),
     );

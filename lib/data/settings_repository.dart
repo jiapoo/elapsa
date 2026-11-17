@@ -148,6 +148,7 @@ class SettingsRepository {
   static const _themeKey = 'app_theme';
   static const _remindersKey = 'default_reminders';
   static const _typesKey = 'custom_types';
+  static const _unlimitedKey = 'unlimited_unlocked';
 
   AppLanguage get language {
     final stored = _prefs.getString(_languageKey);
@@ -232,6 +233,16 @@ class SettingsRepository {
       return const [];
     }
   }
+
+  /// The last answer StoreKit gave about the unlimited unlock.
+  ///
+  /// A cache, not the source of truth: it lets the app start in the right
+  /// state with no network and no wait, and is corrected against StoreKit's
+  /// own entitlements on every launch.
+  bool get unlimitedUnlocked => _prefs.getBool(_unlimitedKey) ?? false;
+
+  Future<void> setUnlimitedUnlocked(bool value) =>
+      _prefs.setBool(_unlimitedKey, value);
 
   Future<void> setCustomTypes(List<CustomType> types) => _prefs.setString(
     _typesKey,

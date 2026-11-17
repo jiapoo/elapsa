@@ -7,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elapsa/data/document_repository.dart';
 import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/domain/entitlement.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
 import 'package:elapsa/services/nearby_transfer.dart';
+import 'package:elapsa/ui/paywall/paywall_sheet.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 /// Two phones in the same room.
@@ -123,6 +125,33 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     final l = L.of(context);
     try {
       final contents = await const DocumentArchive().unpack(bytes);
+
+      // Same limit as a file import: a document handed over from another
+      // phone is still a document added to this one.
+      final existing = {
+        for (final doc in await ref.read(documentRepositoryProvider).getAll())
+          doc.id,
+      };
+      if (!mounted) return;
+      final incoming = [for (final e in contents.documents) e.document.id];
+      final fits = await ensureRoom(
+        context,
+        ref,
+        (unlocked) => canImport(
+          existingIds: existing,
+          incomingIds: incoming,
+          unlocked: unlocked,
+        ),
+      );
+      if (!mounted) return;
+      if (!fits) {
+        setState(() {
+          _busy = false;
+          _progress = null;
+          _status = l.paywallImportBlocked(kFreeDocumentLimit);
+        });
+        return;
+      }
 
       // The types first, so nothing lands as "Other" for want of a name that
       // was sitting in the same file.

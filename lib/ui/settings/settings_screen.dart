@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/data/document_repository.dart';
@@ -96,13 +97,22 @@ class SettingsScreen extends ConsumerWidget {
           _SectionLabel(l.settingsAbout),
           const _Privacy(),
           const SizedBox(height: 16),
-          Center(
-            child: Text(
-              l.settingsVersion('0.2.0'),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+          // Read from the bundle, so it is always the version the store
+          // shows. It was typed in here once, and was still 0.2.0 at 1.0.
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              final info = snapshot.data;
+              if (info == null) return const SizedBox.shrink();
+              return Center(
+                child: Text(
+                  l.settingsVersion(info.version),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

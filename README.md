@@ -7,7 +7,7 @@ The premise that separates Elapsa from every other expiry tracker: **telling
 someone their passport expires in three weeks is useless if renewing it takes
 eight.** Elapsa warns when it is time to *start*, not when it is time to panic.
 
-- `cc.elapsa` · Flutter (iOS + Android) · 100% on-device, no account, no upload
+- `com.ljworkshop.elapsa` · Flutter (iOS + Android) · 100% on-device, no account, no upload
 
 ## Running it
 

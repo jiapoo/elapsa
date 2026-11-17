@@ -11,7 +11,8 @@ import 'package:elapsa/l10n/app_localizations.dart';
 
 /// Message keys from one ARB file, ignoring the `@` metadata entries.
 Set<String> _keys(String path) {
-  final json = jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
+  final json =
+      jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
   return json.keys.where((k) => !k.startsWith('@')).toSet();
 }
 
@@ -19,7 +20,17 @@ void main() {
   group('translation coverage', () {
     final english = _keys('lib/l10n/app_en.arb');
 
-    for (final locale in const ['zh', 'zh_Hant']) {
+    for (final locale in const [
+      'zh',
+      'zh_Hant',
+      'ja',
+      'ko',
+      'de',
+      'fr',
+      'pt',
+      'it',
+      'es',
+    ]) {
       test('$locale translates every string', () {
         final translated = _keys('lib/l10n/app_$locale.arb');
 
@@ -76,14 +87,12 @@ void main() {
     });
 
     test('Simplified and Traditional differ where the terms really differ', () {
-      final hans = lookupL(const Locale.fromSubtags(
-        languageCode: 'zh',
-        scriptCode: 'Hans',
-      ));
-      final hant = lookupL(const Locale.fromSubtags(
-        languageCode: 'zh',
-        scriptCode: 'Hant',
-      ));
+      final hans = lookupL(
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans'),
+      );
+      final hant = lookupL(
+        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
+      );
 
       // These are not character conversions of each other — a mainland reader
       // expects 身份证 and 驾驶证, a Taiwanese reader 身分證 and 駕照. Getting

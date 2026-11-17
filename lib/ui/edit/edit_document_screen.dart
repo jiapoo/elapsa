@@ -7,6 +7,7 @@ import 'package:elapsa/core/card_number.dart';
 import 'package:elapsa/core/labels.dart';
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/data/document_repository.dart';
+import 'package:elapsa/domain/entitlement.dart';
 import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
@@ -28,6 +29,7 @@ import 'package:elapsa/domain/attachment.dart';
 import 'package:elapsa/services/attachment_store.dart';
 import 'package:elapsa/ui/widgets/attachments_section.dart';
 import 'package:elapsa/ui/widgets/picture_sheet.dart';
+import 'package:elapsa/ui/paywall/paywall_sheet.dart';
 
 class EditDocumentScreen extends ConsumerStatefulWidget {
   const EditDocumentScreen({super.key, this.existing, this.session});
@@ -1371,6 +1373,18 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         await repo.save(updated);
       }
     } else {
+      // The free version's limit, checked at the moment of saving rather than
+      // at the + button: by now the user has typed everything in, and the
+      // paywall is a sheet over the form, so saying "not now" loses nothing.
+      final existing = (await repo.getAll()).length;
+      if (!mounted) return;
+      final fits = await ensureRoom(
+        context,
+        ref,
+        (unlocked) => canAddDocuments(existing: existing, unlocked: unlocked),
+      );
+      if (!fits || !mounted) return;
+
       // Permission first. iOS silently discards notifications scheduled while
       // the app is unauthorised, so creating the document before asking would
       // leave it with no reminders at all.

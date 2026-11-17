@@ -67,6 +67,8 @@ dependencies:
   gal: ^3.0.1
   url_launcher: ^6.3.3
   open_filex: ^5.0.0
+  in_app_purchase: ^3.3.1
+  in_app_purchase_storekit: ^0.4.17
 
 dev_dependencies:
   flutter_test:

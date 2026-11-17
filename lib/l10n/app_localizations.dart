@@ -5,7 +5,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_de.dart';
 import 'app_localizations_en.dart';
+import 'app_localizations_es.dart';
+import 'app_localizations_fr.dart';
+import 'app_localizations_it.dart';
+import 'app_localizations_ja.dart';
+import 'app_localizations_ko.dart';
+import 'app_localizations_pt.dart';
 import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
@@ -93,7 +100,14 @@ abstract class L {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
+    Locale('de'),
     Locale('en'),
+    Locale('es'),
+    Locale('fr'),
+    Locale('it'),
+    Locale('ja'),
+    Locale('ko'),
+    Locale('pt'),
     Locale('zh'),
     Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
@@ -1717,6 +1731,132 @@ abstract class L {
   /// In en, this message translates to:
   /// **'Document number'**
   String get fieldNumberGeneric;
+
+  /// Paywall heading, shown when saving a 4th document
+  ///
+  /// In en, this message translates to:
+  /// **'Keep every document in one place'**
+  String get paywallTitle;
+
+  /// Paywall explanation
+  ///
+  /// In en, this message translates to:
+  /// **'The free version keeps {limit} documents. Unlock unlimited documents with one purchase.'**
+  String paywallBody(int limit);
+
+  /// Paywall benefit
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited documents and reminders'**
+  String get paywallPointUnlimited;
+
+  /// Paywall benefit
+  ///
+  /// In en, this message translates to:
+  /// **'Pay once. No subscription, nothing renews.'**
+  String get paywallPointOnce;
+
+  /// Paywall benefit
+  ///
+  /// In en, this message translates to:
+  /// **'Still no account, and nothing leaves your phone.'**
+  String get paywallPointPrivate;
+
+  /// Purchase button; price comes formatted from the store
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock for {price}'**
+  String paywallBuy(String price);
+
+  /// Shown while the store price loads
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the price…'**
+  String get paywallLoadingPrice;
+
+  /// Restore button, required by Apple
+  ///
+  /// In en, this message translates to:
+  /// **'Restore purchase'**
+  String get paywallRestore;
+
+  /// Dismisses the paywall
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get paywallNotNow;
+
+  /// Ask to Buy / deferred purchase
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval. The unlock appears as soon as the purchase is approved.'**
+  String get paywallPending;
+
+  /// Purchase failed
+  ///
+  /// In en, this message translates to:
+  /// **'The purchase didn\'t go through. Please try again.'**
+  String get paywallFailed;
+
+  /// Restore found nothing
+  ///
+  /// In en, this message translates to:
+  /// **'No earlier purchase was found for this account.'**
+  String get paywallNothingToRestore;
+
+  /// Offline or store unavailable
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the store right now. Check your connection and try again.'**
+  String get paywallStoreUnavailable;
+
+  /// Retry loading the price
+  ///
+  /// In en, this message translates to:
+  /// **'Try again'**
+  String get paywallRetry;
+
+  /// After a successful purchase
+  ///
+  /// In en, this message translates to:
+  /// **'Unlimited is unlocked. Thank you for supporting Elapsa.'**
+  String get paywallThanks;
+
+  /// After a successful restore
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back — unlimited is unlocked again.'**
+  String get paywallRestored;
+
+  /// Import refused by the free limit
+  ///
+  /// In en, this message translates to:
+  /// **'Not imported. The free version keeps {limit} documents.'**
+  String paywallImportBlocked(int limit);
+
+  /// Settings section for the purchase
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsa Unlimited'**
+  String get settingsUnlimited;
+
+  /// Settings, after purchase
+  ///
+  /// In en, this message translates to:
+  /// **'Unlocked. Add as many documents as you like.'**
+  String get settingsUnlimitedOn;
+
+  /// Settings, free tier usage
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {limit} free documents used'**
+  String settingsUnlimitedUsage(int count, int limit);
+
+  /// Settings button opening the paywall
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock unlimited'**
+  String get settingsUnlimitedUnlock;
 }
 
 class _LDelegate extends LocalizationsDelegate<L> {
@@ -1728,8 +1868,17 @@ class _LDelegate extends LocalizationsDelegate<L> {
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'de',
+    'en',
+    'es',
+    'fr',
+    'it',
+    'ja',
+    'ko',
+    'pt',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_LDelegate old) => false;
@@ -1750,8 +1899,22 @@ L lookupL(Locale locale) {
 
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
+    case 'de':
+      return LDe();
     case 'en':
       return LEn();
+    case 'es':
+      return LEs();
+    case 'fr':
+      return LFr();
+    case 'it':
+      return LIt();
+    case 'ja':
+      return LJa();
+    case 'ko':
+      return LKo();
+    case 'pt':
+      return LPt();
     case 'zh':
       return LZh();
   }

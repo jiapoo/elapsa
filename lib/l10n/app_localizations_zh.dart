@@ -902,6 +902,77 @@ class LZh extends L {
 
   @override
   String get fieldNumberGeneric => '证件号码';
+
+  @override
+  String get paywallTitle => '把所有证件都放进来';
+
+  @override
+  String paywallBody(int limit) {
+    return '免费版最多保存 $limit 份证件。一次购买，即可无限添加。';
+  }
+
+  @override
+  String get paywallPointUnlimited => '无限证件与提醒';
+
+  @override
+  String get paywallPointOnce => '一次付费，不是订阅，不会自动续费。';
+
+  @override
+  String get paywallPointPrivate => '依然无需账号，资料不离开你的手机。';
+
+  @override
+  String paywallBuy(String price) {
+    return '以 $price 解锁';
+  }
+
+  @override
+  String get paywallLoadingPrice => '正在获取价格…';
+
+  @override
+  String get paywallRestore => '恢复购买';
+
+  @override
+  String get paywallNotNow => '以后再说';
+
+  @override
+  String get paywallPending => '正在等待批准。购买获批后会自动解锁。';
+
+  @override
+  String get paywallFailed => '购买未完成，请再试一次。';
+
+  @override
+  String get paywallNothingToRestore => '这个账号没有找到以前的购买记录。';
+
+  @override
+  String get paywallStoreUnavailable => '暂时无法连接应用商店，请检查网络后再试。';
+
+  @override
+  String get paywallRetry => '重试';
+
+  @override
+  String get paywallThanks => '已解锁无限版，感谢你支持 Elapsa。';
+
+  @override
+  String get paywallRestored => '欢迎回来，无限版已恢复。';
+
+  @override
+  String paywallImportBlocked(int limit) {
+    return '未导入。免费版最多保存 $limit 份证件。';
+  }
+
+  @override
+  String get settingsUnlimited => 'Elapsa 无限版';
+
+  @override
+  String get settingsUnlimitedOn => '已解锁，可无限添加证件。';
+
+  @override
+  String settingsUnlimitedUsage(int count, int limit) {
+    return '已使用 $count/$limit 份免费额度';
+  }
+
+  @override
+  String get settingsUnlimitedUnlock => '解锁无限版';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).
@@ -1801,4 +1872,75 @@ class LZhHant extends LZh {
 
   @override
   String get fieldNumberGeneric => '證件號碼';
+
+  @override
+  String get paywallTitle => '把所有證件都放進來';
+
+  @override
+  String paywallBody(int limit) {
+    return '免費版最多儲存 $limit 份證件。一次購買，即可無限新增。';
+  }
+
+  @override
+  String get paywallPointUnlimited => '無限證件與提醒';
+
+  @override
+  String get paywallPointOnce => '一次付費，不是訂閱，不會自動續費。';
+
+  @override
+  String get paywallPointPrivate => '依然不需帳號，資料不離開你的手機。';
+
+  @override
+  String paywallBuy(String price) {
+    return '以 $price 解鎖';
+  }
+
+  @override
+  String get paywallLoadingPrice => '正在取得價格…';
+
+  @override
+  String get paywallRestore => '回復購買';
+
+  @override
+  String get paywallNotNow => '以後再說';
+
+  @override
+  String get paywallPending => '正在等待核准。購買獲准後會自動解鎖。';
+
+  @override
+  String get paywallFailed => '購買未完成，請再試一次。';
+
+  @override
+  String get paywallNothingToRestore => '這個帳號找不到先前的購買紀錄。';
+
+  @override
+  String get paywallStoreUnavailable => '暫時無法連線到 App 商店，請檢查網路後再試。';
+
+  @override
+  String get paywallRetry => '重試';
+
+  @override
+  String get paywallThanks => '已解鎖無限版，感謝你支持 Elapsa。';
+
+  @override
+  String get paywallRestored => '歡迎回來，無限版已回復。';
+
+  @override
+  String paywallImportBlocked(int limit) {
+    return '未匯入。免費版最多儲存 $limit 份證件。';
+  }
+
+  @override
+  String get settingsUnlimited => 'Elapsa 無限版';
+
+  @override
+  String get settingsUnlimitedOn => '已解鎖，可無限新增證件。';
+
+  @override
+  String settingsUnlimitedUsage(int count, int limit) {
+    return '已使用 $count/$limit 份免費額度';
+  }
+
+  @override
+  String get settingsUnlimitedUnlock => '解鎖無限版';
 }

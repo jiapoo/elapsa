@@ -272,6 +272,24 @@ abstract class L {
   /// **'Scanned — the code was a little blurry, so please check the details.'**
   String get editScanRepaired;
 
+  /// No description provided for @scanExpiredTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'This one has already expired'**
+  String get scanExpiredTitle;
+
+  /// No description provided for @scanExpiredBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The expiry date on it is {date}, which has passed. Start renewing it now — or, if the date was misread, correct it below.'**
+  String scanExpiredBody(String date);
+
+  /// No description provided for @scanExpiredOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get scanExpiredOk;
+
   /// No description provided for @fieldType.
   ///
   /// In en, this message translates to:

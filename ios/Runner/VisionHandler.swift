@@ -49,6 +49,8 @@ enum VisionHandler {
           boost: args["boost"] as? Bool ?? false,
           variant: args["variant"] as? Int ?? 0,
           languages: args["languages"] as? [String] ?? [],
+          region: args["region"] as? [String: NSNumber],
+          minimumTextHeight: (args["minimumTextHeight"] as? NSNumber)?.floatValue,
           result: result
         )
 
@@ -99,14 +101,32 @@ enum VisionHandler {
     boost: Bool,
     variant: Int,
     languages: [String],
+    region: [String: NSNumber]? = nil,
+    minimumTextHeight: Float? = nil,
     result: @escaping FlutterResult
   ) {
     guard
       let image = UIImage(contentsOfFile: path),
-      let full = image.cgImage
+      let original = image.cgImage
     else {
       result(FlutterError(code: "unreadable_image", message: "Could not open \(path)", details: nil))
       return
+    }
+
+    // A strip of the picture rather than all of it, when the caller knows
+    // where to look.
+    //
+    // The card number is one row of a card, and a recogniser judges every mark
+    // against the size of the whole image it was given. Handing it the row on
+    // its own, enlarged, turns embossed figures that were a twentieth of the
+    // picture into most of it — the single biggest thing that can be done for
+    // a number printed over artwork. Once cut out, the strip is upright, so
+    // the photo's own orientation no longer applies to it.
+    var full = original
+    var orientation = cgOrientation(from: image.imageOrientation)
+    if let region = region, let strip = cutOut(original, orientation: orientation, region: region) {
+      full = strip
+      orientation = .up
     }
 
     // Full resolution, deliberately. Scaling the capture down before reading
@@ -159,7 +179,8 @@ enum VisionHandler {
       // whether the crop kept everything.
       payload["lines"] = observations.compactMap {
         (observation: VNRecognizedTextObservation) -> [String: Any]? in
-        guard let line = observation.topCandidates(1).first?.string else {
+        let readings = observation.topCandidates(8).map(\.string)
+        guard let line = readings.first else {
           return nil
         }
         let box = observation.boundingBox
@@ -173,11 +194,15 @@ enum VisionHandler {
         // the winner, for the one job where a run of digits is exactly what is
         // being looked for. The winning candidate is untouched: this is extra
         // material for finding a card number, not a correction to the text.
-        let digits = observation.topCandidates(6)
-          .map { $0.string.replacingOccurrences(of: " ", with: "") }
+        //
+        // Up to a whole card number, not just one group of it. When the row
+        // comes back as a single observation the right reading of all sixteen
+        // figures is as likely to be second as a single group's is.
+        let digits = readings
+          .map { $0.replacingOccurrences(of: " ", with: "") }
           .first { candidate in
-            candidate.count >= 3 && candidate.count <= 6
-              && candidate.allSatisfy(\.isNumber)
+            candidate.count >= 3 && candidate.count <= 19
+              && candidate.allSatisfy { $0.isASCII && $0.isNumber }
           }
 
         var entry: [String: Any] = [
@@ -188,6 +213,11 @@ enum VisionHandler {
           "height": box.height,
         ]
         if let digits = digits { entry["digits"] = digits }
+        // Every reading Vision was willing to offer, best first. The card
+        // number carries its own checksum, so the caller can try the runners-up
+        // and let the arithmetic say which one was printed — a choice no
+        // single "best" reading can make for it.
+        if readings.count > 1 { entry["candidates"] = readings }
         return entry
       }
 
@@ -213,8 +243,13 @@ enum VisionHandler {
     // And where the system can decide for itself, let it. The ordered list
     // above is a good guess about a document nobody has looked at yet; Vision
     // looking at the actual pixels is better than any guess.
+    //
+    // Except when the caller has named exactly one. That is not a guess but an
+    // instruction — a strip holding nothing but the card number is read with
+    // the Latin model alone, because the Chinese one turns embossed figures
+    // into characters — and letting detection overrule it undoes the point.
     if #available(iOS 16.0, *) {
-      request.automaticallyDetectsLanguage = true
+      request.automaticallyDetectsLanguage = chosen.count > 1
     }
 
     // How small a line may be, as a fraction of the image height. Vision
@@ -228,14 +263,18 @@ enum VisionHandler {
     // twelve-megapixel photograph, and what it gave back was worse, not
     // better — a Chinese character carries far more detail than a Latin one
     // and suffers first when the budget is spread that thin.
-    request.minimumTextHeight = 0.02
+    //
+    // A strip or a crop has no such problem — the writing in it is large by
+    // construction — and there the caller asks for no floor at all, which is
+    // Vision's own default: every pixel considered, nothing downscaled.
+    request.minimumTextHeight = minimumTextHeight ?? 0.02
 
     // If Vision refuses a language this OS turns out not to have, the answer
     // is to read in English, not to give up on the picture.
     perform(
       [request],
       on: cgImage,
-      orientation: cgOrientation(from: image.imageOrientation)
+      orientation: orientation
     ) { error in
       guard chosen != ["en-US"] else { result(error); return }
       NSLog("Elapsa: retrying in English after %@", error.message ?? "a failure")
@@ -243,10 +282,54 @@ enum VisionHandler {
       perform(
         [request],
         on: cgImage,
-        orientation: cgOrientation(from: image.imageOrientation),
+        orientation: orientation,
         onFailure: result
       )
     }
+  }
+
+  /// The part of [image] inside [region], upright and enlarged.
+  ///
+  /// [region] is normalised with a top-left origin, in the frame of the image
+  /// as it is meant to be seen — after its orientation is applied — which is
+  /// the frame every box handed back to Dart is already in.
+  private static func cutOut(
+    _ image: CGImage,
+    orientation: CGImagePropertyOrientation,
+    region: [String: NSNumber]
+  ) -> CGImage? {
+    guard
+      let x = region["x"]?.doubleValue, let y = region["y"]?.doubleValue,
+      let w = region["width"]?.doubleValue, let h = region["height"]?.doubleValue,
+      w > 0, h > 0
+    else { return nil }
+
+    let upright = CIImage(cgImage: image).oriented(orientation)
+    let extent = upright.extent
+    // Core Image measures from the bottom; the region was given from the top.
+    let rect = CGRect(
+      x: extent.minX + CGFloat(x) * extent.width,
+      y: extent.minY + CGFloat(1 - y - h) * extent.height,
+      width: CGFloat(w) * extent.width,
+      height: CGFloat(h) * extent.height
+    ).intersection(extent).integral
+    guard !rect.isNull, rect.width >= 16, rect.height >= 8 else { return nil }
+
+    var strip = upright.cropped(to: rect)
+      .transformed(by: CGAffineTransform(translationX: -rect.minX, y: -rect.minY))
+
+    // Tall enough that a row of embossed figures is a few hundred pixels
+    // high. Lanczos rather than the default, because the strokes are thin and
+    // a soft enlargement smears the relief that is all there is to read.
+    let factor = min(max(420 / rect.height, 1), 4, 4800 / rect.width)
+    if factor > 1.05, let scale = CIFilter(name: "CILanczosScaleTransform") {
+      scale.setValue(strip, forKey: kCIInputImageKey)
+      scale.setValue(factor, forKey: kCIInputScaleKey)
+      scale.setValue(1.0, forKey: kCIInputAspectRatioKey)
+      if let enlarged = scale.outputImage { strip = enlarged }
+    }
+
+    return ciContext.createCGImage(strip, from: strip.extent.integral)
   }
 
   /// The image rebuilt to make raised figures legible.
@@ -285,6 +368,11 @@ enum VisionHandler {
     case 1: treated = flatten(grey)
     case 2: treated = harden(grey)
     case 3: treated = enhance(source)
+    case 4: treated = flatten(grey).flatMap(invert)
+    case 5: treated = colourless(source, flat: true)
+    case 6: treated = colourless(source, flat: false)
+    case 7: treated = inked(source)
+    case 8: treated = channel(source, blue: 1)
     default: treated = flatten(grey).flatMap(invert)
     }
 
@@ -305,6 +393,118 @@ enum VisionHandler {
     }
 
     return ciContext.createCGImage(output, from: output.extent)
+  }
+
+  // ------------------------------------------------- colour, not brightness
+
+  /// One channel of [image] spread across all three, as a grey picture.
+  private static func channel(
+    _ image: CIImage, red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0
+  ) -> CIImage? {
+    guard let matrix = CIFilter(name: "CIColorMatrix") else { return nil }
+    let vector = CIVector(x: red, y: green, z: blue, w: 0)
+    matrix.setValue(image, forKey: kCIInputImageKey)
+    matrix.setValue(vector, forKey: "inputRVector")
+    matrix.setValue(vector, forKey: "inputGVector")
+    matrix.setValue(vector, forKey: "inputBVector")
+    return matrix.outputImage?.cropped(to: image.extent)
+  }
+
+  /// The darker or lighter of two images, pixel by pixel.
+  private static func pick(
+    _ name: String, _ a: CIImage?, _ b: CIImage?
+  ) -> CIImage? {
+    guard let a = a, let b = b, let filter = CIFilter(name: name) else { return nil }
+    filter.setValue(a, forKey: kCIInputImageKey)
+    filter.setValue(b, forKey: kCIInputBackgroundImageKey)
+    return filter.outputImage?.cropped(to: a.extent)
+  }
+
+  /// How *white* each pixel is: the least of its red, green and blue.
+  ///
+  /// This is the treatment for a number stamped in silver foil across a
+  /// painted card — the case that defeated every other one. Turned grey, a
+  /// silver figure on yellow artwork is pale on pale and there is nothing to
+  /// separate; every treatment that starts from brightness has lost the
+  /// number before it begins. What actually distinguishes foil from paint is
+  /// that the foil has *no colour*. The smallest of the three channels is
+  /// high only where a pixel is both bright and colourless: foil, and the odd
+  /// highlight. Yellow, orange and green all have a channel near zero and go
+  /// dark, however bright they are.
+  ///
+  /// Measured on a real card of exactly this kind, this was the only
+  /// treatment that read the middle two groups at all.
+  ///
+  /// [flat] divides out the slow changes — the grey signature panel a group
+  /// is often stamped across is colourless too — and then opens the result by
+  /// a pixel to clear the speckle that brushwork leaves behind.
+  private static func colourless(_ image: CIImage, flat: Bool) -> CIImage? {
+    let white = pick(
+      "CIMinimumCompositing",
+      pick("CIMinimumCompositing", channel(image, red: 1), channel(image, green: 1)),
+      channel(image, blue: 1)
+    )
+    guard let white = white else { return nil }
+    guard flat else {
+      return stretched(white, contrast: 2.0, brightness: -0.1).flatMap(invert)
+    }
+
+    let scale = max(image.extent.height / 100, 1)
+    guard
+      let flattened = divided(white, radius: scale * 6),
+      let strong = stretched(flattened, contrast: 3.0, brightness: -0.1),
+      let opened = morphology("CIMorphologyMaximum",
+                              morphology("CIMorphologyMinimum", strong, radius: 1),
+                              radius: 1)
+    else { return nil }
+    return invert(opened)
+  }
+
+  /// The mirror image: how *dark and colourless* each pixel is, for black
+  /// print over colour. The largest channel is low only where nothing is lit.
+  private static func inked(_ image: CIImage) -> CIImage? {
+    let lit = pick(
+      "CIMaximumCompositing",
+      pick("CIMaximumCompositing", channel(image, red: 1), channel(image, green: 1)),
+      channel(image, blue: 1)
+    )
+    guard let lit = lit else { return nil }
+    let scale = max(image.extent.height / 100, 1)
+    return divided(lit, radius: scale * 6)
+      .flatMap { stretched($0, contrast: 3.0, brightness: -0.1) }
+  }
+
+  /// [image] divided by a wide blur of itself: the slow changes removed.
+  private static func divided(_ image: CIImage, radius: CGFloat) -> CIImage? {
+    guard
+      let blur = CIFilter(name: "CIGaussianBlur"),
+      let divide = CIFilter(name: "CIDivideBlendMode")
+    else { return nil }
+    blur.setValue(image.clampedToExtent(), forKey: kCIInputImageKey)
+    blur.setValue(radius, forKey: kCIInputRadiusKey)
+    guard let background = blur.outputImage?.cropped(to: image.extent) else { return nil }
+    divide.setValue(image, forKey: kCIInputImageKey)
+    divide.setValue(background, forKey: kCIInputBackgroundImageKey)
+    return divide.outputImage?.cropped(to: image.extent)
+  }
+
+  private static func stretched(
+    _ image: CIImage, contrast: CGFloat, brightness: CGFloat
+  ) -> CIImage? {
+    guard let filter = CIFilter(name: "CIColorControls") else { return nil }
+    filter.setValue(image, forKey: kCIInputImageKey)
+    filter.setValue(contrast, forKey: kCIInputContrastKey)
+    filter.setValue(brightness, forKey: kCIInputBrightnessKey)
+    return filter.outputImage?.cropped(to: image.extent)
+  }
+
+  private static func morphology(
+    _ name: String, _ image: CIImage?, radius: CGFloat
+  ) -> CIImage? {
+    guard let image = image, let filter = CIFilter(name: name) else { return nil }
+    filter.setValue(image.clampedToExtent(), forKey: kCIInputImageKey)
+    filter.setValue(radius, forKey: kCIInputRadiusKey)
+    return filter.outputImage?.cropped(to: image.extent)
   }
 
   /// Apple's own document treatment, which is built for exactly this and

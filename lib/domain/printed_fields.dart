@@ -1,3 +1,4 @@
+import 'package:elapsa/core/card_number.dart';
 import 'package:elapsa/domain/document_type.dart';
 
 /// What could be read off the *printed face* of a document.
@@ -251,72 +252,6 @@ class PrintedFieldParser {
     caseSensitive: false,
   );
 
-  /// Digits that a recogniser hands back as letters.
-  ///
-  /// The number is *embossed*, not printed: it is the same colour as the card
-  /// and is read by its shadow alone. A misread character is ordinary there in
-  /// a way it never is on flat print, which is why the dates and the name come
-  /// back perfectly from a photo whose number does not.
-  static const _lookalikeDigits = {
-    'O': '0',
-    'D': '0',
-    'Q': '0',
-    'I': '1',
-    'L': '1',
-    '|': '1',
-    '!': '1',
-    'Z': '2',
-    'A': '4',
-    'S': '5',
-    'G': '6',
-    'T': '7',
-    'B': '8',
-  };
-
-  /// The checksum every payment card number carries (ISO/IEC 7812).
-  static bool _passesLuhn(String digits) {
-    var sum = 0;
-    var doubling = false;
-    for (var i = digits.length - 1; i >= 0; i--) {
-      var digit = digits.codeUnitAt(i) - 0x30;
-      if (digit < 0 || digit > 9) return false;
-      if (doubling) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      sum += digit;
-      doubling = !doubling;
-    }
-    return sum % 10 == 0;
-  }
-
-  /// One whitespace-separated token read as a group of digits, or null when it
-  /// is not one.
-  ///
-  /// Letters standing in for digits are folded back, but only in a token that
-  /// is already mostly digits — otherwise `GOOD` reads as `6000` and every
-  /// word on the card becomes a candidate.
-  static String? _asDigitGroup(String token) {
-    final stripped = token.replaceAll('-', '').toUpperCase();
-    if (stripped.length < 3 || stripped.length > 19) return null;
-
-    final digits = StringBuffer();
-    var certain = 0;
-    for (final char in stripped.split('')) {
-      final code = char.codeUnitAt(0);
-      if (code >= 0x30 && code <= 0x39) {
-        certain++;
-        digits.write(char);
-        continue;
-      }
-      final substitute = _lookalikeDigits[char];
-      if (substitute == null) return null;
-      digits.write(substitute);
-    }
-    if (certain < 2 || certain * 2 < stripped.length) return null;
-    return digits.toString();
-  }
-
   /// The card number, found by its own checksum rather than by its
   /// surroundings.
   ///
@@ -334,7 +269,7 @@ class PrintedFieldParser {
     final runs = <List<String>>[];
     var run = <String>[];
     for (final token in text.split(RegExp(r'\s+'))) {
-      final group = _asDigitGroup(token);
+      final group = digitGroup(token)?.digits;
       if (group == null) {
         if (run.isNotEmpty) runs.add(run);
         run = [];
@@ -353,12 +288,11 @@ class PrintedFieldParser {
           if (joined.length > 19) break;
           final candidate = joined.toString();
           if (candidate.length < 13) continue;
-          // Every scheme in circulation begins 2-6. Anchoring here stops an
-          // 18-digit identity number passing on a one-in-ten fluke.
-          final first = candidate.codeUnitAt(0);
-          if (first < 0x32 || first > 0x36) continue;
-
-          if (!_passesLuhn(candidate)) continue;
+          // Every scheme in circulation begins 2-6 and issues only certain
+          // lengths. Anchoring here stops an 18-digit identity number passing
+          // on a one-in-ten fluke.
+          if (!isPlausibleCardNumber(candidate)) continue;
+          if (!passesLuhn(candidate)) continue;
 
           if (best == null || candidate.length > best.length) best = candidate;
         }
@@ -370,7 +304,9 @@ class PrintedFieldParser {
   PrintedFields parse(String text) {
     if (text.trim().isEmpty) return PrintedFields.empty;
 
-    final normalised = text.replaceAll(RegExp(r'[ \t]+'), ' ');
+    // Full-width figures folded to ASCII first: a Chinese model may return
+    // ４３９２ for what the card prints as 4392, and nothing below would see it.
+    final normalised = asciiDigits(text).replaceAll(RegExp(r'[ \t]+'), ' ');
     final lines = normalised.split('\n');
 
     // Whether this is a payment card at all, judged only on its wording.
@@ -617,7 +553,7 @@ class PrintedFieldParser {
   static String? _checked(String? candidate) {
     if (candidate == null) return null;
     final digits = candidate.replaceAll(RegExp(r'[^0-9]'), '');
-    return _passesLuhn(digits) ? candidate : null;
+    return passesLuhn(digits) ? candidate : null;
   }
 
   /// Every `MM/YY` in the text, earliest first, each as the month's last day.

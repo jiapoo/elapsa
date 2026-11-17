@@ -209,6 +209,17 @@ class LEn extends L {
   }
 
   @override
+  String get scanExpiredTitle => 'This one has already expired';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'The expiry date on it is $date, which has passed. Start renewing it now — or, if the date was misread, correct it below.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Got it';
+
+  @override
   String leadMonths(int months) {
     String _temp0 = intl.Intl.pluralLogic(
       months,

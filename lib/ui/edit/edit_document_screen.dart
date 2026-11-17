@@ -467,7 +467,52 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     if (session != null) {
       _applySession(session, keepFilled: keepFilled);
       await _persistImages();
+      await _warnIfExpired(session);
     }
+  }
+
+  /// Says so, plainly, when the document just scanned has already expired.
+  ///
+  /// The form would show it — the date is there in the field — but a date is
+  /// read as a fact about the document, not as a warning, and somebody adding
+  /// a card to a wallet is not expecting the card to be dead. Finding out at
+  /// a till, or at a border, is the failure this whole app exists to prevent;
+  /// finding out here costs one tap.
+  ///
+  /// Only for a date the scan itself read. A retake that left a date the user
+  /// typed in place is not news, and a document marked as never expiring has
+  /// nothing to warn about.
+  Future<void> _warnIfExpired(ScanSession session) async {
+    if (!mounted || _neverExpires) return;
+    final scanned = session.mrz?.expiryDate ?? session.printed.expiryDate;
+    if (scanned == null || _expiryDate != scanned) return;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (!scanned.isBefore(today)) return;
+
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => _Ask(
+        icon: Icons.event_busy_rounded,
+        tint: scheme.error,
+        title: l.scanExpiredTitle,
+        body: l.scanExpiredBody(DateFormat.yMMMMd(locale).format(scanned)),
+        children: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(48),
+            ),
+            child: Text(l.scanExpiredOk),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Folds a scan into the form.

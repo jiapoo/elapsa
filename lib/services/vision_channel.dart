@@ -63,7 +63,34 @@ class RecognisedLine {
   /// letters with the right digits a place or two behind them.
   final String? digits;
 
-  const RecognisedLine(this.text, this.box, {this.digits});
+  /// Every reading the recogniser offered for this line, best first. The
+  /// winner is [text]; the rest are what a checksum gets to choose between
+  /// when the winner turns out not to be a card number.
+  final List<String> candidates;
+
+  const RecognisedLine(
+    this.text,
+    this.box, {
+    this.digits,
+    this.candidates = const [],
+  });
+
+  /// [text] and every runner-up, without repeats.
+  List<String> get readings => candidates.isEmpty ? [text] : candidates;
+
+  /// The same line in a larger frame, for a read that was made on a strip of
+  /// the picture: [frame] is where that strip sits.
+  RecognisedLine placedIn(Rect frame) => RecognisedLine(
+    text,
+    Rect.fromLTWH(
+      frame.left + box.left * frame.width,
+      frame.top + box.top * frame.height,
+      box.width * frame.width,
+      box.height * frame.height,
+    ),
+    digits: digits,
+    candidates: candidates,
+  );
 }
 
 /// What one pass of the recogniser found.
@@ -296,12 +323,29 @@ class VisionChannel {
     bool boost = false,
     int variant = 0,
     List<String>? languages,
+
+    /// Only this part of the picture, normalised with a top-left origin. The
+    /// lines come back measured against the region, not the whole picture.
+    Rect? region,
+
+    /// The smallest writing worth considering, as a share of the image
+    /// height. Null keeps the native default, which suits a whole photograph;
+    /// a crop or a strip is better read with no floor at all.
+    double? minimumTextHeight,
   }) async {
     final reply = await _channel.invokeMapMethod<String, dynamic>('recognize', {
       'path': path,
       'boost': boost,
       'variant': variant,
       'languages': languages ?? const <String>[],
+      if (region != null)
+        'region': {
+          'x': region.left,
+          'y': region.top,
+          'width': region.width,
+          'height': region.height,
+        },
+      'minimumTextHeight': ?minimumTextHeight,
     });
     if (reply == null) return Recognition.empty;
 
@@ -321,6 +365,9 @@ class VisionChannel {
                 (line['height'] as num).toDouble(),
               ),
               digits: line['digits'] as String?,
+              candidates: (line['candidates'] as List? ?? const [])
+                  .whereType<String>()
+                  .toList(),
             ),
       ],
       bounds: box == null

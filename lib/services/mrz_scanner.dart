@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' show Rect;
 
 import 'package:flutter/foundation.dart';
@@ -7,8 +8,11 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:elapsa/core/theme.dart';
 import 'package:elapsa/domain/mrz.dart';
+import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/domain/printed_fields.dart';
+import 'package:elapsa/domain/script_detection.dart';
 import 'package:elapsa/services/card_cropper.dart';
+import 'package:elapsa/services/card_number_reader.dart';
 import 'package:elapsa/services/vision_channel.dart';
 
 /// What reading a document produced.
@@ -87,11 +91,13 @@ class MrzScanner {
     this._vision = const VisionChannel(),
     this._cropper = const CardCropper(),
     this._printed = const PrintedFieldParser(),
+    this._numbers = const CardNumberReader(),
   ]);
 
   final VisionChannel _vision;
   final CardCropper _cropper;
   final PrintedFieldParser _printed;
+  final CardNumberReader _numbers;
 
   /// Processes one captured photo.
   ///
@@ -140,7 +146,25 @@ class MrzScanner {
     bool boost = false,
     int variant = 0,
     List<String>? languages,
-  }) async {
+  }) => _onDisk(
+    cropped,
+    (path) => _vision.recognize(
+      path,
+      boost: boost,
+      variant: variant,
+      languages: languages,
+      // The crop is the document filling the picture: its writing is large
+      // by construction, so nothing needs to be skipped as too small.
+      minimumTextHeight: 0,
+    ),
+  ).then((read) => read ?? Recognition.empty);
+
+  /// Runs [read] against [cropped] written to a temporary file, and deletes
+  /// the file the moment it is done.
+  Future<T?> _onDisk<T>(
+    Uint8List cropped,
+    Future<T> Function(String path) read,
+  ) async {
     File? temp;
     try {
       final dir = await getTemporaryDirectory();
@@ -151,20 +175,92 @@ class MrzScanner {
         ),
       );
       await temp.writeAsBytes(cropped);
-      return await _vision.recognize(
-        temp.path,
-        boost: boost,
-        variant: variant,
-        languages: languages,
-      );
+      return await read(temp.path);
     } catch (error) {
       debugPrint('Elapsa: reading the crop failed: $error');
-      return Recognition.empty;
+      return null;
     } finally {
       // The crop is a decrypted picture of someone's passport. It does not
       // stay on disk a moment longer than the read takes.
       if (temp != null && await temp.exists()) await temp.delete();
     }
+  }
+
+  /// The card number, read from the strip of the card it is printed on.
+  ///
+  /// This is the rescue for the failure the app keeps meeting: a bank card
+  /// whose name, dates and holder all read and whose number does not. The
+  /// number is embossed — the same colour as the card, visible only as a
+  /// shadow — and on a painted card it runs straight across the artwork.
+  ///
+  /// Three things are done differently here from any pass over the whole card.
+  /// The strip is read on its own and enlarged, so the figures are most of the
+  /// picture rather than a twentieth of it. It is read with the Latin model
+  /// only, because the Chinese one, given embossed figures over a painting,
+  /// finds characters in them. And it is read many times, under every
+  /// treatment at once, with the results put together by [CardNumberReader]
+  /// rather than taken one at a time — each treatment loses a different part
+  /// of the number, and between them they rarely lose all of it.
+  /// Every way the number strip is looked at: -1 is the picture as it is,
+  /// the rest are the native treatments.
+  ///
+  /// They are all here because each one is the only one that works on some
+  /// card. Relief and flattening find a figure embossed in the card's own
+  /// colour; 5 and 6 find silver foil stamped across a painting by its lack of
+  /// colour, which no treatment that starts from brightness can do; 7 is the
+  /// same for dark ink on colour; 8, the blue channel alone, turns the warm
+  /// artwork most cards are printed with nearly black.
+  static const _numberTreatments = [-1, 5, 0, 1, 2, 3, 4, 6, 7, 8];
+
+  Future<({String? number, String seen})> _readNumber(
+    Uint8List card,
+    List<List<RecognisedLine>> already,
+  ) async {
+    final bands = numberBands(already.isEmpty ? const [] : already.first);
+    final result = await _onDisk(card, (path) async {
+      final passes = [...already];
+      final seen = StringBuffer();
+      String? number;
+
+      // One strip at a time, every treatment at once. The treatments are
+      // independent looks at a small picture and finish together; the strips
+      // are alternatives, and the second is only worth its cost when the
+      // first did not settle the number.
+      for (final band in bands) {
+        final looks = await Future.wait([
+          for (final variant in _numberTreatments)
+            _vision
+                .recognize(
+                  path,
+                  region: band,
+                  boost: variant >= 0,
+                  variant: math.max(variant, 0),
+                  languages: const ['en-US'],
+                  minimumTextHeight: 0,
+                )
+                .then((look) => (variant: variant, look: look))
+                .catchError(
+                  (Object _) => (variant: variant, look: Recognition.empty),
+                ),
+        ]);
+
+        for (final l in looks) {
+          passes.add([for (final line in l.look.lines) line.placedIn(band)]);
+          if (l.look.text.trim().isEmpty) continue;
+          seen.write(
+            '\n--- number strip ${band.top.toStringAsFixed(2)}'
+            '-${band.bottom.toStringAsFixed(2)}, '
+            '${l.variant < 0 ? 'plain' : 'treatment ${l.variant}'} ---\n'
+            '${l.look.text}',
+          );
+        }
+
+        number = _numbers.read(passes);
+        if (number != null) break;
+      }
+      return (number: number, seen: seen.toString());
+    });
+    return result ?? (number: null, seen: '');
   }
 
   /// Re-cuts a photo along corners placed by hand, and reads it again.
@@ -286,8 +382,25 @@ class MrzScanner {
     // frame, so its print is several times the size. Skipping that pass
     // whenever the whole picture happened to yield *an* expiry meant the best
     // reading available was the one most often not taken.
+    // Read with the models this document turned out to need.
+    //
+    // The first pass had to guess, and it guessed Chinese, because that is the
+    // order that loses least when nothing is known. It is known now: the
+    // writing it found says which scripts are on the card, and a Korean
+    // licence or a Japanese residence card is better read by its own model
+    // than by a Chinese one doing its best. A card with no script but Latin on
+    // it is read by the Latin model — which is also the better reader of its
+    // figures.
+    final detected = languagesForText(
+      read.text,
+      fallback: languages ?? const ['zh-Hans', 'zh-Hant', 'en-US'],
+    );
+    if (kDebugMode) debugPrint('Elapsa: languages for the crop: $detected');
+
+    Recognition? cropRead;
     if (card != null) {
-      final look = await _readCrop(card, languages: languages);
+      final look = await _readCrop(card, languages: detected);
+      cropRead = look;
       final closer = look.text;
       if (closer.trim().isNotEmpty) {
         reading = await _interpret(_withRows(closer, look));
@@ -314,46 +427,61 @@ class MrzScanner {
     // name, the dates and the holder all come back correctly and the number —
     // the one field that identifies the card — comes back as nothing. Those
     // fields are flat print; the number is embossed, and has almost no tonal
-    // contrast for a recogniser to find. The boost manufactures some.
+    // contrast for a recogniser to find.
     //
-    // The *crop* is boosted first, and that is the part that was missing: a
-    // recogniser measures text against the height of the whole image, so
-    // embossed figures on a card that fills a third of a photograph are a
-    // third the size they are on the card alone. Boosting the frame and not
-    // the card was doing the harder half of the job.
-    //
-    // Widened from "looks like a bank card" to "has no number yet", because
-    // the old test needed the bank's name to have been read — and a photo that
-    // lost the number is exactly the kind that also loses the wording.
-    if (parsed == null && printed.documentNumber == null) {
-      // Both treatments, on the card first and the whole frame after. They
-      // fail in opposite conditions — one cannot cope with a pale digit on a
-      // pale card, the other cannot cope with a dark one — so trying a single
-      // treatment was a coin toss dressed up as a rescue.
-      for (final attempt in [
-        if (card != null)
-          for (var variant = 0; variant < 5; variant++)
-            (
-              'crop, treatment $variant',
-              () => _readCrop(
-                card,
-                boost: true,
-                variant: variant,
-                languages: languages,
+    // Not for a document that has said what it is and is not a card. A
+    // passport or an identity card has its number already, or a number of a
+    // shape this cannot read.
+    final mayBeCard =
+        printed.type == null || printed.type == DocumentType.bankCard;
+    if (parsed == null && printed.documentNumber == null && mayBeCard) {
+      // First, the readings already made, put together. Every line of the
+      // crop came back with its runners-up, and the checksum can often pick
+      // the right one out of those without another look at the picture.
+      final already = [if (cropRead != null) cropRead.lines];
+      var number = _numbers.read(already);
+
+      // Then the strip the number is printed on, read closely, many ways.
+      if (number == null && card != null) {
+        final strip = await _readNumber(card, already);
+        number = strip.number;
+        seen = '$seen${strip.seen}';
+      }
+
+      // And last, the old rescue: the whole card under each treatment, read
+      // with the document's own languages, parsed one look at a time.
+      if (number == null) {
+        for (final attempt in [
+          if (card != null)
+            for (var variant = 0; variant < 9; variant++)
+              (
+                'crop, treatment $variant',
+                () => _readCrop(
+                  card,
+                  boost: true,
+                  variant: variant,
+                  languages: detected,
+                ),
               ),
-            ),
-        (
-          'whole frame, treatment 0',
-          () => _vision.recognize(path, boost: true, languages: languages),
-        ),
-      ]) {
-        final look = await attempt.$2();
-        if (look.text.trim().isEmpty) continue;
-        seen = '$seen\n--- ${attempt.$1} ---\n${look.text}';
+          (
+            'whole frame, treatment 0',
+            () => _vision.recognize(path, boost: true, languages: languages),
+          ),
+        ]) {
+          final look = await attempt.$2();
+          if (look.text.trim().isEmpty) continue;
+          seen = '$seen\n--- ${attempt.$1} ---\n${look.text}';
+          printed = printed.mergedWith(
+            _printed.parse(_withRows(look.text, look)),
+          );
+          if (printed.documentNumber != null) break;
+        }
+      }
+
+      if (number != null) {
         printed = printed.mergedWith(
-          _printed.parse(_withRows(look.text, look)),
+          PrintedFields(documentNumber: number, type: DocumentType.bankCard),
         );
-        if (printed.documentNumber != null) break;
       }
     }
 

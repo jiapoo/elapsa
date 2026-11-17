@@ -188,6 +188,17 @@ class LZh extends L {
   }
 
   @override
+  String get scanExpiredTitle => '该证件已过期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '识别到的有效期至 $date，已经过了。请尽快办理续期；如果日期识别有误，请在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
+
+  @override
   String leadYears(int years) {
     return '$years 年';
   }
@@ -1072,6 +1083,17 @@ class LZhHant extends LZh {
 
   @override
   String get scanFailedCapture => '拍照失敗，請再試一次。';
+
+  @override
+  String get scanExpiredTitle => '此證件已過期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '辨識到的有效期至 $date，已經過了。請盡快辦理續期；如果日期辨識有誤，請在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
 
   @override
   String scanPageCount(int count) {

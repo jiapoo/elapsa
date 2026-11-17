@@ -5,6 +5,13 @@ category) or the **1.0 version page** (everything else). Limits are Apple's; eve
 below is within them. Name, subtitle and keywords are indexed together, so no word is
 repeated across them.
 
+App Store Connect record: Apple ID 6835915866. In-app purchase Apple ID 6835917249, $9.99 base
+price (US), display name and description in all ten app languages.
+
+The Chinese names differ from a straight translation on purpose. App Store names must be unique,
+and Apple rejected 护照证件到期提醒 / 護照證件到期提醒 as already taken. 身份证 / 身分證 is also the
+most-searched word in each market.
+
 Price isn't written into any field. Apple shows it on the page, and the app reads it
 from the store.
 
@@ -98,7 +105,7 @@ Entry rules vary by country. Always check the rules of the country you're travel
 
 **名称**
 ```
-Elapsa：护照证件到期提醒
+Elapsa：护照身份证到期提醒
 ```
 
 **副标题**
@@ -113,7 +120,7 @@ Elapsa：护照证件到期提醒
 
 **关键词**
 ```
-身份证,签证,换证,驾照,居留许可,扫描,银行卡,有效期,出国,旅行,港澳通行证,过期,续签,换发,备忘,倒计时
+签证,换证,驾照,居留许可,扫描,银行卡,有效期,出国,旅行,港澳通行证,过期,续签,换发,证件,倒计时,备忘
 ```
 
 **描述**
@@ -159,7 +166,7 @@ Elapsa：护照证件到期提醒
 
 **名稱**
 ```
-Elapsa：護照證件到期提醒
+Elapsa：護照身分證到期提醒
 ```
 
 **副標題**
@@ -174,7 +181,7 @@ Elapsa：護照證件到期提醒
 
 **關鍵字**
 ```
-身分證,簽證,換證,駕照,居留證,掃描,信用卡,有效期限,出國,旅行,台胞證,過期,續簽,換發,備忘,倒數
+簽證,換證,駕照,居留證,掃描,信用卡,有效期限,出國,旅行,台胞證,過期,續簽,換發,證件,倒數,備忘
 ```
 
 **描述**

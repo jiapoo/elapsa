@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:elapsa/domain/attachment.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 
@@ -94,6 +95,9 @@ class TrackedDocument {
   /// card, a plate number on a vehicle registration.
   final Map<DocumentDetail, String> details;
 
+  /// Files and links kept with this document, in the order they were added.
+  final List<Attachment> attachments;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -117,6 +121,7 @@ class TrackedDocument {
     this.scanText,
     this.extras = const {},
     this.neverExpires = false,
+    this.attachments = const [],
   }) : _chosenOffsets = reminderOffsets;
 
   /// Days until expiry, measured in whole calendar days from today.
@@ -230,6 +235,7 @@ class TrackedDocument {
     String? scanText,
     Map<String, String>? extras,
     bool? neverExpires,
+    List<Attachment>? attachments,
     bool clearCustomType = false,
   }) {
     return TrackedDocument(
@@ -250,6 +256,7 @@ class TrackedDocument {
       scanText: scanText ?? this.scanText,
       extras: extras ?? this.extras,
       neverExpires: neverExpires ?? this.neverExpires,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

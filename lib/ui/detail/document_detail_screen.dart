@@ -10,7 +10,11 @@ import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/services/attachment_store.dart';
 import 'package:elapsa/ui/edit/edit_document_screen.dart';
+import 'package:elapsa/ui/scan/scan_screen.dart';
+import 'package:elapsa/ui/widgets/attachments_section.dart';
+import 'package:elapsa/ui/widgets/picture_sheet.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 
 /// One document, to look at rather than to change.
@@ -150,6 +154,11 @@ class DocumentDetailScreen extends ConsumerWidget {
             ],
           ),
 
+          if (document.attachments.isNotEmpty) ...[
+            const SizedBox(height: 22),
+            _Attachments(document: document),
+          ],
+
           const SizedBox(height: 22),
           _Reminders(document: document),
 
@@ -164,23 +173,96 @@ class DocumentDetailScreen extends ConsumerWidget {
 }
 
 /// Every picture, swipeable, with the position marked.
-class _Pages extends StatefulWidget {
+///
+/// Tapping one offers what can be done with it without going into the editor:
+/// a better photograph, or a copy kept somewhere else.
+class _Pages extends ConsumerStatefulWidget {
   const _Pages({required this.document});
 
   final TrackedDocument document;
 
   @override
-  State<_Pages> createState() => _PagesState();
+  ConsumerState<_Pages> createState() => _PagesState();
 }
 
-class _PagesState extends State<_Pages> {
+class _PagesState extends ConsumerState<_Pages> {
   final _controller = PageController();
   int _page = 0;
+  bool _busy = false;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _options(int page) async {
+    if (_busy) return;
+    final document = widget.document;
+    final image = await ref.read(
+      documentImageProvider(DocumentImageRef(document.id, page)).future,
+    );
+    if (image == null || !mounted) return;
+
+    final choice = await showPictureSheet(
+      context,
+      image: image,
+      actions: const [
+        PictureAction.retake,
+        PictureAction.saveToPhotos,
+        PictureAction.saveToFiles,
+      ],
+    );
+    if (choice == null || !mounted) return;
+
+    switch (choice) {
+      case PictureAction.retake:
+        await _retake(page);
+      case PictureAction.saveToPhotos:
+        await savePictureToPhotos(context, image);
+      case PictureAction.saveToFiles:
+        await savePictureToFiles(
+          context,
+          image,
+          baseName: document.imageCount > 1
+              ? '${document.label} ${page + 1}'
+              : document.label,
+        );
+      case PictureAction.crop || PictureAction.delete:
+        break;
+    }
+  }
+
+  /// Replaces one picture with a new photograph, in the same place.
+  ///
+  /// Only the picture changes. Reading the fields again is the editor's job,
+  /// where the user can see what changed; here they asked for a better photo
+  /// of a document they were only looking at.
+  Future<void> _retake(int page) async {
+    final session = await Navigator.of(context).push<ScanSession>(
+      MaterialPageRoute(builder: (_) => const ScanScreen()),
+    );
+    if (session == null || session.images.isEmpty || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final document = widget.document;
+      final images = await ref
+          .read(documentImageStoreProvider)
+          .loadAll(document.id, document.imageCount);
+      if (page < images.length) images.removeAt(page);
+      images.insertAll(page.clamp(0, images.length), session.images);
+
+      await ref.read(documentRepositoryProvider).setImages(document, images);
+      final pages = images.length > document.imageCount
+          ? images.length
+          : document.imageCount;
+      for (var i = 0; i < pages; i++) {
+        ref.invalidate(documentImageProvider(DocumentImageRef(document.id, i)));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override
@@ -196,8 +278,10 @@ class _PagesState extends State<_Pages> {
             controller: _controller,
             itemCount: count,
             onPageChanged: (page) => setState(() => _page = page),
-            itemBuilder: (context, page) =>
-                DocumentCardFace(document: widget.document, page: page),
+            itemBuilder: (context, page) => GestureDetector(
+              onTap: () => _options(page),
+              child: DocumentCardFace(document: widget.document, page: page),
+            ),
           ),
         ),
         if (count > 1) ...[
@@ -219,6 +303,55 @@ class _PagesState extends State<_Pages> {
             ],
           ),
         ],
+      ],
+    );
+  }
+}
+
+/// The files and links kept with this document.
+class _Attachments extends ConsumerStatefulWidget {
+  const _Attachments({required this.document});
+
+  final TrackedDocument document;
+
+  @override
+  ConsumerState<_Attachments> createState() => _AttachmentsState();
+}
+
+class _AttachmentsState extends ConsumerState<_Attachments> {
+  late final AttachmentStore _store = ref.read(attachmentStoreProvider);
+
+  @override
+  void dispose() {
+    // Whatever was decrypted for viewing goes when the document is closed.
+    _store.clearOpened();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 2, bottom: 8),
+          child: Text(
+            L.of(context).attachmentsTitle.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              letterSpacing: 1.1,
+            ),
+          ),
+        ),
+        AttachmentsSection(
+          attachments: widget.document.attachments,
+          onOpen: (attachment) => openAttachment(
+            context,
+            ref,
+            documentId: widget.document.id,
+            attachment: attachment,
+          ),
+        ),
       ],
     );
   }

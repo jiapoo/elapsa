@@ -47,6 +47,89 @@ class LEn extends L {
   String get actionRetake => 'Retake';
 
   @override
+  String get actionSaveToPhotos => 'Save to Photos';
+
+  @override
+  String get actionSaveToFiles => 'Save to Files';
+
+  @override
+  String get photoSavedToPhotos => 'Saved to Photos';
+
+  @override
+  String get photoSavedToFiles => 'Saved to Files';
+
+  @override
+  String get photoSaveFailed => 'Couldn\'t save the picture.';
+
+  @override
+  String get photoPhotosDenied =>
+      'Elapsa isn\'t allowed to add to Photos. You can allow it in Settings.';
+
+  @override
+  String get photoExportNote => 'A copy saved outside Elapsa isn\'t encrypted.';
+
+  @override
+  String get attachmentsTitle => 'Attachments';
+
+  @override
+  String get attachmentsAdd => 'Add attachment';
+
+  @override
+  String get attachmentsAddFile => 'File';
+
+  @override
+  String get attachmentsAddFileHint => 'PDF, document or any other file';
+
+  @override
+  String get attachmentsAddLink => 'Link';
+
+  @override
+  String get attachmentsAddLinkHint => 'A web page, such as the renewal form';
+
+  @override
+  String get attachmentsLinkTitle => 'Add a link';
+
+  @override
+  String get attachmentsLinkUrl => 'Web address';
+
+  @override
+  String get attachmentsLinkName => 'Name (optional)';
+
+  @override
+  String get attachmentsLinkInvalid => 'That doesn\'t look like a web address.';
+
+  @override
+  String get attachmentsTooLarge =>
+      'That file is over 50 MB, too large to attach.';
+
+  @override
+  String attachmentsSkippedTooLarge(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count files are over 50 MB and were left out.',
+      one: '1 file is over 50 MB and was left out.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get attachmentsCannotOpen => 'Couldn\'t open this attachment.';
+
+  @override
+  String get attachmentsRemoveTitle => 'Remove this attachment?';
+
+  @override
+  String get attachmentsRemoveBody =>
+      'The copy kept in Elapsa is deleted. This can\'t be undone.';
+
+  @override
+  String get actionRemove => 'Remove';
+
+  @override
+  String get actionAddShort => 'Add';
+
+  @override
   String get statusExpired => 'Expired';
 
   @override
@@ -125,6 +208,17 @@ class LEn extends L {
   @override
   String get editScanRepaired =>
       'Scanned — the code was a little blurry, so please check the details.';
+
+  @override
+  String get scanExpiredTitle => 'This one has already expired';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'The expiry date on it is $date, which has passed. Start renewing it now — or, if the date was misread, correct it below.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Got it';
 
   @override
   String get fieldType => 'Type';
@@ -207,17 +301,6 @@ class LEn extends L {
     );
     return '$_temp0';
   }
-
-  @override
-  String get scanExpiredTitle => 'This one has already expired';
-
-  @override
-  String scanExpiredBody(String date) {
-    return 'The expiry date on it is $date, which has passed. Start renewing it now — or, if the date was misread, correct it below.';
-  }
-
-  @override
-  String get scanExpiredOk => 'Got it';
 
   @override
   String leadMonths(int months) {

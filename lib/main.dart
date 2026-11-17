@@ -69,6 +69,18 @@ class ElapsaApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      // Tapping anywhere that is not itself a control puts the keyboard
+      // away. Flutter does not do this on a phone by default, and several
+      // fields here bring up a keyboard with no return key — a card number, a
+      // web address — so without it the keyboard, once up, stayed up over the
+      // Save button, the sheets and the file picker alike. A tap on a button
+      // or another field still goes to that control: the innermost recogniser
+      // wins, and this one only hears taps nothing else claimed.
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: child,
+      ),
       home: const _ResyncOnResume(child: HomeScreen()),
     );
   }

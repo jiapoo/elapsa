@@ -27,6 +27,7 @@ class SettingsScreen extends ConsumerWidget {
         titleTextStyle: Theme.of(context).textTheme.titleLarge,
       ),
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
         children: [
           // First, because it is the only thing on this page anyone arrives

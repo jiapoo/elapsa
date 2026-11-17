@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 
 import 'package:elapsa/data/settings_repository.dart';
+import 'package:elapsa/domain/attachment.dart';
 import 'package:elapsa/domain/document.dart';
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
@@ -42,7 +43,15 @@ class ArchivedDocument {
   /// far end can file it correctly without having been told in advance.
   final CustomType? customType;
 
-  const ArchivedDocument(this.document, this.images, {this.customType});
+  /// The bytes of each attached file, by attachment id. Links need none.
+  final Map<String, Uint8List> attachmentFiles;
+
+  const ArchivedDocument(
+    this.document,
+    this.images, {
+    this.customType,
+    this.attachmentFiles = const {},
+  });
 }
 
 /// What came out of an archive.
@@ -261,6 +270,15 @@ class DocumentArchive {
       'createdAt': doc.createdAt.toIso8601String(),
       'updatedAt': doc.updatedAt.toIso8601String(),
       'images': [for (final image in entry.images) base64Encode(image)],
+      // Added without a version bump: a reader that predates attachments
+      // ignores both keys and still gets the document whole.
+      if (doc.attachments.isNotEmpty)
+        'attachments': [for (final a in doc.attachments) a.toJson()],
+      if (entry.attachmentFiles.isNotEmpty)
+        'attachmentFiles': {
+          for (final file in entry.attachmentFiles.entries)
+            file.key: base64Encode(file.value),
+        },
     };
   }
 
@@ -269,6 +287,15 @@ class DocumentArchive {
       for (final image in (raw['images'] as List? ?? const []))
         base64Decode(image as String),
     ];
+    final attachments = [
+      for (final a in (raw['attachments'] as List? ?? const []))
+        Attachment.fromJson(a),
+    ].whereType<Attachment>().toList();
+    final files = <String, Uint8List>{
+      for (final file in (raw['attachmentFiles'] as Map? ?? const {}).entries)
+        if (file.key is String && file.value is String)
+          file.key as String: base64Decode(file.value as String),
+    };
 
     return ArchivedDocument(
       TrackedDocument(
@@ -301,10 +328,12 @@ class DocumentArchive {
         neverExpires: raw['neverExpires'] as bool? ?? false,
         customType: raw['customType'] as String?,
         scanText: raw['scanText'] as String?,
+        attachments: attachments,
         createdAt: _date(raw['createdAt']) ?? DateTime.now(),
         updatedAt: _date(raw['updatedAt']) ?? DateTime.now(),
       ),
       images,
+      attachmentFiles: files,
     );
   }
 

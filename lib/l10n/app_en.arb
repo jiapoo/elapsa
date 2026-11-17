@@ -12,6 +12,107 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
+  "actionSaveToPhotos": "Save to Photos",
+  "@actionSaveToPhotos": {
+    "description": "Save to Photos"
+  },
+  "actionSaveToFiles": "Save to Files",
+  "@actionSaveToFiles": {
+    "description": "Save to Files"
+  },
+  "photoSavedToPhotos": "Saved to Photos",
+  "@photoSavedToPhotos": {
+    "description": "Saved to Photos"
+  },
+  "photoSavedToFiles": "Saved to Files",
+  "@photoSavedToFiles": {
+    "description": "Saved to Files"
+  },
+  "photoSaveFailed": "Couldn't save the picture.",
+  "@photoSaveFailed": {
+    "description": "Couldn't save the picture."
+  },
+  "photoPhotosDenied": "Elapsa isn't allowed to add to Photos. You can allow it in Settings.",
+  "@photoPhotosDenied": {
+    "description": "Elapsa isn't allowed to add to Photos. You can allow it in Settings."
+  },
+  "photoExportNote": "A copy saved outside Elapsa isn't encrypted.",
+  "@photoExportNote": {
+    "description": "A copy saved outside Elapsa isn't encrypted."
+  },
+  "attachmentsTitle": "Attachments",
+  "@attachmentsTitle": {
+    "description": "Attachments"
+  },
+  "attachmentsAdd": "Add attachment",
+  "@attachmentsAdd": {
+    "description": "Add attachment"
+  },
+  "attachmentsAddFile": "File",
+  "@attachmentsAddFile": {
+    "description": "File"
+  },
+  "attachmentsAddFileHint": "PDF, document or any other file",
+  "@attachmentsAddFileHint": {
+    "description": "PDF, document or any other file"
+  },
+  "attachmentsAddLink": "Link",
+  "@attachmentsAddLink": {
+    "description": "Link"
+  },
+  "attachmentsAddLinkHint": "A web page, such as the renewal form",
+  "@attachmentsAddLinkHint": {
+    "description": "A web page, such as the renewal form"
+  },
+  "attachmentsLinkTitle": "Add a link",
+  "@attachmentsLinkTitle": {
+    "description": "Add a link"
+  },
+  "attachmentsLinkUrl": "Web address",
+  "@attachmentsLinkUrl": {
+    "description": "Web address"
+  },
+  "attachmentsLinkName": "Name (optional)",
+  "@attachmentsLinkName": {
+    "description": "Name (optional)"
+  },
+  "attachmentsLinkInvalid": "That doesn't look like a web address.",
+  "@attachmentsLinkInvalid": {
+    "description": "That doesn't look like a web address."
+  },
+  "attachmentsTooLarge": "That file is over 50 MB, too large to attach.",
+  "@attachmentsTooLarge": {
+    "description": "That file is over 50 MB, too large to attach."
+  },
+  "attachmentsSkippedTooLarge": "{count, plural, =1{1 file is over 50 MB and was left out.} other{{count} files are over 50 MB and were left out.}}",
+  "@attachmentsSkippedTooLarge": {
+    "description": "Some chosen files were too large",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "attachmentsCannotOpen": "Couldn't open this attachment.",
+  "@attachmentsCannotOpen": {
+    "description": "Couldn't open this attachment."
+  },
+  "attachmentsRemoveTitle": "Remove this attachment?",
+  "@attachmentsRemoveTitle": {
+    "description": "Remove this attachment?"
+  },
+  "attachmentsRemoveBody": "The copy kept in Elapsa is deleted. This can't be undone.",
+  "@attachmentsRemoveBody": {
+    "description": "The copy kept in Elapsa is deleted. This can't be undone."
+  },
+  "actionRemove": "Remove",
+  "@actionRemove": {
+    "description": "Remove"
+  },
+  "actionAddShort": "Add",
+  "@actionAddShort": {
+    "description": "Add"
+  },
   "statusExpired": "Expired",
   "statusExpiring": "Expiring",
   "statusRenewNow": "Renew now",

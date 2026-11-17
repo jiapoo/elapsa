@@ -6,10 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:elapsa/data/database.dart';
+import 'package:elapsa/domain/attachment.dart';
 import 'package:elapsa/domain/document.dart' as domain;
 import 'package:elapsa/domain/document_detail.dart';
 import 'package:elapsa/domain/document_type.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
+import 'package:elapsa/services/attachment_store.dart';
 import 'package:elapsa/services/document_image_store.dart';
 import 'package:elapsa/services/document_archive.dart';
 import 'package:elapsa/services/notification_service.dart';
@@ -24,12 +26,24 @@ const _uuid = Uuid();
 /// it is a handful of rows and it is the only way to respect the iOS pending
 /// limit correctly — see [NotificationService.rescheduleAll].
 class DocumentRepository {
-  DocumentRepository(this._db, this._notifications, this._images, this._l);
+  DocumentRepository(
+    this._db,
+    this._notifications,
+    this._images,
+    this._attachments,
+    this._l,
+  );
 
   final AppDatabase _db;
   final NotificationService _notifications;
   final DocumentImageStore _images;
+  final AttachmentStore _attachments;
   final L _l;
+
+  /// The largest file that can be attached. Everything is held in memory to
+  /// be encrypted, and carried base64 in an archive, so the cap is set well
+  /// below where either becomes a problem.
+  static const maxAttachmentBytes = 50 * 1024 * 1024;
 
   Stream<List<domain.TrackedDocument>> watchAll() =>
       _db.watchAll().map((rows) => rows.map(_toDomain).toList());
@@ -56,11 +70,19 @@ class DocumentRepository {
     String? scanText,
     Map<String, String> extras = const {},
     bool neverExpires = false,
+
+    /// Attachments added before the document existed, with the bytes of the
+    /// files among them keyed by attachment id.
+    List<Attachment> attachments = const [],
+    Map<String, Uint8List> attachmentFiles = const {},
   }) async {
     final now = DateTime.now();
     final id = _uuid.v4();
 
     final imagePath = await _images.saveAll(id, images);
+    for (final file in attachmentFiles.entries) {
+      await _attachments.save(id, file.key, file.value);
+    }
 
     final doc = domain.TrackedDocument(
       id: id,
@@ -80,23 +102,96 @@ class DocumentRepository {
       scanText: scanText,
       extras: extras,
       neverExpires: neverExpires,
+      attachments: attachments,
       createdAt: now,
       updatedAt: now,
     );
-    await save(doc);
+    await _db.upsert(_toCompanion(doc, withAttachments: true));
+    await _resync();
     return doc;
   }
 
+  /// Writes a document's own fields. Attachments are left as stored: they
+  /// change one at a time through [addFile], [addLink] and
+  /// [removeAttachment], and a copy of the document taken before one of those
+  /// must not be able to undo it.
   Future<void> save(domain.TrackedDocument doc) async {
     await _db.upsert(_toCompanion(doc));
     await _resync();
   }
+
+  /// The attachments as stored now, rather than as some screen remembers them.
+  Future<List<Attachment>> attachmentsOf(String documentId) async =>
+      Attachment.decodeList((await _db.getById(documentId))?.attachments);
+
+  /// Encrypts a file and adds it to the document.
+  Future<Attachment> addFile(
+    String documentId, {
+    required String name,
+    required Uint8List bytes,
+  }) async {
+    final attachment = newFile(name: name, size: bytes.length);
+    await _attachments.save(documentId, attachment.id, bytes);
+    await _db.setAttachments(
+      documentId,
+      Attachment.encodeList([
+        ...await attachmentsOf(documentId),
+        attachment,
+      ]),
+    );
+    return attachment;
+  }
+
+  Future<Attachment> addLink(
+    String documentId, {
+    required String name,
+    required Uri url,
+  }) async {
+    final attachment = newLink(name: name, url: url);
+    await _db.setAttachments(
+      documentId,
+      Attachment.encodeList([
+        ...await attachmentsOf(documentId),
+        attachment,
+      ]),
+    );
+    return attachment;
+  }
+
+  Future<void> removeAttachment(String documentId, String attachmentId) async {
+    final remaining = [
+      for (final a in await attachmentsOf(documentId))
+        if (a.id != attachmentId) a,
+    ];
+    await _db.setAttachments(documentId, Attachment.encodeList(remaining));
+    await _attachments.delete(documentId, attachmentId);
+  }
+
+  /// Describes a file before there is a document to attach it to.
+  static Attachment newFile({required String name, required int size}) =>
+      Attachment(
+        id: _uuid.v4(),
+        kind: AttachmentKind.file,
+        name: name,
+        size: size,
+        addedAt: DateTime.now(),
+      );
+
+  static Attachment newLink({required String name, required Uri url}) =>
+      Attachment(
+        id: _uuid.v4(),
+        kind: AttachmentKind.link,
+        name: name.trim().isEmpty ? url.host : name.trim(),
+        url: url.toString(),
+        addedAt: DateTime.now(),
+      );
 
   Future<void> delete(String id) async {
     await _db.deleteById(id);
     // The encrypted scans go with the record. Leaving an orphaned image of
     // someone's passport behind after they deleted it would be indefensible.
     await _images.deleteAll(id);
+    await _attachments.deleteAll(id);
     await _resync();
   }
 
@@ -133,6 +228,7 @@ class DocumentRepository {
             await _images.loadAll(doc.id, doc.imageCount),
             // Sent with the document, not looked up at the far end.
             customType: byName[doc.customType],
+            attachmentFiles: await _loadFiles(doc),
           ),
     ];
   }
@@ -154,23 +250,52 @@ class DocumentRepository {
       for (final existing in await getAll()) {
         await _db.deleteById(existing.id);
         await _images.deleteAll(existing.id);
+        await _attachments.deleteAll(existing.id);
       }
     }
 
     for (final entry in archived) {
-      final path = await _images.saveAll(entry.document.id, entry.images);
+      final id = entry.document.id;
+      final path = await _images.saveAll(id, entry.images);
+
+      // A file whose bytes did not make the journey is dropped rather than
+      // listed: an attachment that cannot be opened is worse than none.
+      await _attachments.deleteAll(id);
+      final attachments = [
+        for (final a in entry.document.attachments)
+          if (a.kind == AttachmentKind.link ||
+              entry.attachmentFiles.containsKey(a.id))
+            a,
+      ];
+      for (final a in attachments) {
+        final bytes = entry.attachmentFiles[a.id];
+        if (bytes != null) await _attachments.save(id, a.id, bytes);
+      }
+
       await _db.upsert(
         _toCompanion(
           entry.document.copyWith(
             imagePath: path,
             imageCount: entry.images.length,
+            attachments: attachments,
           ),
+          withAttachments: true,
         ),
       );
     }
 
     await _resync();
     return archived.length;
+  }
+
+  Future<Map<String, Uint8List>> _loadFiles(domain.TrackedDocument doc) async {
+    final files = <String, Uint8List>{};
+    for (final a in doc.attachments) {
+      if (a.kind != AttachmentKind.file) continue;
+      final bytes = await _attachments.load(doc.id, a.id);
+      if (bytes != null) files[a.id] = bytes;
+    }
+    return files;
   }
 
   /// Rebuilds the scheduled reminders from what is currently stored.
@@ -219,6 +344,7 @@ class DocumentRepository {
       scanText: row.scanText,
       extras: _decodeExtras(row.extras),
       neverExpires: row.neverExpires,
+      attachments: Attachment.decodeList(row.attachments),
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     );
@@ -237,8 +363,14 @@ class DocumentRepository {
     return days.isEmpty ? null : days;
   }
 
-  static DocumentsCompanion _toCompanion(domain.TrackedDocument doc) {
+  static DocumentsCompanion _toCompanion(
+    domain.TrackedDocument doc, {
+    bool withAttachments = false,
+  }) {
     return DocumentsCompanion(
+      attachments: withAttachments
+          ? Value(Attachment.encodeList(doc.attachments))
+          : const Value.absent(),
       id: Value(doc.id),
       type: Value(doc.type),
       label: Value(doc.label),
@@ -272,6 +404,10 @@ final documentImageStoreProvider = Provider<DocumentImageStore>((ref) {
   return DocumentImageStore(ref.watch(secureStoreProvider));
 });
 
+final attachmentStoreProvider = Provider<AttachmentStore>((ref) {
+  return AttachmentStore(ref.watch(secureStoreProvider));
+});
+
 final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase(ref.watch(secureStoreProvider));
   ref.onDispose(db.close);
@@ -287,6 +423,7 @@ final documentRepositoryProvider = Provider<DocumentRepository>((ref) {
     ref.watch(databaseProvider),
     ref.watch(notificationServiceProvider),
     ref.watch(documentImageStoreProvider),
+    ref.watch(attachmentStoreProvider),
     lookupL(ref.watch(activeLocaleProvider)),
   );
 });

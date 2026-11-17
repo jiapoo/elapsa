@@ -170,6 +170,150 @@ abstract class L {
   /// **'Retake'**
   String get actionRetake;
 
+  /// Save to Photos
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Photos'**
+  String get actionSaveToPhotos;
+
+  /// Save to Files
+  ///
+  /// In en, this message translates to:
+  /// **'Save to Files'**
+  String get actionSaveToFiles;
+
+  /// Saved to Photos
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Photos'**
+  String get photoSavedToPhotos;
+
+  /// Saved to Files
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Files'**
+  String get photoSavedToFiles;
+
+  /// Couldn't save the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save the picture.'**
+  String get photoSaveFailed;
+
+  /// Elapsa isn't allowed to add to Photos. You can allow it in Settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Elapsa isn\'t allowed to add to Photos. You can allow it in Settings.'**
+  String get photoPhotosDenied;
+
+  /// A copy saved outside Elapsa isn't encrypted.
+  ///
+  /// In en, this message translates to:
+  /// **'A copy saved outside Elapsa isn\'t encrypted.'**
+  String get photoExportNote;
+
+  /// Attachments
+  ///
+  /// In en, this message translates to:
+  /// **'Attachments'**
+  String get attachmentsTitle;
+
+  /// Add attachment
+  ///
+  /// In en, this message translates to:
+  /// **'Add attachment'**
+  String get attachmentsAdd;
+
+  /// File
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get attachmentsAddFile;
+
+  /// PDF, document or any other file
+  ///
+  /// In en, this message translates to:
+  /// **'PDF, document or any other file'**
+  String get attachmentsAddFileHint;
+
+  /// Link
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get attachmentsAddLink;
+
+  /// A web page, such as the renewal form
+  ///
+  /// In en, this message translates to:
+  /// **'A web page, such as the renewal form'**
+  String get attachmentsAddLinkHint;
+
+  /// Add a link
+  ///
+  /// In en, this message translates to:
+  /// **'Add a link'**
+  String get attachmentsLinkTitle;
+
+  /// Web address
+  ///
+  /// In en, this message translates to:
+  /// **'Web address'**
+  String get attachmentsLinkUrl;
+
+  /// Name (optional)
+  ///
+  /// In en, this message translates to:
+  /// **'Name (optional)'**
+  String get attachmentsLinkName;
+
+  /// That doesn't look like a web address.
+  ///
+  /// In en, this message translates to:
+  /// **'That doesn\'t look like a web address.'**
+  String get attachmentsLinkInvalid;
+
+  /// That file is over 50 MB, too large to attach.
+  ///
+  /// In en, this message translates to:
+  /// **'That file is over 50 MB, too large to attach.'**
+  String get attachmentsTooLarge;
+
+  /// Some chosen files were too large
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 file is over 50 MB and was left out.} other{{count} files are over 50 MB and were left out.}}'**
+  String attachmentsSkippedTooLarge(int count);
+
+  /// Couldn't open this attachment.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this attachment.'**
+  String get attachmentsCannotOpen;
+
+  /// Remove this attachment?
+  ///
+  /// In en, this message translates to:
+  /// **'Remove this attachment?'**
+  String get attachmentsRemoveTitle;
+
+  /// The copy kept in Elapsa is deleted. This can't be undone.
+  ///
+  /// In en, this message translates to:
+  /// **'The copy kept in Elapsa is deleted. This can\'t be undone.'**
+  String get attachmentsRemoveBody;
+
+  /// Remove
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get actionRemove;
+
+  /// Add
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get actionAddShort;
+
   /// No description provided for @statusExpired.
   ///
   /// In en, this message translates to:

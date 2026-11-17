@@ -46,6 +46,85 @@ class LZh extends L {
   String get actionRetake => '重拍';
 
   @override
+  String get actionSaveToPhotos => '存储到照片';
+
+  @override
+  String get actionSaveToFiles => '存储到文件';
+
+  @override
+  String get photoSavedToPhotos => '已存储到照片';
+
+  @override
+  String get photoSavedToFiles => '已存储到文件';
+
+  @override
+  String get photoSaveFailed => '无法存储照片。';
+
+  @override
+  String get photoPhotosDenied => 'Elapsa 没有添加到照片的权限，可在“设置”中开启。';
+
+  @override
+  String get photoExportNote => '存到 Elapsa 之外的副本不会加密。';
+
+  @override
+  String get attachmentsTitle => '附件';
+
+  @override
+  String get attachmentsAdd => '添加附件';
+
+  @override
+  String get attachmentsAddFile => '文件';
+
+  @override
+  String get attachmentsAddFileHint => 'PDF、文档或其他任意文件';
+
+  @override
+  String get attachmentsAddLink => '链接';
+
+  @override
+  String get attachmentsAddLinkHint => '网页，例如续办表格';
+
+  @override
+  String get attachmentsLinkTitle => '添加链接';
+
+  @override
+  String get attachmentsLinkUrl => '网址';
+
+  @override
+  String get attachmentsLinkName => '名称（可选）';
+
+  @override
+  String get attachmentsLinkInvalid => '这看起来不像网址。';
+
+  @override
+  String get attachmentsTooLarge => '文件超过 50 MB，无法添加。';
+
+  @override
+  String attachmentsSkippedTooLarge(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 个文件超过 50 MB，未添加。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get attachmentsCannotOpen => '无法打开此附件。';
+
+  @override
+  String get attachmentsRemoveTitle => '移除此附件？';
+
+  @override
+  String get attachmentsRemoveBody => 'Elapsa 中保存的副本将被删除，且无法撤销。';
+
+  @override
+  String get actionRemove => '移除';
+
+  @override
+  String get actionAddShort => '添加';
+
+  @override
   String get statusExpired => '已过期';
 
   @override
@@ -107,6 +186,17 @@ class LZh extends L {
 
   @override
   String get editScanRepaired => '已扫描 — 机读码有点模糊，请核对一下信息。';
+
+  @override
+  String get scanExpiredTitle => '该证件已过期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '识别到的有效期至 $date，已经过了。请尽快办理续期；如果日期识别有误，请在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
 
   @override
   String get fieldType => '类型';
@@ -186,17 +276,6 @@ class LZh extends L {
   String leadMonths(int months) {
     return '$months 个月';
   }
-
-  @override
-  String get scanExpiredTitle => '该证件已过期';
-
-  @override
-  String scanExpiredBody(String date) {
-    return '识别到的有效期至 $date，已经过了。请尽快办理续期；如果日期识别有误，请在下方修改。';
-  }
-
-  @override
-  String get scanExpiredOk => '知道了';
 
   @override
   String leadYears(int years) {
@@ -866,6 +945,85 @@ class LZhHant extends LZh {
   String get actionRetake => '重拍';
 
   @override
+  String get actionSaveToPhotos => '儲存到照片';
+
+  @override
+  String get actionSaveToFiles => '儲存到檔案';
+
+  @override
+  String get photoSavedToPhotos => '已儲存到照片';
+
+  @override
+  String get photoSavedToFiles => '已儲存到檔案';
+
+  @override
+  String get photoSaveFailed => '無法儲存照片。';
+
+  @override
+  String get photoPhotosDenied => 'Elapsa 沒有加入照片的權限，可在「設定」中開啟。';
+
+  @override
+  String get photoExportNote => '存到 Elapsa 以外的副本不會加密。';
+
+  @override
+  String get attachmentsTitle => '附件';
+
+  @override
+  String get attachmentsAdd => '新增附件';
+
+  @override
+  String get attachmentsAddFile => '檔案';
+
+  @override
+  String get attachmentsAddFileHint => 'PDF、文件或其他任何檔案';
+
+  @override
+  String get attachmentsAddLink => '連結';
+
+  @override
+  String get attachmentsAddLinkHint => '網頁，例如續辦表格';
+
+  @override
+  String get attachmentsLinkTitle => '新增連結';
+
+  @override
+  String get attachmentsLinkUrl => '網址';
+
+  @override
+  String get attachmentsLinkName => '名稱（選填）';
+
+  @override
+  String get attachmentsLinkInvalid => '這看起來不像網址。';
+
+  @override
+  String get attachmentsTooLarge => '檔案超過 50 MB，無法加入。';
+
+  @override
+  String attachmentsSkippedTooLarge(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count 個檔案超過 50 MB，未加入。',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get attachmentsCannotOpen => '無法開啟此附件。';
+
+  @override
+  String get attachmentsRemoveTitle => '移除此附件？';
+
+  @override
+  String get attachmentsRemoveBody => 'Elapsa 中保存的副本將被刪除，且無法復原。';
+
+  @override
+  String get actionRemove => '移除';
+
+  @override
+  String get actionAddShort => '新增';
+
+  @override
   String get statusExpired => '已過期';
 
   @override
@@ -927,6 +1085,17 @@ class LZhHant extends LZh {
 
   @override
   String get editScanRepaired => '已掃描 — 機讀碼有點模糊，請核對一下資料。';
+
+  @override
+  String get scanExpiredTitle => '此證件已過期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '辨識到的有效期至 $date，已經過了。請盡快辦理續期；如果日期辨識有誤，請在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
 
   @override
   String get fieldType => '類型';
@@ -1083,17 +1252,6 @@ class LZhHant extends LZh {
 
   @override
   String get scanFailedCapture => '拍照失敗，請再試一次。';
-
-  @override
-  String get scanExpiredTitle => '此證件已過期';
-
-  @override
-  String scanExpiredBody(String date) {
-    return '辨識到的有效期至 $date，已經過了。請盡快辦理續期；如果日期辨識有誤，請在下方修改。';
-  }
-
-  @override
-  String get scanExpiredOk => '知道了';
 
   @override
   String scanPageCount(int count) {

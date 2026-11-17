@@ -191,6 +191,17 @@ class $DocumentsTable extends Documents
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _attachmentsMeta = const VerificationMeta(
+    'attachments',
+  );
+  @override
+  late final GeneratedColumn<String> attachments = GeneratedColumn<String>(
+    'attachments',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -232,6 +243,7 @@ class $DocumentsTable extends Documents
     neverExpires,
     extras,
     reminderOffsets,
+    attachments,
     createdAt,
     updatedAt,
   ];
@@ -363,6 +375,15 @@ class $DocumentsTable extends Documents
         ),
       );
     }
+    if (data.containsKey('attachments')) {
+      context.handle(
+        _attachmentsMeta,
+        attachments.isAcceptableOrUnknown(
+          data['attachments']!,
+          _attachmentsMeta,
+        ),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -458,6 +479,10 @@ class $DocumentsTable extends Documents
         DriftSqlType.string,
         data['${effectivePrefix}reminder_offsets'],
       ),
+      attachments: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}attachments'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -529,6 +554,10 @@ class Document extends DataClass implements Insertable<Document> {
   /// The reminder times the user chose, in days before expiry, comma
   /// separated. Null means they never chose and the conventional set applies.
   final String? reminderOffsets;
+
+  /// Files and links kept with the document, as JSON. The files' bytes live
+  /// encrypted on disk beside the photos; this holds only what describes them.
+  final String? attachments;
   final DateTime createdAt;
   final DateTime updatedAt;
   const Document({
@@ -549,6 +578,7 @@ class Document extends DataClass implements Insertable<Document> {
     required this.neverExpires,
     this.extras,
     this.reminderOffsets,
+    this.attachments,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -594,6 +624,9 @@ class Document extends DataClass implements Insertable<Document> {
     if (!nullToAbsent || reminderOffsets != null) {
       map['reminder_offsets'] = Variable<String>(reminderOffsets);
     }
+    if (!nullToAbsent || attachments != null) {
+      map['attachments'] = Variable<String>(attachments);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -638,6 +671,9 @@ class Document extends DataClass implements Insertable<Document> {
       reminderOffsets: reminderOffsets == null && nullToAbsent
           ? const Value.absent()
           : Value(reminderOffsets),
+      attachments: attachments == null && nullToAbsent
+          ? const Value.absent()
+          : Value(attachments),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -668,6 +704,7 @@ class Document extends DataClass implements Insertable<Document> {
       neverExpires: serializer.fromJson<bool>(json['neverExpires']),
       extras: serializer.fromJson<String?>(json['extras']),
       reminderOffsets: serializer.fromJson<String?>(json['reminderOffsets']),
+      attachments: serializer.fromJson<String?>(json['attachments']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -695,6 +732,7 @@ class Document extends DataClass implements Insertable<Document> {
       'neverExpires': serializer.toJson<bool>(neverExpires),
       'extras': serializer.toJson<String?>(extras),
       'reminderOffsets': serializer.toJson<String?>(reminderOffsets),
+      'attachments': serializer.toJson<String?>(attachments),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -718,6 +756,7 @@ class Document extends DataClass implements Insertable<Document> {
     bool? neverExpires,
     Value<String?> extras = const Value.absent(),
     Value<String?> reminderOffsets = const Value.absent(),
+    Value<String?> attachments = const Value.absent(),
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => Document(
@@ -744,6 +783,7 @@ class Document extends DataClass implements Insertable<Document> {
     reminderOffsets: reminderOffsets.present
         ? reminderOffsets.value
         : this.reminderOffsets,
+    attachments: attachments.present ? attachments.value : this.attachments,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -780,6 +820,9 @@ class Document extends DataClass implements Insertable<Document> {
       reminderOffsets: data.reminderOffsets.present
           ? data.reminderOffsets.value
           : this.reminderOffsets,
+      attachments: data.attachments.present
+          ? data.attachments.value
+          : this.attachments,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -805,6 +848,7 @@ class Document extends DataClass implements Insertable<Document> {
           ..write('neverExpires: $neverExpires, ')
           ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
+          ..write('attachments: $attachments, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -830,6 +874,7 @@ class Document extends DataClass implements Insertable<Document> {
     neverExpires,
     extras,
     reminderOffsets,
+    attachments,
     createdAt,
     updatedAt,
   );
@@ -854,6 +899,7 @@ class Document extends DataClass implements Insertable<Document> {
           other.neverExpires == this.neverExpires &&
           other.extras == this.extras &&
           other.reminderOffsets == this.reminderOffsets &&
+          other.attachments == this.attachments &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -876,6 +922,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
   final Value<bool> neverExpires;
   final Value<String?> extras;
   final Value<String?> reminderOffsets;
+  final Value<String?> attachments;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -897,6 +944,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.neverExpires = const Value.absent(),
     this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
+    this.attachments = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -919,6 +967,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     this.neverExpires = const Value.absent(),
     this.extras = const Value.absent(),
     this.reminderOffsets = const Value.absent(),
+    this.attachments = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -947,6 +996,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Expression<bool>? neverExpires,
     Expression<String>? extras,
     Expression<String>? reminderOffsets,
+    Expression<String>? attachments,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -969,6 +1019,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       if (neverExpires != null) 'never_expires': neverExpires,
       if (extras != null) 'extras': extras,
       if (reminderOffsets != null) 'reminder_offsets': reminderOffsets,
+      if (attachments != null) 'attachments': attachments,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -993,6 +1044,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     Value<bool>? neverExpires,
     Value<String?>? extras,
     Value<String?>? reminderOffsets,
+    Value<String?>? attachments,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -1015,6 +1067,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
       neverExpires: neverExpires ?? this.neverExpires,
       extras: extras ?? this.extras,
       reminderOffsets: reminderOffsets ?? this.reminderOffsets,
+      attachments: attachments ?? this.attachments,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1077,6 +1130,9 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
     if (reminderOffsets.present) {
       map['reminder_offsets'] = Variable<String>(reminderOffsets.value);
     }
+    if (attachments.present) {
+      map['attachments'] = Variable<String>(attachments.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -1109,6 +1165,7 @@ class DocumentsCompanion extends UpdateCompanion<Document> {
           ..write('neverExpires: $neverExpires, ')
           ..write('extras: $extras, ')
           ..write('reminderOffsets: $reminderOffsets, ')
+          ..write('attachments: $attachments, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -1128,50 +1185,54 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [documents];
 }
 
-typedef $$DocumentsTableCreateCompanionBuilder = DocumentsCompanion Function({
-  required String id,
-  required DocumentType type,
-  required String label,
-  Value<String?> holder,
-  Value<String?> documentNumber,
-  Value<String?> issuingCountry,
-  Value<DateTime?> issueDate,
-  required DateTime expiryDate,
-  required int renewalLeadDays,
-  Value<String?> imagePath,
-  Value<int> imageCount,
-  Value<String?> details,
-  Value<String?> typeName,
-  Value<String?> scanText,
-  Value<bool> neverExpires,
-  Value<String?> extras,
-  Value<String?> reminderOffsets,
-  required DateTime createdAt,
-  required DateTime updatedAt,
-  Value<int> rowid,
-});
-typedef $$DocumentsTableUpdateCompanionBuilder = DocumentsCompanion Function({
-  Value<String> id,
-  Value<DocumentType> type,
-  Value<String> label,
-  Value<String?> holder,
-  Value<String?> documentNumber,
-  Value<String?> issuingCountry,
-  Value<DateTime?> issueDate,
-  Value<DateTime> expiryDate,
-  Value<int> renewalLeadDays,
-  Value<String?> imagePath,
-  Value<int> imageCount,
-  Value<String?> details,
-  Value<String?> typeName,
-  Value<String?> scanText,
-  Value<bool> neverExpires,
-  Value<String?> extras,
-  Value<String?> reminderOffsets,
-  Value<DateTime> createdAt,
-  Value<DateTime> updatedAt,
-  Value<int> rowid,
-});
+typedef $$DocumentsTableCreateCompanionBuilder =
+    DocumentsCompanion Function({
+      required String id,
+      required DocumentType type,
+      required String label,
+      Value<String?> holder,
+      Value<String?> documentNumber,
+      Value<String?> issuingCountry,
+      Value<DateTime?> issueDate,
+      required DateTime expiryDate,
+      required int renewalLeadDays,
+      Value<String?> imagePath,
+      Value<int> imageCount,
+      Value<String?> details,
+      Value<String?> typeName,
+      Value<String?> scanText,
+      Value<bool> neverExpires,
+      Value<String?> extras,
+      Value<String?> reminderOffsets,
+      Value<String?> attachments,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DocumentsTableUpdateCompanionBuilder =
+    DocumentsCompanion Function({
+      Value<String> id,
+      Value<DocumentType> type,
+      Value<String> label,
+      Value<String?> holder,
+      Value<String?> documentNumber,
+      Value<String?> issuingCountry,
+      Value<DateTime?> issueDate,
+      Value<DateTime> expiryDate,
+      Value<int> renewalLeadDays,
+      Value<String?> imagePath,
+      Value<int> imageCount,
+      Value<String?> details,
+      Value<String?> typeName,
+      Value<String?> scanText,
+      Value<bool> neverExpires,
+      Value<String?> extras,
+      Value<String?> reminderOffsets,
+      Value<String?> attachments,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
 
 class $$DocumentsTableFilterComposer
     extends Composer<_$AppDatabase, $DocumentsTable> {
@@ -1265,6 +1326,11 @@ class $$DocumentsTableFilterComposer
 
   ColumnFilters<String> get reminderOffsets => $composableBuilder(
     column: $table.reminderOffsets,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get attachments => $composableBuilder(
+    column: $table.attachments,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -1373,6 +1439,11 @@ class $$DocumentsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get attachments => $composableBuilder(
+    column: $table.attachments,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -1458,6 +1529,11 @@ class $$DocumentsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get attachments => $composableBuilder(
+    column: $table.attachments,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
@@ -1510,6 +1586,7 @@ class $$DocumentsTableTableManager
                 Value<bool> neverExpires = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
+                Value<String?> attachments = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -1531,6 +1608,7 @@ class $$DocumentsTableTableManager
                 neverExpires: neverExpires,
                 extras: extras,
                 reminderOffsets: reminderOffsets,
+                attachments: attachments,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -1554,6 +1632,7 @@ class $$DocumentsTableTableManager
                 Value<bool> neverExpires = const Value.absent(),
                 Value<String?> extras = const Value.absent(),
                 Value<String?> reminderOffsets = const Value.absent(),
+                Value<String?> attachments = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -1575,6 +1654,7 @@ class $$DocumentsTableTableManager
                 neverExpires: neverExpires,
                 extras: extras,
                 reminderOffsets: reminderOffsets,
+                attachments: attachments,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

@@ -10,6 +10,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Elapsa uses the camera to read the code printed on your document. The image is processed on this device and is never uploaded.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Elapsa saves a picture of your document to Photos only when you ask it to.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Elapsa can read the code from a photo of a document you already have. The photo is processed on this device and is never uploaded.</string>
 	<key>CFBundleDisplayName</key>

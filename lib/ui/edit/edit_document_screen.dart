@@ -24,6 +24,10 @@ import 'package:elapsa/ui/scan/crop_screen.dart';
 import 'package:elapsa/ui/settings/nearby_screen.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
+import 'package:elapsa/domain/attachment.dart';
+import 'package:elapsa/services/attachment_store.dart';
+import 'package:elapsa/ui/widgets/attachments_section.dart';
+import 'package:elapsa/ui/widgets/picture_sheet.dart';
 
 class EditDocumentScreen extends ConsumerStatefulWidget {
   const EditDocumentScreen({super.key, this.existing, this.session});
@@ -81,6 +85,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   bool _neverExpires = false;
 
   /// Fields the user added themselves, as a list so their order is theirs.
+  /// Files and links kept with the document. On a saved document each change
+  /// is written the moment it is made, like the pictures; on a new one they
+  /// wait here, with the files' bytes in [_pendingFiles], until it is saved.
+  final _attachments = <Attachment>[];
+  final _pendingFiles = <String, Uint8List>{};
+  late final AttachmentStore _attachmentStore = ref.read(
+    attachmentStoreProvider,
+  );
+
   final _extras =
       <({TextEditingController name, TextEditingController value})>[];
 
@@ -131,6 +144,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       ));
     }
     _neverExpires = existing?.neverExpires ?? false;
+    _attachments.addAll(existing?.attachments ?? const []);
     _expiryDate = existing?.expiryDate;
     _issueDate = existing?.issueDate;
     _issuingCountry = existing?.issuingCountry;
@@ -186,130 +200,104 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     for (final controller in _details.values) {
       controller.dispose();
     }
+    // Anything decrypted so another app could show it goes with the screen.
+    _attachmentStore.clearOpened();
     super.dispose();
   }
 
   /// Offers what to do with a picture the user tapped.
-  ///
-  /// A sheet rather than a dialog, showing the picture itself: three unlabelled
-  /// thumbnails in a row look much alike, and being asked "delete this one?"
-  /// over a covered-up strip is a good way to lose the wrong photograph.
   Future<void> _pictureOptions(int index) async {
-    final l = L.of(context);
-    final scheme = Theme.of(context).colorScheme;
-
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      backgroundColor: scheme.surfaceContainerLow,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: AspectRatio(
-                  aspectRatio: kCardAspectRatio,
-                  child: Image.memory(_images[index], fit: BoxFit.cover),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // The three things you can do, in one panel. Grouped so they
-              // read as a set of choices rather than a column of loose text,
-              // and so the one that destroys a picture sits inside the same
-              // frame as the ones that do not — which is what makes its colour
-              // mean something.
-              Container(
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    _SheetAction(
-                      icon: Icons.crop_rounded,
-                      label: l.actionCrop,
-                      onTap: () => Navigator.of(context).pop('crop'),
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 52,
-                      color: scheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                    _SheetAction(
-                      icon: Icons.photo_camera_rounded,
-                      label: l.actionRetake,
-                      onTap: () => Navigator.of(context).pop('retake'),
-                    ),
-                    Divider(
-                      height: 1,
-                      indent: 52,
-                      color: scheme.outlineVariant.withValues(alpha: 0.5),
-                    ),
-                    _SheetAction(
-                      icon: Icons.delete_outline_rounded,
-                      label: l.actionDelete,
-                      colour: scheme.error,
-                      onTap: () => Navigator.of(context).pop('delete'),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Its own button, at the same weight as the panel above it.
-              // Cancel was a line of small text under three icon rows, which
-              // made the way out the least visible thing on a sheet whose
-              // other options are all irreversible.
-              FilledButton.tonal(
-                onPressed: () => Navigator.of(context).pop(),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(52),
-                  backgroundColor: scheme.surfaceContainerHighest.withValues(
-                    alpha: 0.45,
-                  ),
-                  foregroundColor: scheme.onSurface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  l.actionCancel,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final choice = await showPictureSheet(
+      context,
+      image: _images[index],
+      actions: const [
+        PictureAction.crop,
+        PictureAction.retake,
+        PictureAction.saveToPhotos,
+        PictureAction.saveToFiles,
+        PictureAction.delete,
+      ],
     );
     if (choice == null || !mounted) return;
 
-    // Cropping changes the picture and nothing else. The form is the user's;
-    // trimming a photograph is not new information about the document, and
-    // silently rewriting fields they have already corrected would make the
-    // safest of the three options the most destructive.
-    if (choice == 'crop') {
-      await _crop(index);
+    switch (choice) {
+      // Cropping changes the picture and nothing else. The form is the
+      // user's; trimming a photograph is not new information about the
+      // document, and silently rewriting fields they have already corrected
+      // would make the safest option the most destructive.
+      case PictureAction.crop:
+        await _crop(index);
+      case PictureAction.saveToPhotos:
+        await savePictureToPhotos(context, _images[index]);
+      case PictureAction.saveToFiles:
+        final name = _label.text.trim().isEmpty
+            ? _type.label(L.of(context))
+            : _label.text.trim();
+        await savePictureToFiles(
+          context,
+          _images[index],
+          baseName: _images.length > 1 ? '$name ${index + 1}' : name,
+        );
+      case PictureAction.delete:
+        setState(() => _images.removeAt(index));
+        await _persistImages();
+      // A retake replaces a picture, not the document. It still reads what it
+      // can — a field left blank is worth filling from a better photograph —
+      // but it will not overwrite an answer already on the form. The old
+      // picture stays until a new one arrives, so backing out of the camera
+      // loses nothing, and the new one takes the old one's place in the row.
+      case PictureAction.retake:
+        await _scan(keepFilled: true, replaceAt: index);
+    }
+  }
+
+  Future<void> _addAttachment() async {
+    final picked = await pickAttachment(context);
+    if (picked.isEmpty || !mounted) return;
+    final existing = widget.existing;
+
+    if (existing == null) {
+      setState(() {
+        for (final item in picked) {
+          _attachments.add(item.attachment);
+          if (item.bytes != null) {
+            _pendingFiles[item.attachment.id] = item.bytes!;
+          }
+        }
+      });
       return;
     }
 
-    setState(() => _images.removeAt(index));
-    if (choice == 'delete') {
-      await _persistImages();
+    // One at a time, in the order chosen: each write reads the stored list
+    // and appends to it, so running them together would lose all but one.
+    final repo = ref.read(documentRepositoryProvider);
+    for (final item in picked) {
+      final a = item.attachment;
+      final saved = a.kind == AttachmentKind.file
+          ? await repo.addFile(existing.id, name: a.name, bytes: item.bytes!)
+          : await repo.addLink(
+              existing.id,
+              name: a.name,
+              url: Uri.parse(a.url!),
+            );
+      if (mounted) setState(() => _attachments.add(saved));
+    }
+  }
+
+  Future<void> _removeAttachment(Attachment attachment) async {
+    if (!await confirmRemoveAttachment(context, attachment) || !mounted) {
       return;
     }
-
-    // A retake replaces a picture, not the document. It still reads what it
-    // can — a field left blank is worth filling from a better photograph —
-    // but it will not overwrite an answer already on the form.
-    await _scan(keepFilled: true);
+    setState(() {
+      _attachments.removeWhere((a) => a.id == attachment.id);
+      _pendingFiles.remove(attachment.id);
+    });
+    final existing = widget.existing;
+    if (existing != null) {
+      await ref
+          .read(documentRepositoryProvider)
+          .removeAttachment(existing.id, attachment.id);
+    }
   }
 
   /// Writes the pictures out, now.
@@ -460,12 +448,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
     for (final extra in _extras) ...[extra.name, extra.value],
   ];
 
-  Future<void> _scan({bool keepFilled = false}) async {
+  Future<void> _scan({bool keepFilled = false, int? replaceAt}) async {
     final session = await Navigator.of(
       context,
     ).push<ScanSession>(MaterialPageRoute(builder: (_) => const ScanScreen()));
     if (session != null) {
-      _applySession(session, keepFilled: keepFilled);
+      _applySession(session, keepFilled: keepFilled, replaceAt: replaceAt);
       await _persistImages();
       await _warnIfExpired(session);
     }
@@ -526,7 +514,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// Everything stays editable afterwards. The check digits make a validated
   /// code near-certain to be right, but the user's own name for the document
   /// is theirs to choose, and a wrong guess should never be locked in.
-  void _applySession(ScanSession session, {bool keepFilled = false}) {
+  void _applySession(
+    ScanSession session, {
+    bool keepFilled = false,
+    int? replaceAt,
+  }) {
     if (!mounted) return;
     final l = L.of(context);
     final mrz = session.mrz;
@@ -552,7 +544,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       _readAnything = mrz != null || !session.printed.isEmpty;
       // Append. "Add another side" opens a fresh scanner, so replacing here
       // would throw away every page captured before it.
-      _images.addAll(session.images);
+      if (replaceAt != null &&
+          replaceAt < _images.length &&
+          session.images.isNotEmpty) {
+        _images
+          ..removeAt(replaceAt)
+          ..insertAll(replaceAt, session.images);
+      } else {
+        _images.addAll(session.images);
+      }
 
       // Printed fields first, so a validated MRZ can still override them.
       // Most documents have no MRZ at all — a Chinese 居民身份证 prints its
@@ -686,6 +686,11 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
               key: _formKey,
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                // Scrolling the form is how people look for the next field, and
+                // the keyboard should get out of the way while they do.
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+
                 children: [
                   if (_images.isNotEmpty) ...[
                     _Label(l.fieldImages),
@@ -1027,6 +1032,21 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                     ),
                   ),
 
+                  const SizedBox(height: 28),
+                  _Label(l.attachmentsTitle),
+                  AttachmentsSection(
+                    attachments: _attachments,
+                    onOpen: (attachment) => openAttachment(
+                      context,
+                      ref,
+                      documentId: widget.existing?.id,
+                      attachment: attachment,
+                      pendingBytes: _pendingFiles[attachment.id],
+                    ),
+                    onAdd: _addAttachment,
+                    onRemove: _removeAttachment,
+                  ),
+
                   if (_scanText != null && _scanText!.trim().isNotEmpty) ...[
                     const SizedBox(height: 28),
                     _ScanTextButton(text: _scanText!),
@@ -1098,6 +1118,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     if (existing == null) {
       return _images.isNotEmpty ||
+          _attachments.isNotEmpty ||
           _neverExpires ||
           text(_label).isNotEmpty ||
           text(_holder).isNotEmpty ||
@@ -1371,6 +1392,8 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         scanText: _scanText,
         customType: _customType,
         extras: extras,
+        attachments: _attachments,
+        attachmentFiles: _pendingFiles,
       );
     }
 
@@ -1602,48 +1625,6 @@ class _DetailField extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-/// One choice in the picture sheet: a glyph, a name, and the whole width to
-/// hit. Destructive actions take the error colour rather than a warning of
-/// their own — the word and the red together are enough.
-class _SheetAction extends StatelessWidget {
-  const _SheetAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.colour,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color? colour;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tint = colour ?? scheme.onSurface;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 16),
-        child: Row(
-          children: [
-            Icon(icon, size: 21, color: tint),
-            const SizedBox(width: 15),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.titleMedium
-                  ?.copyWith(color: tint, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
       ),
     );
   }

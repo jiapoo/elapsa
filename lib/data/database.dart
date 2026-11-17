@@ -70,6 +70,10 @@ class Documents extends Table {
   /// The reminder times the user chose, in days before expiry, comma
   /// separated. Null means they never chose and the conventional set applies.
   TextColumn get reminderOffsets => text().nullable()();
+
+  /// Files and links kept with the document, as JSON. The files' bytes live
+  /// encrypted on disk beside the photos; this holds only what describes them.
+  TextColumn get attachments => text().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -86,7 +90,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.memory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -121,6 +125,9 @@ class AppDatabase extends _$AppDatabase {
         // the ones that should not have had one were made to have one anyway.
         await m.addColumn(documents, documents.neverExpires);
       }
+      if (from < 8) {
+        await m.addColumn(documents, documents.attachments);
+      }
     },
   );
 
@@ -144,6 +151,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> upsert(DocumentsCompanion entry) =>
       into(documents).insertOnConflictUpdate(entry);
+
+  /// Writes only the attachment list, so a screen holding an older copy of
+  /// the document cannot put back an attachment that was just removed.
+  Future<void> setAttachments(String id, String? json) =>
+      (update(documents)..where((t) => t.id.equals(id))).write(
+        DocumentsCompanion(attachments: Value(json)),
+      );
 
   Future<int> deleteById(String id) =>
       (delete(documents)..where((t) => t.id.equals(id))).go();

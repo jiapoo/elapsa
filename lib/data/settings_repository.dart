@@ -13,7 +13,14 @@ enum AppLanguage {
   system,
   english,
   simplifiedChinese,
-  traditionalChinese;
+  traditionalChinese,
+  japanese,
+  korean,
+  german,
+  french,
+  portuguese,
+  italian,
+  spanish;
 
   /// Null means follow the device, which is what [system] does.
   Locale? get locale => switch (this) {
@@ -27,6 +34,13 @@ enum AppLanguage {
       languageCode: 'zh',
       scriptCode: 'Hant',
     ),
+    AppLanguage.japanese => const Locale('ja'),
+    AppLanguage.korean => const Locale('ko'),
+    AppLanguage.german => const Locale('de'),
+    AppLanguage.french => const Locale('fr'),
+    AppLanguage.portuguese => const Locale('pt'),
+    AppLanguage.italian => const Locale('it'),
+    AppLanguage.spanish => const Locale('es'),
   };
 
   /// Shown in its own language, so someone who has the app in a language they
@@ -36,6 +50,13 @@ enum AppLanguage {
     AppLanguage.english => 'English',
     AppLanguage.simplifiedChinese => '简体中文',
     AppLanguage.traditionalChinese => '繁體中文',
+    AppLanguage.japanese => '日本語',
+    AppLanguage.korean => '한국어',
+    AppLanguage.german => 'Deutsch',
+    AppLanguage.french => 'Français',
+    AppLanguage.portuguese => 'Português (Brasil)',
+    AppLanguage.italian => 'Italiano',
+    AppLanguage.spanish => 'Español',
   };
 }
 

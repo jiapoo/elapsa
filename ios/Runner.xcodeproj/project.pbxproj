@@ -254,6 +254,15 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
+				"zh-Hant",
+				ja,
+				ko,
+				de,
+				fr,
+				"pt-BR",
+				it,
+				es,
 			);
 			mainGroup = 97C146E51CF9000F007C117D;
 			packageReferences = (

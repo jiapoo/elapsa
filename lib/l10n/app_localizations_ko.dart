@@ -121,6 +121,17 @@ class LKo extends L {
   String get editScanRepaired => '스캔했습니다. 코드가 조금 흐릿했으니 내용을 확인해 주세요.';
 
   @override
+  String get scanExpiredTitle => '이미 만료된 문서입니다';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '유효기간이 $date로 이미 지났습니다. 지금 갱신을 시작하세요. 날짜가 잘못 인식되었다면 아래에서 수정해 주세요.';
+  }
+
+  @override
+  String get scanExpiredOk => '확인';
+
+  @override
   String get fieldType => '종류';
 
   @override

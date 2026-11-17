@@ -128,6 +128,17 @@ class LIt extends L {
       'Scansionato: il codice era un po\' sfocato, controlla i dati.';
 
   @override
+  String get scanExpiredTitle => 'Questo documento è già scaduto';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'La data di scadenza è il $date ed è già passata. Avvia subito il rinnovo oppure, se la data è stata letta male, correggila qui sotto.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Ho capito';
+
+  @override
   String get fieldType => 'Tipo';
 
   @override

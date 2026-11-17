@@ -109,6 +109,17 @@ class LZh extends L {
   String get editScanRepaired => '已扫描 — 机读码有点模糊，请核对一下信息。';
 
   @override
+  String get scanExpiredTitle => '该证件已过期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '识别到的有效期至 $date，已经过了。请尽快办理续期；如果日期识别有误，请在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
+
+  @override
   String get fieldType => '类型';
 
   @override
@@ -987,6 +998,17 @@ class LZhHant extends LZh {
 
   @override
   String get editScanRepaired => '已掃描 — 機讀碼有點模糊，請核對一下資料。';
+
+  @override
+  String get scanExpiredTitle => '此證件已過期';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '辨識到的有效期至 $date，已經過了。請盡快辦理續期；如果日期辨識有誤，請在下方修改。';
+  }
+
+  @override
+  String get scanExpiredOk => '知道了';
 
   @override
   String get fieldType => '類型';

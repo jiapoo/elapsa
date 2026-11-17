@@ -129,6 +129,17 @@ class LFr extends L {
       'Scanné — le code était un peu flou, vérifiez les informations.';
 
   @override
+  String get scanExpiredTitle => 'Ce document a déjà expiré';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'Sa date d’expiration est le $date, et elle est passée. Lancez le renouvellement dès maintenant, ou corrigez la date ci-dessous si elle a été mal lue.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Compris';
+
+  @override
   String get fieldType => 'Type';
 
   @override

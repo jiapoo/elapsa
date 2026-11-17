@@ -127,6 +127,17 @@ class LPt extends L {
       'Escaneado — o código estava um pouco borrado, confira os dados.';
 
   @override
+  String get scanExpiredTitle => 'Este documento já venceu';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'A data de validade é $date, e ela já passou. Comece a renovação agora — ou, se a data foi lida errado, corrija abaixo.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Entendi';
+
+  @override
   String get fieldType => 'Tipo';
 
   @override

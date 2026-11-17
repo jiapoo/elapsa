@@ -50,6 +50,16 @@
   "editFromScanNote": "Filled in from the document code. Every field is still yours to change.",
   "editScanNothingRead": "Picture saved. Nothing readable on this side — fill in the details below.",
   "editScanRepaired": "Scanned — the code was a little blurry, so please check the details.",
+  "scanExpiredTitle": "This one has already expired",
+  "scanExpiredBody": "The expiry date on it is {date}, which has passed. Start renewing it now — or, if the date was misread, correct it below.",
+  "@scanExpiredBody": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "scanExpiredOk": "Got it",
   "fieldType": "Type",
   "fieldName": "Name",
   "fieldNameHint": "My {type}",

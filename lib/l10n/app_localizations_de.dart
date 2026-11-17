@@ -128,6 +128,17 @@ class LDe extends L {
       'Gescannt – der Code war etwas unscharf, bitte prüfe die Angaben.';
 
   @override
+  String get scanExpiredTitle => 'Das ist bereits abgelaufen';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'Das Ablaufdatum ist der $date – und der ist schon vorbei. Kümmere dich jetzt um die Verlängerung oder korrigiere das Datum unten, falls es falsch gelesen wurde.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Verstanden';
+
+  @override
   String get fieldType => 'Art';
 
   @override

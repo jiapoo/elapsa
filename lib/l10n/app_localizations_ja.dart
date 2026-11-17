@@ -120,6 +120,17 @@ class LJa extends L {
   String get editScanRepaired => 'スキャンしました。コードが少しぼやけていたので、内容を確認してください。';
 
   @override
+  String get scanExpiredTitle => 'この書類はすでに期限切れです';
+
+  @override
+  String scanExpiredBody(String date) {
+    return '有効期限は$dateで、すでに過ぎています。今すぐ更新を始めましょう。日付の読み取りが間違っている場合は、下で修正してください。';
+  }
+
+  @override
+  String get scanExpiredOk => 'OK';
+
+  @override
   String get fieldType => '種類';
 
   @override

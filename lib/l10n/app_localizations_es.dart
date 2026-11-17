@@ -127,6 +127,17 @@ class LEs extends L {
       'Escaneado: el código estaba algo borroso, revisa los datos.';
 
   @override
+  String get scanExpiredTitle => 'Este documento ya ha caducado';
+
+  @override
+  String scanExpiredBody(String date) {
+    return 'La fecha de caducidad es el $date y ya ha pasado. Empieza a renovarlo ahora o, si la fecha se leyó mal, corrígela abajo.';
+  }
+
+  @override
+  String get scanExpiredOk => 'Entendido';
+
+  @override
   String get fieldType => 'Tipo';
 
   @override

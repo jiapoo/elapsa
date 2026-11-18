@@ -184,6 +184,18 @@ abstract class L {
   /// **'Retake'**
   String get actionRetake;
 
+  /// Opens an attached file
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get actionOpen;
+
+  /// The system share sheet could not be shown
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t share this.'**
+  String get shareFailed;
+
   /// Save to Photos
   ///
   /// In en, this message translates to:

@@ -12,6 +12,8 @@
   "actionDelete": "刪除",
   "actionDone": "完成",
   "actionRetake": "重拍",
+  "actionOpen": "開啟",
+  "shareFailed": "無法分享。",
   "actionSaveToPhotos": "儲存到照片",
   "actionSaveToFiles": "儲存到檔案",
   "photoSavedToPhotos": "已儲存到照片",

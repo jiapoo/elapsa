@@ -47,6 +47,12 @@ class LJa extends L {
   String get actionRetake => '撮り直す';
 
   @override
+  String get actionOpen => '開く';
+
+  @override
+  String get shareFailed => '共有できませんでした。';
+
+  @override
   String get actionSaveToPhotos => '写真に保存';
 
   @override

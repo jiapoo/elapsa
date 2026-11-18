@@ -46,6 +46,12 @@ class LZh extends L {
   String get actionRetake => '重拍';
 
   @override
+  String get actionOpen => '打开';
+
+  @override
+  String get shareFailed => '无法分享。';
+
+  @override
   String get actionSaveToPhotos => '存储到照片';
 
   @override
@@ -1014,6 +1020,12 @@ class LZhHant extends LZh {
 
   @override
   String get actionRetake => '重拍';
+
+  @override
+  String get actionOpen => '開啟';
+
+  @override
+  String get shareFailed => '無法分享。';
 
   @override
   String get actionSaveToPhotos => '儲存到照片';

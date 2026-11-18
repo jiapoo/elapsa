@@ -47,6 +47,12 @@ class LPt extends L {
   String get actionRetake => 'Refazer';
 
   @override
+  String get actionOpen => 'Abrir';
+
+  @override
+  String get shareFailed => 'Não foi possível compartilhar.';
+
+  @override
   String get actionSaveToPhotos => 'Salvar em Fotos';
 
   @override

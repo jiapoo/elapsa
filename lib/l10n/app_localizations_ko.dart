@@ -47,6 +47,12 @@ class LKo extends L {
   String get actionRetake => '다시 찍기';
 
   @override
+  String get actionOpen => '열기';
+
+  @override
+  String get shareFailed => '공유할 수 없습니다.';
+
+  @override
   String get actionSaveToPhotos => '사진에 저장';
 
   @override

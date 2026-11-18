@@ -47,6 +47,12 @@ class LIt extends L {
   String get actionRetake => 'Rifai';
 
   @override
+  String get actionOpen => 'Apri';
+
+  @override
+  String get shareFailed => 'Impossibile condividere.';
+
+  @override
   String get actionSaveToPhotos => 'Salva in Foto';
 
   @override

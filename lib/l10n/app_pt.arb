@@ -12,6 +12,8 @@
   "actionDelete": "Apagar",
   "actionDone": "OK",
   "actionRetake": "Refazer",
+  "actionOpen": "Abrir",
+  "shareFailed": "Não foi possível compartilhar.",
   "statusExpired": "Vencido",
   "statusExpiring": "Vencendo",
   "statusRenewNow": "Renove já",

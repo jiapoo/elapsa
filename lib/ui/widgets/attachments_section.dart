@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:elapsa/core/theme.dart';
@@ -383,6 +384,176 @@ class _LinkDialogState extends State<_LinkDialog> {
   }
 }
 
+/// What a tap on an attachment does.
+///
+/// A link goes straight to the browser, there being nothing else to do with
+/// one. A file offers a choice: look at it here, or hand it to another app
+/// through the system share sheet.
+Future<void> tapAttachment(
+  BuildContext context,
+  WidgetRef ref, {
+  required String? documentId,
+  required Attachment attachment,
+  Uint8List? pendingBytes,
+}) async {
+  if (attachment.kind == AttachmentKind.file) {
+    dismissKeyboard();
+    final share = await _askOpenOrShare(context, attachment);
+    if (share == null || !context.mounted) return;
+    if (share) {
+      return _shareAttachment(
+        context,
+        ref,
+        documentId: documentId,
+        attachment: attachment,
+        pendingBytes: pendingBytes,
+      );
+    }
+  }
+  return openAttachment(
+    context,
+    ref,
+    documentId: documentId,
+    attachment: attachment,
+    pendingBytes: pendingBytes,
+  );
+}
+
+/// True to share, false to open, null to do neither.
+Future<bool?> _askOpenOrShare(BuildContext context, Attachment attachment) {
+  final l = L.of(context);
+  final scheme = Theme.of(context).colorScheme;
+
+  return showModalBottomSheet<bool>(
+    context: context,
+    showDragHandle: true,
+    backgroundColor: scheme.surfaceContainerLow,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (context) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 14),
+              child: Text(
+                attachment.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  SheetAction(
+                    icon: Icons.visibility_outlined,
+                    label: l.actionOpen,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                  Divider(
+                    height: 1,
+                    indent: 52,
+                    color: scheme.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                  SheetAction(
+                    icon: Icons.ios_share_rounded,
+                    label: l.actionShare,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.lock_open_rounded,
+                  size: 13,
+                  color: scheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    l.photoExportNote,
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// A decrypted copy of a file for another app to read, or null if it is gone.
+///
+/// [pendingBytes] is for a file added to a document that has not been saved
+/// yet, so has nothing on disk to decrypt.
+Future<File?> _plainCopy(
+  WidgetRef ref, {
+  required String? documentId,
+  required Attachment attachment,
+  Uint8List? pendingBytes,
+}) async {
+  final store = ref.read(attachmentStoreProvider);
+  if (pendingBytes != null) {
+    await store.clearOpened();
+    final dir = Directory(
+      p.join((await getTemporaryDirectory()).path, 'elapsa-open'),
+    );
+    await dir.create(recursive: true);
+    final file = File(p.join(dir.path, attachment.name.replaceAll('/', '_')));
+    return file.writeAsBytes(pendingBytes, flush: true);
+  }
+  if (documentId == null) return null;
+  return store.decryptForViewing(documentId, attachment.id, attachment.name);
+}
+
+Future<void> _shareAttachment(
+  BuildContext context,
+  WidgetRef ref, {
+  required String? documentId,
+  required Attachment attachment,
+  Uint8List? pendingBytes,
+}) async {
+  final l = L.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final origin = shareOriginOf(context);
+  final store = ref.read(attachmentStoreProvider);
+
+  try {
+    final file = await _plainCopy(
+      ref,
+      documentId: documentId,
+      attachment: attachment,
+      pendingBytes: pendingBytes,
+    );
+    if (file == null) {
+      messenger.showSnackBar(SnackBar(content: Text(l.shareFailed)));
+      return;
+    }
+    await Share.shareXFiles([XFile(file.path)], sharePositionOrigin: origin);
+  } catch (error) {
+    debugPrint('Elapsa: sharing an attachment failed: $error');
+    messenger.showSnackBar(SnackBar(content: Text(l.shareFailed)));
+  } finally {
+    await store.clearOpened();
+  }
+}
+
 /// Opens an attachment: a link in the browser, a file in the system viewer.
 ///
 /// [pendingBytes] is for a file added to a document that has not been saved
@@ -409,23 +580,12 @@ Future<void> openAttachment(
       return;
     }
 
-    final store = ref.read(attachmentStoreProvider);
-    File? file;
-    if (pendingBytes != null) {
-      await store.clearOpened();
-      final dir = Directory(
-        p.join((await getTemporaryDirectory()).path, 'elapsa-open'),
-      );
-      await dir.create(recursive: true);
-      file = File(p.join(dir.path, attachment.name.replaceAll('/', '_')));
-      await file.writeAsBytes(pendingBytes, flush: true);
-    } else if (documentId != null) {
-      file = await store.decryptForViewing(
-        documentId,
-        attachment.id,
-        attachment.name,
-      );
-    }
+    final file = await _plainCopy(
+      ref,
+      documentId: documentId,
+      attachment: attachment,
+      pendingBytes: pendingBytes,
+    );
     if (file == null) return failed();
 
     final result = await OpenFilex.open(file.path);

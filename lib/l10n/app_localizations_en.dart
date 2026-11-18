@@ -47,6 +47,12 @@ class LEn extends L {
   String get actionRetake => 'Retake';
 
   @override
+  String get actionOpen => 'Open';
+
+  @override
+  String get shareFailed => 'Couldn\'t share this.';
+
+  @override
   String get actionSaveToPhotos => 'Save to Photos';
 
   @override

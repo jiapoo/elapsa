@@ -12,6 +12,8 @@
   "actionDelete": "Supprimer",
   "actionDone": "OK",
   "actionRetake": "Reprendre",
+  "actionOpen": "Ouvrir",
+  "shareFailed": "Partage impossible.",
   "statusExpired": "Expiré",
   "statusExpiring": "Expire bientôt",
   "statusRenewNow": "À renouveler",

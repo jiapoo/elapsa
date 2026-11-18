@@ -47,6 +47,12 @@ class LFr extends L {
   String get actionRetake => 'Reprendre';
 
   @override
+  String get actionOpen => 'Ouvrir';
+
+  @override
+  String get shareFailed => 'Partage impossible.';
+
+  @override
   String get actionSaveToPhotos => 'Enregistrer dans Photos';
 
   @override

@@ -12,6 +12,8 @@
   "actionDelete": "削除",
   "actionDone": "完了",
   "actionRetake": "撮り直す",
+  "actionOpen": "開く",
+  "shareFailed": "共有できませんでした。",
   "statusExpired": "期限切れ",
   "statusExpiring": "期限間近",
   "statusRenewNow": "今すぐ更新",

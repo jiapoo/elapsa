@@ -1,14 +1,19 @@
 
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/core/theme.dart';
 
 /// What can be done with one picture of a document.
-enum PictureAction { crop, retake, saveToPhotos, saveToFiles, delete }
+enum PictureAction { crop, retake, share, saveToPhotos, saveToFiles, delete }
 
 /// Offers [actions] for one picture, showing the picture itself.
 ///
@@ -50,7 +55,10 @@ class _PictureSheet extends StatelessWidget {
     final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
     final exports = actions.any(
-      (a) => a == PictureAction.saveToPhotos || a == PictureAction.saveToFiles,
+      (a) =>
+          a == PictureAction.share ||
+          a == PictureAction.saveToPhotos ||
+          a == PictureAction.saveToFiles,
     );
 
     return SafeArea(
@@ -145,6 +153,7 @@ class _PictureSheet extends StatelessWidget {
     final (icon, label) = switch (action) {
       PictureAction.crop => (Icons.crop_rounded, l.actionCrop),
       PictureAction.retake => (Icons.photo_camera_rounded, l.actionRetake),
+      PictureAction.share => (Icons.ios_share_rounded, l.actionShare),
       PictureAction.saveToPhotos => (
         Icons.photo_library_outlined,
         l.actionSaveToPhotos,
@@ -214,6 +223,47 @@ class SheetAction extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Where the system share sheet should point from.
+///
+/// An iPad presents it as a popover and refuses to show one anchored nowhere,
+/// so this has to be a real rectangle. Read before anything is awaited, while
+/// the screen asking is certainly still there.
+Rect shareOriginOf(BuildContext context) {
+  final box = context.findRenderObject();
+  return box is RenderBox && box.hasSize
+      ? box.localToGlobal(Offset.zero) & box.size
+      : const Rect.fromLTWH(0, 0, 1, 1);
+}
+
+/// Hands a copy of [image] to the system share sheet, so any app can open it.
+///
+/// The plain copy exists only while the sheet is up. Whatever the user chose
+/// has taken its own copy by the time the sheet reports back.
+Future<void> sharePicture(
+  BuildContext context,
+  Uint8List image, {
+  required String baseName,
+}) async {
+  final l = L.of(context);
+  final messenger = ScaffoldMessenger.of(context);
+  final origin = shareOriginOf(context);
+
+  Directory? dir;
+  try {
+    dir = await (await getTemporaryDirectory()).createTemp('elapsa-share');
+    final file = File(p.join(dir.path, '${_fileSafe(baseName)}.jpg'));
+    await file.writeAsBytes(image, flush: true);
+    await Share.shareXFiles([
+      XFile(file.path, mimeType: 'image/jpeg'),
+    ], sharePositionOrigin: origin);
+  } catch (error) {
+    debugPrint('Elapsa: sharing a picture failed: $error');
+    messenger.showSnackBar(SnackBar(content: Text(l.shareFailed)));
+  } finally {
+    if (dir != null && await dir.exists()) await dir.delete(recursive: true);
   }
 }
 

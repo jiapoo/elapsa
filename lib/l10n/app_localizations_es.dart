@@ -47,6 +47,12 @@ class LEs extends L {
   String get actionRetake => 'Repetir';
 
   @override
+  String get actionOpen => 'Abrir';
+
+  @override
+  String get shareFailed => 'No se ha podido compartir.';
+
+  @override
   String get actionSaveToPhotos => 'Guardar en Fotos';
 
   @override

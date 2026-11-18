@@ -47,6 +47,12 @@ class LDe extends L {
   String get actionRetake => 'Neu aufnehmen';
 
   @override
+  String get actionOpen => 'Öffnen';
+
+  @override
+  String get shareFailed => 'Teilen nicht möglich.';
+
+  @override
   String get actionSaveToPhotos => 'In Fotos sichern';
 
   @override

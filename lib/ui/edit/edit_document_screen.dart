@@ -215,6 +215,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       actions: const [
         PictureAction.crop,
         PictureAction.retake,
+        PictureAction.share,
         PictureAction.saveToPhotos,
         PictureAction.saveToFiles,
         PictureAction.delete,
@@ -229,6 +230,15 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       // would make the safest option the most destructive.
       case PictureAction.crop:
         await _crop(index);
+      case PictureAction.share:
+        final name = _label.text.trim().isEmpty
+            ? _type.label(L.of(context))
+            : _label.text.trim();
+        await sharePicture(
+          context,
+          _images[index],
+          baseName: _images.length > 1 ? '$name ${index + 1}' : name,
+        );
       case PictureAction.saveToPhotos:
         await savePictureToPhotos(context, _images[index]);
       case PictureAction.saveToFiles:
@@ -1038,7 +1048,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   _Label(l.attachmentsTitle),
                   AttachmentsSection(
                     attachments: _attachments,
-                    onOpen: (attachment) => openAttachment(
+                    onOpen: (attachment) => tapAttachment(
                       context,
                       ref,
                       documentId: widget.existing?.id,

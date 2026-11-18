@@ -209,6 +209,7 @@ class _PagesState extends ConsumerState<_Pages> {
       image: image,
       actions: const [
         PictureAction.retake,
+        PictureAction.share,
         PictureAction.saveToPhotos,
         PictureAction.saveToFiles,
       ],
@@ -218,6 +219,14 @@ class _PagesState extends ConsumerState<_Pages> {
     switch (choice) {
       case PictureAction.retake:
         await _retake(page);
+      case PictureAction.share:
+        await sharePicture(
+          context,
+          image,
+          baseName: document.imageCount > 1
+              ? '${document.label} ${page + 1}'
+              : document.label,
+        );
       case PictureAction.saveToPhotos:
         await savePictureToPhotos(context, image);
       case PictureAction.saveToFiles:
@@ -345,7 +354,7 @@ class _AttachmentsState extends ConsumerState<_Attachments> {
         ),
         AttachmentsSection(
           attachments: widget.document.attachments,
-          onOpen: (attachment) => openAttachment(
+          onOpen: (attachment) => tapAttachment(
             context,
             ref,
             documentId: widget.document.id,

@@ -12,6 +12,8 @@
   "actionDelete": "삭제",
   "actionDone": "완료",
   "actionRetake": "다시 찍기",
+  "actionOpen": "열기",
+  "shareFailed": "공유할 수 없습니다.",
   "statusExpired": "만료됨",
   "statusExpiring": "만료 임박",
   "statusRenewNow": "지금 갱신",

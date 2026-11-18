@@ -12,6 +12,14 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
+  "actionOpen": "Open",
+  "@actionOpen": {
+    "description": "Opens an attached file"
+  },
+  "shareFailed": "Couldn't share this.",
+  "@shareFailed": {
+    "description": "The system share sheet could not be shown"
+  },
   "actionSaveToPhotos": "Save to Photos",
   "@actionSaveToPhotos": {
     "description": "Save to Photos"

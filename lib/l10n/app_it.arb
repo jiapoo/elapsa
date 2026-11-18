@@ -12,6 +12,8 @@
   "actionDelete": "Elimina",
   "actionDone": "Fine",
   "actionRetake": "Rifai",
+  "actionOpen": "Apri",
+  "shareFailed": "Impossibile condividere.",
   "statusExpired": "Scaduto",
   "statusExpiring": "In scadenza",
   "statusRenewNow": "Rinnova ora",

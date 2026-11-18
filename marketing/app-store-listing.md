@@ -92,12 +92,11 @@ Elapsa speaks English, 简体中文, 繁體中文, 日本語, 한국어, Deutsch
 Entry rules vary by country. Always check the rules of the country you're travelling to.
 ```
 
-**Screenshot captions** (in this order; from `marketing/go-to-market.md` §4, with #3 updated for auto-detection)
+**Screenshot captions** (uploaded to App Store Connect at 1206 x 2622; artwork in `marketing/screenshots/6.3-captioned/`)
 1. Your passport expires 6 months before it says it does.
-2. 96 days left, and renewing takes 8 weeks. Start now.
-3. Hold it up. Elapsa reads it.
+2. 96 days left, and renewing takes weeks. Start now.
+3. Told in time, by default.
 4. No account. No upload. Encrypted on your phone.
-5. Told in time, by default.
 
 ---
 

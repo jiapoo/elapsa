@@ -35,24 +35,24 @@ from the store.
 
 ## English (U.S.), the primary language
 
-**Name** (28/30)
+**Name** (27/30)
 ```
-Elapsa: Passport & ID Expiry
-```
-
-**Subtitle** (30/30)
-```
-Renewal alerts that come early
+Elapsa: Passport, Visa & ID
 ```
 
-**Promotional text** (168/170; can be changed any time without review)
+**Subtitle** (29/30)
 ```
-Know when to start renewing, not when it's too late. Hold a passport, ID or bank card to the camera and Elapsa reads it for you. No account, no subscription, no upload.
+Expiry alerts that come early
 ```
 
-**Keywords** (97/100)
+**Promotional text** (163/170; can be changed any time without review)
 ```
-visa,document,card,reminder,tracker,expiration,scan,license,licence,residence,permit,travel,green
+Know when to start renewing, not when it's too late. Hold a passport, visa or ID to the camera and Elapsa reads it for you. No account, no subscription, no upload.
+```
+
+**Keywords** (100/100)
+```
+renewal,document,card,reminder,tracker,expiration,scan,license,licence,residence,permit,travel,green
 ```
 
 **Description**
@@ -70,7 +70,7 @@ SCAN IT, DON'T TYPE IT
 • It recognises Chinese, Japanese, Korean, Cyrillic, Thai, Arabic, Vietnamese and Latin print by itself. Anything it isn't sure of is left for you to check, never guessed.
 
 REMINDED IN TIME
-• Each kind of document has its own renewal lead time: a passport months ahead, a membership a few weeks.
+• Each kind of document has its own renewal lead time: a passport months ahead, a visa 90 days ahead, a membership a few weeks.
 • "96 days left · start renewing now". Every passport is flagged when it falls below the six-month travel rule.
 • Daily reminders in the final month. Reminders arrive even if you never open the app.
 
@@ -104,7 +104,7 @@ Entry rules vary by country. Always check the rules of the country you're travel
 
 **名称**
 ```
-Elapsa：护照身份证到期提醒
+Elapsa：护照签证身份证到期提醒
 ```
 
 **副标题**
@@ -114,12 +114,12 @@ Elapsa：护照身份证到期提醒
 
 **推广文本**
 ```
-在该开始办理的时候提醒你，而不是来不及的时候。把护照、身份证或银行卡对准相机，Elapsa 自动读取。不用注册，不是订阅，不会上传。
+在该开始办理的时候提醒你，而不是来不及的时候。把护照、签证、身份证或银行卡对准相机，Elapsa 自动读取。不用注册，不是订阅，不会上传。
 ```
 
 **关键词**
 ```
-签证,换证,驾照,居留许可,扫描,银行卡,有效期,出国,旅行,港澳通行证,过期,续签,换发,证件,倒计时,备忘
+入境,换证,驾照,居留许可,扫描,银行卡,有效期,出国,旅行,港澳通行证,过期,续签,换发,证件,倒计时,备忘
 ```
 
 **描述**
@@ -137,7 +137,7 @@ Elapsa：护照身份证到期提醒
 • 自动识别中文、日文、韩文、西里尔文、泰文、阿拉伯文、越南文和拉丁字母。没有把握的内容会留给你确认，绝不乱猜。
 
 提醒得及时
-• 每种证件都有自己的提前量：护照提前几个月，会员卡提前几周。
+• 每种证件都有自己的提前量：护照提前几个月，签证提前 90 天，会员卡提前几周。
 • “还剩 96 天 · 现在开始办理”。护照有效期低于六个月出行线时会特别标出。
 • 最后一个月每天提醒。即使从不打开 App，提醒也会准时到达。
 
@@ -165,7 +165,7 @@ Elapsa：护照身份证到期提醒
 
 **名稱**
 ```
-Elapsa：護照身分證到期提醒
+Elapsa：護照簽證身分證到期提醒
 ```
 
 **副標題**
@@ -175,12 +175,12 @@ Elapsa：護照身分證到期提醒
 
 **宣傳文字**
 ```
-在該開始辦理的時候提醒你，而不是來不及的時候。把護照、身分證或信用卡對準相機，Elapsa 自動讀取。不用註冊，不是訂閱，不會上傳。
+在該開始辦理的時候提醒你，而不是來不及的時候。把護照、簽證、身分證或信用卡對準相機，Elapsa 自動讀取。不用註冊，不是訂閱，不會上傳。
 ```
 
 **關鍵字**
 ```
-簽證,換證,駕照,居留證,掃描,信用卡,有效期限,出國,旅行,台胞證,過期,續簽,換發,證件,倒數,備忘
+入境,換證,駕照,居留證,掃描,信用卡,有效期限,出國,旅行,台胞證,過期,續簽,換發,證件,倒數,備忘
 ```
 
 **描述**
@@ -198,7 +198,7 @@ Elapsa：護照身分證到期提醒
 • 自動辨識中文、日文、韓文、西里爾字母、泰文、阿拉伯文、越南文和拉丁字母。沒有把握的內容會留給你確認，絕不亂猜。
 
 提醒得及時
-• 每種證件都有自己的提前量：護照提前幾個月，會員卡提前幾週。
+• 每種證件都有自己的提前量：護照提前幾個月，簽證提前 90 天，會員卡提前幾週。
 • 「還剩 96 天 · 現在開始辦理」。護照效期低於六個月出行線時會特別標出。
 • 最後一個月每天提醒。即使從不打開 App，提醒也會準時送達。
 
@@ -224,9 +224,9 @@ Elapsa：護照身分證到期提醒
 
 ## Other languages
 
-The app itself also speaks Japanese, Korean, German, French, Portuguese, Italian and Spanish.
-App Store pages in those languages are optional: without one, those storefronts show the English
-page. Add them after launch, once a fluent speaker has reviewed the in-app translations.
+Japanese, Korean, German, French, Portuguese (Brazil), Italian and Spanish (Spain) listings are in
+`app-store-listing-more-languages.json` and saved in App Store Connect. A fluent speaker hasn't
+reviewed them yet. Their screenshots are still the English ones.
 
 ---
 

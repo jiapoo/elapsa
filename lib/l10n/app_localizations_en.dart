@@ -47,6 +47,40 @@ class LEn extends L {
   String get actionRetake => 'Retake';
 
   @override
+  String get exportWhereTitle => 'Where should the archive go?';
+
+  @override
+  String get exportToFilesBody =>
+      'Pick a folder on this iPhone or in iCloud Drive. You\'ll find it later in the Files app.';
+
+  @override
+  String get exportShareTitle => 'Send to another app';
+
+  @override
+  String get exportShareBody => 'AirDrop, Messages, Mail and others.';
+
+  @override
+  String get exportSavedTitle => 'Saved to Files';
+
+  @override
+  String get exportSavedBody => 'Open the Files app and go to:';
+
+  @override
+  String get filesOnMyPhone => 'On My iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'New type…';
+
+  @override
+  String get scanBothSides => 'Both sides captured.';
+
+  @override
+  String get scanKeepGoing => 'Add more';
+
+  @override
   String get actionOpen => 'Open';
 
   @override

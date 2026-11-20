@@ -47,6 +47,40 @@ class LIt extends L {
   String get actionRetake => 'Rifai';
 
   @override
+  String get exportWhereTitle => 'Dove salvare l’archivio?';
+
+  @override
+  String get exportToFilesBody =>
+      'Scegli una cartella su questo iPhone o in iCloud Drive. Lo ritroverai poi nell’app File.';
+
+  @override
+  String get exportShareTitle => 'Invia a un’altra app';
+
+  @override
+  String get exportShareBody => 'AirDrop, Messaggi, Mail e altre.';
+
+  @override
+  String get exportSavedTitle => 'Salvato in File';
+
+  @override
+  String get exportSavedBody => 'Apri l’app File e vai in:';
+
+  @override
+  String get filesOnMyPhone => 'Sul mio iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'Nuovo tipo…';
+
+  @override
+  String get scanBothSides => 'Entrambi i lati acquisiti.';
+
+  @override
+  String get scanKeepGoing => 'Aggiungi';
+
+  @override
   String get actionOpen => 'Apri';
 
   @override

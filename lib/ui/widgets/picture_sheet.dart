@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/core/theme.dart';
+import 'package:elapsa/services/save_to_files.dart';
 
 /// What can be done with one picture of a document.
 enum PictureAction { crop, retake, share, saveToPhotos, saveToFiles, delete }
@@ -305,7 +306,7 @@ Future<void> savePictureToFiles(
   final l = L.of(context);
   final messenger = ScaffoldMessenger.of(context);
   try {
-    final saved = await FilePicker.platform.saveFile(
+    final saved = await saveBytesToFiles(
       fileName: '${_fileSafe(baseName)}.jpg',
       type: FileType.image,
       bytes: image,

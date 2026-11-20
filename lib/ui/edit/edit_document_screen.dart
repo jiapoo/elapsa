@@ -23,6 +23,7 @@ import 'package:elapsa/services/nearby_transfer.dart';
 import 'package:elapsa/services/vision_channel.dart';
 import 'package:elapsa/ui/scan/crop_screen.dart';
 import 'package:elapsa/ui/settings/nearby_screen.dart';
+import 'package:elapsa/ui/settings/custom_types_section.dart';
 import 'package:elapsa/ui/scan/scan_screen.dart';
 import 'package:elapsa/ui/widgets/document_card_face.dart';
 import 'package:elapsa/domain/attachment.dart';
@@ -117,6 +118,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
   /// True until the user edits the lead time by hand, after which changing the
   /// document type no longer overwrites their choice.
   bool _leadDaysIsAuto = true;
+
+  /// Bumped to rebuild the type dropdown from the current selection — after
+  /// "New type…" is chosen and then either made or abandoned, the field must
+  /// show the real type again rather than the entry that was tapped.
+  int _typeFieldRevision = 0;
+
+  static const _newTypeValue = '__new_type__';
 
   bool get _isEditing => widget.existing != null;
 
@@ -310,6 +318,25 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           .read(documentRepositoryProvider)
           .removeAttachment(existing.id, attachment.id);
     }
+  }
+
+  /// Makes a type of the user's own and files this document under it.
+  Future<void> _newType() async {
+    final made = await composeCustomType(context);
+    if (!mounted) return;
+    if (made != null) {
+      await ref.read(customTypesProvider.notifier).add(made);
+      if (!mounted) return;
+    }
+    setState(() {
+      _typeFieldRevision++;
+      if (made == null) return;
+      _customType = made.name;
+      _type = DocumentType.other;
+      if (_leadDaysIsAuto) {
+        _reminderOffsets = {..._defaultOffsets(made.leadDays)};
+      }
+    });
   }
 
   /// Writes the pictures out, now.
@@ -763,6 +790,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   // invented type feel like a lesser sort of type, which is
                   // the opposite of the point.
                   DropdownButtonFormField<String>(
+                    // Keyed on the selection, because initialValue is only read
+                    // once: a type chosen elsewhere — made here, or read from a
+                    // scan — would otherwise not show.
+                    key: ValueKey(
+                      'type:${_customType ?? _type.name}:$_typeFieldRevision',
+                    ),
                     initialValue: _customType == null
                         ? _type.name
                         : 'custom:$_customType',
@@ -797,9 +830,23 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                           label: DocumentType.other.label(l),
                         ),
                       ),
+                      // The same thing Settings offers, here where the lack
+                      // of a type is actually noticed.
+                      DropdownMenuItem(
+                        value: _newTypeValue,
+                        child: _TypeLine(
+                          icon: Icons.add_rounded,
+                          label: l.typesNew,
+                          colour: scheme.primary,
+                        ),
+                      ),
                     ],
                     onChanged: (value) {
                       if (value == null) return;
+                      if (value == _newTypeValue) {
+                        _newType();
+                        return;
+                      }
                       final custom = value.startsWith('custom:')
                           ? ref
                                 .read(customTypesProvider)
@@ -837,7 +884,7 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                     controller: _label,
                     textCapitalization: TextCapitalization.sentences,
                     decoration: InputDecoration(
-                      hintText: l.fieldNameHint(_type.label(l)),
+                      hintText: l.fieldNameHint(_customType ?? _type.label(l)),
                     ),
                     validator: (v) => (v == null || v.trim().isEmpty)
                         ? l.fieldNameRequired
@@ -941,12 +988,19 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                     ),
                     const _DailyTailNote(),
                   ],
-                  const SizedBox(height: 6),
-                  Text(
-                    _leadTimeExplanation(l),
-                    style: Theme.of(context).textTheme.bodySmall
-                        ?.copyWith(color: scheme.onSurfaceVariant, height: 1.4),
-                  ),
+                  // Only with a date to count back from. A document that never
+                  // expires keeps a placeholder date underneath, and measured
+                  // against that it was told its renewal window had passed.
+                  if (!_neverExpires) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _leadTimeExplanation(l),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
 
                   if (_type.hasSixMonthTravelRule) ...[
                     const SizedBox(height: 14),
@@ -1467,7 +1521,10 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
     if (confirmed != true) return;
     await ref.read(documentRepositoryProvider).delete(widget.existing!.id);
-    if (mounted) Navigator.of(context).pop();
+    // Straight back to the wallet. The editor sits on top of the document's
+    // own page, and popping only the editor left the user on a page for a
+    // document that no longer exists — a title bar over nothing.
+    if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
   }
 }
 
@@ -1946,19 +2003,27 @@ class _Ask extends StatelessWidget {
 
 /// One line in the type picker.
 class _TypeLine extends StatelessWidget {
-  const _TypeLine({required this.icon, required this.label});
+  const _TypeLine({required this.icon, required this.label, this.colour});
 
   final IconData icon;
   final String label;
+  final Color? colour;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18),
+        Icon(icon, size: 18, color: colour),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: colour == null
+                ? null
+                : TextStyle(color: colour, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );

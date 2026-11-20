@@ -47,6 +47,40 @@ class LEs extends L {
   String get actionRetake => 'Repetir';
 
   @override
+  String get exportWhereTitle => '¿Dónde guardar el archivo?';
+
+  @override
+  String get exportToFilesBody =>
+      'Elige una carpeta en este iPhone o en iCloud Drive. Luego lo encontrarás en la app Archivos.';
+
+  @override
+  String get exportShareTitle => 'Enviar a otra app';
+
+  @override
+  String get exportShareBody => 'AirDrop, Mensajes, Mail y más.';
+
+  @override
+  String get exportSavedTitle => 'Guardado en Archivos';
+
+  @override
+  String get exportSavedBody => 'Abre la app Archivos y ve a:';
+
+  @override
+  String get filesOnMyPhone => 'En mi iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'Nuevo tipo…';
+
+  @override
+  String get scanBothSides => 'Ambas caras capturadas.';
+
+  @override
+  String get scanKeepGoing => 'Añadir más';
+
+  @override
   String get actionOpen => 'Abrir';
 
   @override

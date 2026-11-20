@@ -47,6 +47,40 @@ class LKo extends L {
   String get actionRetake => '다시 찍기';
 
   @override
+  String get exportWhereTitle => '아카이브를 어디에 저장할까요?';
+
+  @override
+  String get exportToFilesBody =>
+      '이 iPhone 또는 iCloud Drive의 폴더를 선택하세요. 나중에 파일 앱에서 찾을 수 있습니다.';
+
+  @override
+  String get exportShareTitle => '다른 앱으로 보내기';
+
+  @override
+  String get exportShareBody => 'AirDrop, 메시지, Mail 등.';
+
+  @override
+  String get exportSavedTitle => '파일에 저장됨';
+
+  @override
+  String get exportSavedBody => '파일 앱을 열고 다음 위치로 이동하세요:';
+
+  @override
+  String get filesOnMyPhone => '나의 iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => '새 유형…';
+
+  @override
+  String get scanBothSides => '양면을 모두 촬영했습니다.';
+
+  @override
+  String get scanKeepGoing => '더 촬영';
+
+  @override
   String get actionOpen => '열기';
 
   @override

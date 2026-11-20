@@ -12,6 +12,8 @@ import 'package:elapsa/data/settings_repository.dart';
 import 'package:elapsa/domain/entitlement.dart';
 import 'package:elapsa/l10n/app_localizations.dart';
 import 'package:elapsa/services/document_archive.dart';
+import 'package:elapsa/services/save_to_files.dart';
+import 'package:elapsa/ui/widgets/picture_sheet.dart' show SheetAction, shareOriginOf;
 import 'package:elapsa/ui/paywall/paywall_sheet.dart';
 import 'package:elapsa/ui/settings/document_picker_screen.dart';
 import 'package:elapsa/ui/settings/nearby_screen.dart';
@@ -102,21 +104,154 @@ class _TransferSectionState extends ConsumerState<TransferSection> {
         passphrase: passphrase,
       );
 
+      final stamp = DateTime.now().toIso8601String().split('T').first;
+      final name = 'elapsa-$stamp.elapsa';
+      if (!mounted) return;
+
+      // Asked rather than assumed. The share sheet alone left people with an
+      // archive "exported" to nowhere they could name: it went wherever the
+      // tapped app put it, and the Files app had no idea. Saving to Files
+      // lets them choose the folder, and then says which one it was.
+      final toFiles = await _askDestination();
+      if (toFiles == null || !mounted) return;
+
+      if (toFiles) {
+        final saved = await saveBytesToFiles(fileName: name, bytes: bytes);
+        if (saved != null && mounted) await _showSavedAt(saved);
+        return;
+      }
+
       // A temporary file, not the documents directory: this one is *not*
       // encrypted with the device key, and it should not outlive the share.
-      final stamp = DateTime.now().toIso8601String().split('T').first;
-      final file = File(
-        p.join((await getTemporaryDirectory()).path, 'elapsa-$stamp.elapsa'),
-      );
+      final file = File(p.join((await getTemporaryDirectory()).path, name));
       await file.writeAsBytes(bytes);
-
-      if (!mounted) return;
-      await Share.shareXFiles([XFile(file.path)]);
-
-      if (mounted) _say(l.transferExported(documents.length));
+      try {
+        if (!mounted) return;
+        final result = await Share.shareXFiles([
+          XFile(file.path),
+        ], sharePositionOrigin: shareOriginOf(context));
+        // Only once something actually took it. Closing the sheet is not an
+        // export, and saying "archived" over it was a small lie.
+        if (result.status == ShareResultStatus.success && mounted) {
+          _say(l.transferExported(documents.length));
+        }
+      } finally {
+        if (await file.exists()) await file.delete();
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// True for Files, false for another app, null for neither.
+  Future<bool?> _askDestination() {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+
+    return showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.exportWhereTitle,
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    SheetAction(
+                      icon: Icons.folder_outlined,
+                      label: l.actionSaveToFiles,
+                      subtitle: l.exportToFilesBody,
+                      onTap: () => Navigator.of(context).pop(true),
+                    ),
+                    Divider(
+                      height: 1,
+                      indent: 52,
+                      color: scheme.outlineVariant.withValues(alpha: 0.5),
+                    ),
+                    SheetAction(
+                      icon: Icons.ios_share_rounded,
+                      label: l.exportShareTitle,
+                      subtitle: l.exportShareBody,
+                      onTap: () => Navigator.of(context).pop(false),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Says exactly where the archive went, in the Files app's own words.
+  Future<void> _showSavedAt(String path) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final location = filesLocation(path, l);
+
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: Icon(Icons.check_circle_rounded, color: scheme.primary),
+        title: Text(l.exportSavedTitle),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l.exportSavedBody),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.folder_rounded,
+                    size: 18,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SelectableText(
+                      location.join(' › '),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
+            child: Text(l.actionDone),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Straight to another phone, with no file in between.

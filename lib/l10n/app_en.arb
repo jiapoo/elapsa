@@ -12,6 +12,50 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
+  "exportWhereTitle": "Where should the archive go?",
+  "@exportWhereTitle": {
+    "description": "Export destination: exportWhereTitle"
+  },
+  "exportToFilesBody": "Pick a folder on this iPhone or in iCloud Drive. You'll find it later in the Files app.",
+  "@exportToFilesBody": {
+    "description": "Export destination: exportToFilesBody"
+  },
+  "exportShareTitle": "Send to another app",
+  "@exportShareTitle": {
+    "description": "Export destination: exportShareTitle"
+  },
+  "exportShareBody": "AirDrop, Messages, Mail and others.",
+  "@exportShareBody": {
+    "description": "Export destination: exportShareBody"
+  },
+  "exportSavedTitle": "Saved to Files",
+  "@exportSavedTitle": {
+    "description": "Export destination: exportSavedTitle"
+  },
+  "exportSavedBody": "Open the Files app and go to:",
+  "@exportSavedBody": {
+    "description": "Export destination: exportSavedBody"
+  },
+  "filesOnMyPhone": "On My iPhone",
+  "@filesOnMyPhone": {
+    "description": "Export destination: filesOnMyPhone"
+  },
+  "filesIcloudDrive": "iCloud Drive",
+  "@filesIcloudDrive": {
+    "description": "Export destination: filesIcloudDrive"
+  },
+  "typesNew": "New type…",
+  "@typesNew": {
+    "description": "Last entry in the type dropdown; defines a new type there and then"
+  },
+  "scanBothSides": "Both sides captured.",
+  "@scanBothSides": {
+    "description": "Shown in the scanner after the second photo"
+  },
+  "scanKeepGoing": "Add more",
+  "@scanKeepGoing": {
+    "description": "Keeps the scanner open for another page"
+  },
   "actionOpen": "Open",
   "@actionOpen": {
     "description": "Opens an attached file"

@@ -46,6 +46,39 @@ class LZh extends L {
   String get actionRetake => '重拍';
 
   @override
+  String get exportWhereTitle => '存档要保存到哪里？';
+
+  @override
+  String get exportToFilesBody => '选择本机或 iCloud 云盘中的文件夹，之后可在“文件”App 中找到它。';
+
+  @override
+  String get exportShareTitle => '发送到其他 App';
+
+  @override
+  String get exportShareBody => '隔空投送、信息、邮件等。';
+
+  @override
+  String get exportSavedTitle => '已存储到“文件”';
+
+  @override
+  String get exportSavedBody => '打开“文件”App，前往：';
+
+  @override
+  String get filesOnMyPhone => '我的 iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud 云盘';
+
+  @override
+  String get typesNew => '新建类型…';
+
+  @override
+  String get scanBothSides => '正反面都拍好了。';
+
+  @override
+  String get scanKeepGoing => '继续拍';
+
+  @override
   String get actionOpen => '打开';
 
   @override
@@ -1020,6 +1053,40 @@ class LZhHant extends LZh {
 
   @override
   String get actionRetake => '重拍';
+
+  @override
+  String get exportWhereTitle => '封存檔要存到哪裡？';
+
+  @override
+  String get exportToFilesBody =>
+      '選擇此 iPhone 或 iCloud 雲碟中的資料夾，之後可在「檔案」App 中找到。';
+
+  @override
+  String get exportShareTitle => '傳送到其他 App';
+
+  @override
+  String get exportShareBody => 'AirDrop、訊息、郵件等。';
+
+  @override
+  String get exportSavedTitle => '已儲存到「檔案」';
+
+  @override
+  String get exportSavedBody => '打開「檔案」App，前往：';
+
+  @override
+  String get filesOnMyPhone => '我的 iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud 雲碟';
+
+  @override
+  String get typesNew => '新增類型…';
+
+  @override
+  String get scanBothSides => '正反面都拍好了。';
+
+  @override
+  String get scanKeepGoing => '繼續拍';
 
   @override
   String get actionOpen => '開啟';

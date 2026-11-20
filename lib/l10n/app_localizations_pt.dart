@@ -47,6 +47,40 @@ class LPt extends L {
   String get actionRetake => 'Refazer';
 
   @override
+  String get exportWhereTitle => 'Onde salvar o arquivo?';
+
+  @override
+  String get exportToFilesBody =>
+      'Escolha uma pasta neste iPhone ou no iCloud Drive. Depois você o encontra no app Arquivos.';
+
+  @override
+  String get exportShareTitle => 'Enviar para outro app';
+
+  @override
+  String get exportShareBody => 'AirDrop, Mensagens, Mail e outros.';
+
+  @override
+  String get exportSavedTitle => 'Salvo em Arquivos';
+
+  @override
+  String get exportSavedBody => 'Abra o app Arquivos e vá para:';
+
+  @override
+  String get filesOnMyPhone => 'No Meu iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'Novo tipo…';
+
+  @override
+  String get scanBothSides => 'Os dois lados foram capturados.';
+
+  @override
+  String get scanKeepGoing => 'Adicionar mais';
+
+  @override
   String get actionOpen => 'Abrir';
 
   @override

@@ -47,6 +47,40 @@ class LJa extends L {
   String get actionRetake => '撮り直す';
 
   @override
+  String get exportWhereTitle => 'アーカイブの保存先';
+
+  @override
+  String get exportToFilesBody =>
+      'このiPhoneまたはiCloud Driveのフォルダを選んでください。あとで「ファイル」Appで見つけられます。';
+
+  @override
+  String get exportShareTitle => 'ほかのAppに送る';
+
+  @override
+  String get exportShareBody => 'AirDrop、メッセージ、メールなど。';
+
+  @override
+  String get exportSavedTitle => '「ファイル」に保存しました';
+
+  @override
+  String get exportSavedBody => '「ファイル」Appを開いて次の場所へ：';
+
+  @override
+  String get filesOnMyPhone => 'このiPhone内';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => '新しい種類…';
+
+  @override
+  String get scanBothSides => '両面を撮影しました。';
+
+  @override
+  String get scanKeepGoing => '続けて撮る';
+
+  @override
   String get actionOpen => '開く';
 
   @override

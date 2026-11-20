@@ -107,6 +107,13 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
   /// Set when detection has been failing long enough to be worth mentioning.
   bool _detectionStuck = false;
 
+  /// Whether to ask "done, or more?" — raised once, when the second picture
+  /// arrives. Most documents are two sides, and after the second one people
+  /// stood holding the phone wondering whether the scanner wanted anything
+  /// else; the tick in the corner did not read as the answer.
+  bool _askingDone = false;
+  bool _askedDone = false;
+
   /// Restarted on every successful detection; fires when none has arrived in a
   /// while.
   Timer? _stuckTimer;
@@ -492,6 +499,15 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
         _pages.add(result.cardImage!);
         _originals.add(original ?? '');
         _quads.add(quad ?? _rectangleQuad(result.region));
+
+        // Asked once per scan. Someone who chose to keep going after the
+        // second side has answered, and a third page is not a new question.
+        if (_pages.length == 2 && !_askedDone) {
+          _askingDone = true;
+          _askedDone = true;
+        } else {
+          _askingDone = false;
+        }
       }
       if (result.hasTrustedCode && _bestMrz == null) _bestMrz = result.mrz;
       // Merged, not replaced. A card is two photographs — the front carries
@@ -745,7 +761,14 @@ class _ScanScreenState extends ConsumerState<ScanScreen>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (_detectionStuck && !busy) ...[
+                          if (_askingDone && _pages.length >= 2 && !busy) ...[
+                            _DoneOrMore(
+                              onDone: _finish,
+                              onMore: () =>
+                                  setState(() => _askingDone = false),
+                            ),
+                            const SizedBox(height: 16),
+                          ] else if (_detectionStuck && !busy) ...[
                             _StuckHint(onTap: _toggleAuto),
                             const SizedBox(height: 16),
                           ],
@@ -1413,6 +1436,68 @@ class _StuckHint extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Both sides captured" — finish here, or keep the scanner for more pages.
+class _DoneOrMore extends StatelessWidget {
+  const _DoneOrMore({required this.onDone, required this.onMore});
+
+  final VoidCallback onDone;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Material(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: Colors.white70,
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  l.scanBothSides,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: onMore,
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(48, 36),
+                ),
+                child: Text(l.scanKeepGoing),
+              ),
+              const SizedBox(width: 4),
+              FilledButton(
+                onPressed: onDone,
+                // Sized here: the app's theme makes a filled button the full
+                // width of whatever holds it, which a row cannot give.
+                style: FilledButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  minimumSize: const Size(64, 36),
+                ),
+                child: Text(l.actionDone),
+              ),
+            ],
           ),
         ),
       ),

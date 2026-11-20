@@ -47,6 +47,40 @@ class LDe extends L {
   String get actionRetake => 'Neu aufnehmen';
 
   @override
+  String get exportWhereTitle => 'Wohin soll das Archiv?';
+
+  @override
+  String get exportToFilesBody =>
+      'Wähle einen Ordner auf diesem iPhone oder in iCloud Drive. Du findest ihn später in der App „Dateien“.';
+
+  @override
+  String get exportShareTitle => 'An eine andere App senden';
+
+  @override
+  String get exportShareBody => 'AirDrop, Nachrichten, Mail und mehr.';
+
+  @override
+  String get exportSavedTitle => 'In „Dateien“ gesichert';
+
+  @override
+  String get exportSavedBody => 'Öffne die App „Dateien“ und gehe zu:';
+
+  @override
+  String get filesOnMyPhone => 'Auf meinem iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'Neuer Typ …';
+
+  @override
+  String get scanBothSides => 'Beide Seiten erfasst.';
+
+  @override
+  String get scanKeepGoing => 'Weitere';
+
+  @override
   String get actionOpen => 'Öffnen';
 
   @override

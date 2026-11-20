@@ -47,6 +47,40 @@ class LFr extends L {
   String get actionRetake => 'Reprendre';
 
   @override
+  String get exportWhereTitle => 'Où enregistrer l’archive ?';
+
+  @override
+  String get exportToFilesBody =>
+      'Choisissez un dossier sur cet iPhone ou dans iCloud Drive. Vous le retrouverez ensuite dans l’app Fichiers.';
+
+  @override
+  String get exportShareTitle => 'Envoyer vers une autre app';
+
+  @override
+  String get exportShareBody => 'AirDrop, Messages, Mail et autres.';
+
+  @override
+  String get exportSavedTitle => 'Enregistré dans Fichiers';
+
+  @override
+  String get exportSavedBody => 'Ouvrez l’app Fichiers et allez dans :';
+
+  @override
+  String get filesOnMyPhone => 'Sur mon iPhone';
+
+  @override
+  String get filesIcloudDrive => 'iCloud Drive';
+
+  @override
+  String get typesNew => 'Nouveau type…';
+
+  @override
+  String get scanBothSides => 'Les deux faces sont prises.';
+
+  @override
+  String get scanKeepGoing => 'Ajouter';
+
+  @override
   String get actionOpen => 'Ouvrir';
 
   @override

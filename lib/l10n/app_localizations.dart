@@ -184,6 +184,72 @@ abstract class L {
   /// **'Retake'**
   String get actionRetake;
 
+  /// Export destination: exportWhereTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Where should the archive go?'**
+  String get exportWhereTitle;
+
+  /// Export destination: exportToFilesBody
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a folder on this iPhone or in iCloud Drive. You\'ll find it later in the Files app.'**
+  String get exportToFilesBody;
+
+  /// Export destination: exportShareTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Send to another app'**
+  String get exportShareTitle;
+
+  /// Export destination: exportShareBody
+  ///
+  /// In en, this message translates to:
+  /// **'AirDrop, Messages, Mail and others.'**
+  String get exportShareBody;
+
+  /// Export destination: exportSavedTitle
+  ///
+  /// In en, this message translates to:
+  /// **'Saved to Files'**
+  String get exportSavedTitle;
+
+  /// Export destination: exportSavedBody
+  ///
+  /// In en, this message translates to:
+  /// **'Open the Files app and go to:'**
+  String get exportSavedBody;
+
+  /// Export destination: filesOnMyPhone
+  ///
+  /// In en, this message translates to:
+  /// **'On My iPhone'**
+  String get filesOnMyPhone;
+
+  /// Export destination: filesIcloudDrive
+  ///
+  /// In en, this message translates to:
+  /// **'iCloud Drive'**
+  String get filesIcloudDrive;
+
+  /// Last entry in the type dropdown; defines a new type there and then
+  ///
+  /// In en, this message translates to:
+  /// **'New type…'**
+  String get typesNew;
+
+  /// Shown in the scanner after the second photo
+  ///
+  /// In en, this message translates to:
+  /// **'Both sides captured.'**
+  String get scanBothSides;
+
+  /// Keeps the scanner open for another page
+  ///
+  /// In en, this message translates to:
+  /// **'Add more'**
+  String get scanKeepGoing;
+
   /// Opens an attached file
   ///
   /// In en, this message translates to:

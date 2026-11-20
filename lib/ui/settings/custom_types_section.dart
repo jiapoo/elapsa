@@ -85,19 +85,30 @@ class CustomTypesSection extends ConsumerWidget {
     WidgetRef ref, {
     CustomType? existing,
   }) async {
-    final made = await showModalBottomSheet<CustomType>(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: _TypeSheet(existing: existing),
-      ),
-    );
+    final made = await composeCustomType(context, existing: existing);
     if (made == null) return;
     await ref.read(customTypesProvider.notifier).add(made);
   }
+}
+
+/// Asks for a type's name, lead time and icon. Null if the user backs out.
+///
+/// Shared by Settings and the type dropdown on the document form, so a type
+/// can be made at the moment it turns out to be missing rather than only after
+/// a detour through Settings.
+Future<CustomType?> composeCustomType(
+  BuildContext context, {
+  CustomType? existing,
+}) {
+  FocusManager.instance.primaryFocus?.unfocus();
+  return showModalBottomSheet<CustomType>(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) => Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: _TypeSheet(existing: existing),
+    ),
+  );
 }
 
 class _TypeRow extends StatelessWidget {
@@ -194,8 +205,11 @@ class _TypeSheetState extends State<_TypeSheet> {
     final l = L.of(context);
     final scheme = Theme.of(context).colorScheme;
 
+    // Scrolls, because with the keyboard up the sheet is taller than what is
+    // left of the screen: it overflowed, and the Done button ended up under
+    // the keyboard where nothing could reach it.
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,

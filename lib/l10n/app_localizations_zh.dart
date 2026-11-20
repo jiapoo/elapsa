@@ -46,6 +46,12 @@ class LZh extends L {
   String get actionRetake => '重拍';
 
   @override
+  String get nearbyRenameTitle => '设置本机名称';
+
+  @override
+  String get nearbyRenameHint => '对方手机上会看到这个名字';
+
+  @override
   String get exportWhereTitle => '存档要保存到哪里？';
 
   @override
@@ -1053,6 +1059,12 @@ class LZhHant extends LZh {
 
   @override
   String get actionRetake => '重拍';
+
+  @override
+  String get nearbyRenameTitle => '設定本機名稱';
+
+  @override
+  String get nearbyRenameHint => '對方手機上會看到這個名稱';
 
   @override
   String get exportWhereTitle => '封存檔要存到哪裡？';

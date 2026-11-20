@@ -47,6 +47,12 @@ class LKo extends L {
   String get actionRetake => '다시 찍기';
 
   @override
+  String get nearbyRenameTitle => '이 기기 이름';
+
+  @override
+  String get nearbyRenameHint => '상대방 기기에 표시되는 이름';
+
+  @override
   String get exportWhereTitle => '아카이브를 어디에 저장할까요?';
 
   @override

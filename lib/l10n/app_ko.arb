@@ -12,6 +12,8 @@
   "actionDelete": "삭제",
   "actionDone": "완료",
   "actionRetake": "다시 찍기",
+  "nearbyRenameTitle": "이 기기 이름",
+  "nearbyRenameHint": "상대방 기기에 표시되는 이름",
   "exportWhereTitle": "아카이브를 어디에 저장할까요?",
   "exportToFilesBody": "이 iPhone 또는 iCloud Drive의 폴더를 선택하세요. 나중에 파일 앱에서 찾을 수 있습니다.",
   "exportShareTitle": "다른 앱으로 보내기",

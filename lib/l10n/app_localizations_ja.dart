@@ -47,6 +47,12 @@ class LJa extends L {
   String get actionRetake => '撮り直す';
 
   @override
+  String get nearbyRenameTitle => 'この端末の名前';
+
+  @override
+  String get nearbyRenameHint => '相手の端末に表示される名前';
+
+  @override
   String get exportWhereTitle => 'アーカイブの保存先';
 
   @override

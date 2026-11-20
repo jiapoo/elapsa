@@ -47,6 +47,12 @@ class LFr extends L {
   String get actionRetake => 'Reprendre';
 
   @override
+  String get nearbyRenameTitle => 'Nom de cet appareil';
+
+  @override
+  String get nearbyRenameHint => 'Ce que verra l’autre téléphone';
+
+  @override
   String get exportWhereTitle => 'Où enregistrer l’archive ?';
 
   @override

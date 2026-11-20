@@ -47,6 +47,12 @@ class LDe extends L {
   String get actionRetake => 'Neu aufnehmen';
 
   @override
+  String get nearbyRenameTitle => 'Gerätename';
+
+  @override
+  String get nearbyRenameHint => 'So sieht dich das andere Telefon';
+
+  @override
   String get exportWhereTitle => 'Wohin soll das Archiv?';
 
   @override

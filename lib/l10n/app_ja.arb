@@ -12,6 +12,8 @@
   "actionDelete": "削除",
   "actionDone": "完了",
   "actionRetake": "撮り直す",
+  "nearbyRenameTitle": "この端末の名前",
+  "nearbyRenameHint": "相手の端末に表示される名前",
   "exportWhereTitle": "アーカイブの保存先",
   "exportToFilesBody": "このiPhoneまたはiCloud Driveのフォルダを選んでください。あとで「ファイル」Appで見つけられます。",
   "exportShareTitle": "ほかのAppに送る",

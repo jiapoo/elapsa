@@ -47,6 +47,12 @@ class LIt extends L {
   String get actionRetake => 'Rifai';
 
   @override
+  String get nearbyRenameTitle => 'Nome di questo dispositivo';
+
+  @override
+  String get nearbyRenameHint => 'Ciò che vedrà l’altro telefono';
+
+  @override
   String get exportWhereTitle => 'Dove salvare l’archivio?';
 
   @override

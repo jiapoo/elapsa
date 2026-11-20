@@ -47,6 +47,12 @@ class LEs extends L {
   String get actionRetake => 'Repetir';
 
   @override
+  String get nearbyRenameTitle => 'Nombre de este dispositivo';
+
+  @override
+  String get nearbyRenameHint => 'Lo que verá el otro teléfono';
+
+  @override
   String get exportWhereTitle => '¿Dónde guardar el archivo?';
 
   @override

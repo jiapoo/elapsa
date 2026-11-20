@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
@@ -49,9 +51,25 @@ class InAppPurchaseGateway implements StoreGateway {
 
   @override
   Future<ProductDetails?> loadProduct(String id) async {
-    if (!await _iap.isAvailable()) return null;
+    if (!await _iap.isAvailable()) {
+      debugPrint('Elapsa store: StoreKit says the store is unavailable');
+      return null;
+    }
     final response = await _iap.queryProductDetails({id});
-    if (response.error != null) return null;
+    // Said out loud, because "the store cannot be reached" covers three very
+    // different problems — no network, a product App Store Connect is not
+    // serving yet, and a typo in the identifier — and only the log can tell
+    // them apart.
+    if (response.error != null) {
+      debugPrint('Elapsa store: product query failed: ${response.error}');
+      return null;
+    }
+    if (response.notFoundIDs.isNotEmpty) {
+      debugPrint(
+        'Elapsa store: the store does not offer ${response.notFoundIDs} '
+        '(not approved, agreement not active, or wrong ID)',
+      );
+    }
     for (final product in response.productDetails) {
       if (product.id == id) return product;
     }

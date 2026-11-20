@@ -64,7 +64,11 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     // The name the other phone will show. Its own device name, because that is
     // what the person holding it will recognise, and they are standing next to
     // whoever is looking at the list.
-    _name = Platform.localHostname.replaceAll('.local', '');
+    // The user's own choice wins: iOS hides the real device name from apps,
+    // so the fallback is often just "iPhone".
+    _name =
+        ref.read(settingsRepositoryProvider).nearbyName ??
+        Platform.localHostname.replaceAll('.local', '');
 
     _subscription = _nearby.events.listen(_handle);
     await _nearby.start(name: _name);
@@ -284,6 +288,52 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
     await _nearby.send(peer: peer.id, name: _name, bytes: bytes);
   }
 
+  /// Lets the user say what this phone should be called, and re-announces it.
+  Future<void> _rename() async {
+    final l = L.of(context);
+    final controller = TextEditingController(text: _name);
+
+    final chosen = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.nearbyRenameTitle),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 40,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(helperText: l.nearbyRenameHint),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(l.actionCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
+            child: Text(l.editSave),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (chosen == null || !mounted) return;
+
+    final settings = ref.read(settingsRepositoryProvider);
+    await settings.setNearbyName(chosen);
+    if (!mounted) return;
+    setState(() {
+      _name =
+          settings.nearbyName ??
+          Platform.localHostname.replaceAll('.local', '');
+    });
+    // Announced again under the new name, so a phone already looking sees
+    // the change without either side starting over.
+    await _nearby.start(name: _name);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = L.of(context);
@@ -310,6 +360,51 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                   l.nearbyBody,
                   style: Theme.of(context).textTheme.bodyMedium
                       ?.copyWith(color: scheme.onSurfaceVariant, height: 1.5),
+                ),
+                const SizedBox(height: 16),
+
+                // Up top, because it is the one thing the person at the other
+                // phone has to match against what they see.
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 8, 6, 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHigh.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.smartphone_rounded,
+                        size: 20,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l.nearbyName,
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              _name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: _busy ? null : _rename,
+                        child: Text(l.actionEdit),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 20),
 
@@ -387,12 +482,6 @@ class _NearbyScreenState extends ConsumerState<NearbyScreen> {
                       ),
                     ),
 
-                const SizedBox(height: 28),
-                Text(
-                  '${l.nearbyName}  $_name',
-                  style: Theme.of(context).textTheme.labelSmall
-                      ?.copyWith(color: scheme.onSurfaceVariant),
-                ),
               ],
             ),
     );

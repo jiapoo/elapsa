@@ -12,6 +12,14 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
+  "nearbyRenameTitle": "Name this device",
+  "@nearbyRenameTitle": {
+    "description": "Nearby transfer: renaming this device"
+  },
+  "nearbyRenameHint": "What the other phone will see",
+  "@nearbyRenameHint": {
+    "description": "Nearby transfer: renaming this device"
+  },
   "exportWhereTitle": "Where should the archive go?",
   "@exportWhereTitle": {
     "description": "Export destination: exportWhereTitle"

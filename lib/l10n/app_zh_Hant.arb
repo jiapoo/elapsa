@@ -12,6 +12,8 @@
   "actionDelete": "刪除",
   "actionDone": "完成",
   "actionRetake": "重拍",
+  "nearbyRenameTitle": "設定本機名稱",
+  "nearbyRenameHint": "對方手機上會看到這個名稱",
   "exportWhereTitle": "封存檔要存到哪裡？",
   "exportToFilesBody": "選擇此 iPhone 或 iCloud 雲碟中的資料夾，之後可在「檔案」App 中找到。",
   "exportShareTitle": "傳送到其他 App",

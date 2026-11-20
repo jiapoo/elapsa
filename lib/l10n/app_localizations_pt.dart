@@ -47,6 +47,12 @@ class LPt extends L {
   String get actionRetake => 'Refazer';
 
   @override
+  String get nearbyRenameTitle => 'Nome deste aparelho';
+
+  @override
+  String get nearbyRenameHint => 'O que o outro telefone verá';
+
+  @override
   String get exportWhereTitle => 'Onde salvar o arquivo?';
 
   @override

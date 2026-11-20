@@ -170,6 +170,7 @@ class SettingsRepository {
   static const _remindersKey = 'default_reminders';
   static const _typesKey = 'custom_types';
   static const _unlimitedKey = 'unlimited_unlocked';
+  static const _nearbyNameKey = 'nearby_name';
 
   AppLanguage get language {
     final stored = _prefs.getString(_languageKey);
@@ -264,6 +265,23 @@ class SettingsRepository {
 
   Future<void> setUnlimitedUnlocked(bool value) =>
       _prefs.setBool(_unlimitedKey, value);
+
+  /// The name this phone goes by in a nearby transfer, if the user chose one.
+  ///
+  /// iOS no longer tells apps what a phone is called, so left to itself every
+  /// iPhone in the room announces itself as "iPhone" — and two of them side
+  /// by side cannot be told apart.
+  String? get nearbyName {
+    final stored = _prefs.getString(_nearbyNameKey)?.trim();
+    return stored == null || stored.isEmpty ? null : stored;
+  }
+
+  Future<void> setNearbyName(String? name) {
+    final trimmed = name?.trim() ?? '';
+    return trimmed.isEmpty
+        ? _prefs.remove(_nearbyNameKey)
+        : _prefs.setString(_nearbyNameKey, trimmed);
+  }
 
   Future<void> setCustomTypes(List<CustomType> types) => _prefs.setString(
     _typesKey,

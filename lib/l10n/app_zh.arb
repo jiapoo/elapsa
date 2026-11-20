@@ -12,6 +12,8 @@
   "actionDelete": "删除",
   "actionDone": "完成",
   "actionRetake": "重拍",
+  "nearbyRenameTitle": "设置本机名称",
+  "nearbyRenameHint": "对方手机上会看到这个名字",
   "exportWhereTitle": "存档要保存到哪里？",
   "exportToFilesBody": "选择本机或 iCloud 云盘中的文件夹，之后可在“文件”App 中找到它。",
   "exportShareTitle": "发送到其他 App",

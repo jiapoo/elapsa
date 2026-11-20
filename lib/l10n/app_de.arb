@@ -12,6 +12,8 @@
   "actionDelete": "Löschen",
   "actionDone": "Fertig",
   "actionRetake": "Neu aufnehmen",
+  "nearbyRenameTitle": "Gerätename",
+  "nearbyRenameHint": "So sieht dich das andere Telefon",
   "exportWhereTitle": "Wohin soll das Archiv?",
   "exportToFilesBody": "Wähle einen Ordner auf diesem iPhone oder in iCloud Drive. Du findest ihn später in der App „Dateien“.",
   "exportShareTitle": "An eine andere App senden",

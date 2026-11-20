@@ -12,6 +12,8 @@
   "actionDelete": "Apagar",
   "actionDone": "OK",
   "actionRetake": "Refazer",
+  "nearbyRenameTitle": "Nome deste aparelho",
+  "nearbyRenameHint": "O que o outro telefone verá",
   "exportWhereTitle": "Onde salvar o arquivo?",
   "exportToFilesBody": "Escolha uma pasta neste iPhone ou no iCloud Drive. Depois você o encontra no app Arquivos.",
   "exportShareTitle": "Enviar para outro app",

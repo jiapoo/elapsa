@@ -47,6 +47,12 @@ class LEn extends L {
   String get actionRetake => 'Retake';
 
   @override
+  String get nearbyRenameTitle => 'Name this device';
+
+  @override
+  String get nearbyRenameHint => 'What the other phone will see';
+
+  @override
   String get exportWhereTitle => 'Where should the archive go?';
 
   @override

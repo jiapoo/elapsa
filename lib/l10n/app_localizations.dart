@@ -184,6 +184,18 @@ abstract class L {
   /// **'Retake'**
   String get actionRetake;
 
+  /// Nearby transfer: renaming this device
+  ///
+  /// In en, this message translates to:
+  /// **'Name this device'**
+  String get nearbyRenameTitle;
+
+  /// Nearby transfer: renaming this device
+  ///
+  /// In en, this message translates to:
+  /// **'What the other phone will see'**
+  String get nearbyRenameHint;
+
   /// Export destination: exportWhereTitle
   ///
   /// In en, this message translates to:

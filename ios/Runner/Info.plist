@@ -8,6 +8,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Elapsa does not use your location. This message is here only because a photo-picking library bundled with the app contains location code that Elapsa never runs.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Elapsa uses the camera to read the code printed on your document. The image is processed on this device and is never uploaded.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

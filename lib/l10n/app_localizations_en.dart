@@ -47,6 +47,25 @@ class LEn extends L {
   String get actionRetake => 'Retake';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$name\'s $type';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Travel-ready until $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'Reminders count back from the expiry date, $date.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Pick as many as you like — each one is a separate reminder.';
+
+  @override
   String get nearbyRenameTitle => 'Name this device';
 
   @override

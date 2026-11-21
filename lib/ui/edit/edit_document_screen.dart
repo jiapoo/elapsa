@@ -626,7 +626,9 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
       write(_label, printed.issuer);
 
       if (mrz == null) {
-        if (_label.text.trim().isEmpty) _label.text = _type.label(l);
+        if (_label.text.trim().isEmpty) {
+          _label.text = _defaultLabel(l, printed.holderName);
+        }
         return;
       }
 
@@ -648,7 +650,12 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
         _issuingCountry = mrz.issuingState;
       }
       if (mrz.fullName.isNotEmpty) write(_holder, _titleCase(mrz.fullName));
-      if (_label.text.trim().isEmpty) _label.text = _type.label(l);
+      if (_label.text.trim().isEmpty) {
+        _label.text = _defaultLabel(
+          l,
+          mrz.givenNames.isNotEmpty ? mrz.givenNames : printed.holderName,
+        );
+      }
     });
 
     if (mrz != null && mrz.wasRepaired && mounted) {
@@ -656,6 +663,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
           .showSnackBar(SnackBar(content: Text(l.editScanRepaired)));
     }
   }
+
+  /// What a scanned document is called until the user says otherwise.
+  String _defaultLabel(L l, String? holderName) => ownedDocumentName(
+    l,
+    _customType ?? _type.label(l),
+    holderName,
+    builtInType: _customType == null,
+  );
 
   /// Maps the ICAO document code to a type we track.
   ///
@@ -929,32 +944,40 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   // because whether a document ends is a fact about that
                   // document and not about its kind: two memberships, one with
                   // a renewal date and one that runs until cancelled.
+                  //
+                  // A switch, not a chip. "This one has no expiry" sitting
+                  // under a date the scanner had just filled in read as the
+                  // app contradicting itself; a switch that is plainly off
+                  // reads as a setting nobody has touched.
                   Padding(
-                    padding: EdgeInsets.only(top: _neverExpires ? 0 : 10),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilterChip(
-                        avatar: Icon(
-                          _neverExpires
-                              ? Icons.all_inclusive_rounded
-                              : Icons.event_busy_rounded,
+                    padding: EdgeInsets.only(top: _neverExpires ? 0 : 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.all_inclusive_rounded,
                           size: 18,
                           color: _neverExpires
                               ? scheme.primary
                               : scheme.onSurfaceVariant,
                         ),
-                        label: Text(
-                          _neverExpires ? l.fieldNeverExpires : l.fieldNoExpiry,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            l.fieldNeverExpires,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
                         ),
-                        selected: _neverExpires,
-                        onSelected: (on) => setState(() {
-                          _neverExpires = on;
-                          // The date is kept, not cleared. Somebody who ticks
-                          // this by accident should not have to find the card
-                          // again to undo it.
-                          if (on) _leadDaysIsAuto = true;
-                        }),
-                      ),
+                        Switch.adaptive(
+                          value: _neverExpires,
+                          onChanged: (on) => setState(() {
+                            _neverExpires = on;
+                            // The date is kept, not cleared. Somebody who
+                            // switches this by accident should not have to
+                            // find the card again to undo it.
+                            if (on) _leadDaysIsAuto = true;
+                          }),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -970,6 +993,14 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
                   // a number of days before a date, and there is no date.
                   if (!_neverExpires) ...[
                     _Label(l.fieldRemindMe),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 2, bottom: 10),
+                      child: Text(
+                        l.remindersEachSeparate,
+                        style: Theme.of(context).textTheme.bodySmall
+                            ?.copyWith(color: scheme.onSurfaceVariant),
+                      ),
+                    ),
                     _LeadTimeField(
                       expiry: _expiryDate,
                       onPickDate: _pickReminderDate,
@@ -1004,10 +1035,13 @@ class _EditDocumentScreenState extends ConsumerState<EditDocumentScreen> {
 
                   if (_type.hasSixMonthTravelRule) ...[
                     const SizedBox(height: 14),
-                    _InfoNote(
-                      icon: Icons.flight_takeoff_rounded,
-                      text: l.sixMonthRuleNote,
-                    ),
+                    if (_expiryDate != null && !_neverExpires)
+                      _TravelReady(expiry: _expiryDate!)
+                    else
+                      _InfoNote(
+                        icon: Icons.flight_takeoff_rounded,
+                        text: l.sixMonthRuleNote,
+                      ),
                   ],
 
                   if (_type.details.isNotEmpty) ...[
@@ -1824,6 +1858,9 @@ class _LeadTimeField extends StatelessWidget {
       children: [
         for (final days in _options)
           FilterChip(
+            // A tick on each one that is on, so two highlighted chips read as
+            // two reminders rather than a range or a mistake.
+            showCheckmark: true,
             label: Text(leadTimeLabel(l, days)),
             selected: selected.contains(days),
             onSelected: (_) => onToggle(days),
@@ -1838,6 +1875,7 @@ class _LeadTimeField extends StatelessWidget {
                           .format(expiry!.subtract(Duration(days: days))),
                     ),
             ),
+            showCheckmark: true,
             selected: true,
             onSelected: (_) => onToggle(days),
           ),
@@ -1847,6 +1885,67 @@ class _LeadTimeField extends StatelessWidget {
           onPressed: onPickDate,
         ),
       ],
+    );
+  }
+}
+
+/// The date that actually matters for a passport, said first.
+///
+/// The six-month rule is why most people carry this app: a passport that
+/// expires in April is no use for a trip in November. So the travel date gets
+/// the headline, and the line under it says which of the two dates the
+/// reminders are counting from — the expiry, not the travel date.
+class _TravelReady extends StatelessWidget {
+  const _TravelReady({required this.expiry});
+
+  final DateTime expiry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = L.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final format = DateFormat.yMMMMd(locale);
+    final travel = expiry.subtract(const Duration(days: kSixMonthRuleDays));
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.flight_takeoff_rounded, size: 20, color: scheme.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  // Already inside the six months: say so, rather than
+                  // naming a "travel-ready" date that is in the past.
+                  DateTime.now().isBefore(travel)
+                      ? l.travelReadyUntil(format.format(travel))
+                      : l.travelRuleBadge,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: scheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${l.sixMonthRuleNote} '
+                  '${l.remindersCountFromExpiry(format.format(expiry))}',
+                  style: Theme.of(context).textTheme.bodySmall
+                      ?.copyWith(height: 1.4),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

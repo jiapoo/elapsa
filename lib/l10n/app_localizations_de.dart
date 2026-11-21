@@ -47,6 +47,25 @@ class LDe extends L {
   String get actionRetake => 'Neu aufnehmen';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$type von $name';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Reisetauglich bis $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'Erinnerungen zählen ab dem Ablaufdatum, $date, rückwärts.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Wähle beliebig viele – jede ist eine eigene Erinnerung.';
+
+  @override
   String get nearbyRenameTitle => 'Gerätename';
 
   @override

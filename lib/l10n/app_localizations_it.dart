@@ -47,6 +47,25 @@ class LIt extends L {
   String get actionRetake => 'Rifai';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$type di $name';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Valido per viaggiare fino al $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'I promemoria si contano a ritroso dalla data di scadenza, $date.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Scegline quanti vuoi: ognuno è un promemoria a sé.';
+
+  @override
   String get nearbyRenameTitle => 'Nome di questo dispositivo';
 
   @override

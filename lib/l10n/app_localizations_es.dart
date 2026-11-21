@@ -47,6 +47,25 @@ class LEs extends L {
   String get actionRetake => 'Repetir';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$type de $name';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Válido para viajar hasta el $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'Los recordatorios se cuentan hacia atrás desde la fecha de caducidad, $date.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Elige tantos como quieras: cada uno es un recordatorio aparte.';
+
+  @override
   String get nearbyRenameTitle => 'Nombre de este dispositivo';
 
   @override

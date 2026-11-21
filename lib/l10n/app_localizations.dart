@@ -184,6 +184,30 @@ abstract class L {
   /// **'Retake'**
   String get actionRetake;
 
+  /// Default name for a scanned document: holder's given name and the document type
+  ///
+  /// In en, this message translates to:
+  /// **'{name}\'s {type}'**
+  String docNameOwned(String name, String type);
+
+  /// Passport: last day it is usable under the six-month rule
+  ///
+  /// In en, this message translates to:
+  /// **'Travel-ready until {date}'**
+  String travelReadyUntil(String date);
+
+  /// Which date reminders are measured from
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders count back from the expiry date, {date}.'**
+  String remindersCountFromExpiry(String date);
+
+  /// Under the reminder chips: they are independent reminders
+  ///
+  /// In en, this message translates to:
+  /// **'Pick as many as you like — each one is a separate reminder.'**
+  String get remindersEachSeparate;
+
   /// Nearby transfer: renaming this device
   ///
   /// In en, this message translates to:

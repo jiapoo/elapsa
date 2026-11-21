@@ -47,6 +47,24 @@ class LJa extends L {
   String get actionRetake => '撮り直す';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$nameの$type';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return '$dateまで渡航可能';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'リマインダーは有効期限（$date）からさかのぼって数えます。';
+  }
+
+  @override
+  String get remindersEachSeparate => 'いくつでも選べます。それぞれが別々のリマインダーです。';
+
+  @override
   String get nearbyRenameTitle => 'この端末の名前';
 
   @override

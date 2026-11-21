@@ -408,6 +408,33 @@ class _Countdown extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge
                 ?.copyWith(color: colour, fontSize: 26, letterSpacing: -0.6),
           ),
+          // For a passport, the day it stops being any use for travel — the
+          // date people actually plan around — under the expiry countdown.
+          if (!document.neverExpires &&
+              document.travelValidUntil != null &&
+              !expired &&
+              DateTime.now().isBefore(document.travelValidUntil!)) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.flight_takeoff_rounded, size: 17, color: colour),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    l.travelReadyUntil(
+                      DateFormat.yMMMMd(
+                        Localizations.localeOf(context).toLanguageTag(),
+                      ).format(document.travelValidUntil!),
+                    ),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colour,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (!document.neverExpires &&
               (status == DocumentStatus.actionNeeded ||
                   status == DocumentStatus.critical)) ...[

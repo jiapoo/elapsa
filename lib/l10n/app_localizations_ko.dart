@@ -47,6 +47,24 @@ class LKo extends L {
   String get actionRetake => '다시 찍기';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$name의 $type';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return '$date까지 출국 가능';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return '알림은 만료일($date)로부터 거꾸로 계산합니다.';
+  }
+
+  @override
+  String get remindersEachSeparate => '원하는 만큼 선택하세요. 각각 별도의 알림입니다.';
+
+  @override
   String get nearbyRenameTitle => '이 기기 이름';
 
   @override

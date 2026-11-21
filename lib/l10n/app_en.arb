@@ -12,6 +12,40 @@
   "actionDelete": "Delete",
   "actionDone": "Done",
   "actionRetake": "Retake",
+  "docNameOwned": "{name}'s {type}",
+  "@docNameOwned": {
+    "description": "Default name for a scanned document: holder's given name and the document type",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "type": {
+        "type": "String"
+      }
+    }
+  },
+  "travelReadyUntil": "Travel-ready until {date}",
+  "@travelReadyUntil": {
+    "description": "Passport: last day it is usable under the six-month rule",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "remindersCountFromExpiry": "Reminders count back from the expiry date, {date}.",
+  "@remindersCountFromExpiry": {
+    "description": "Which date reminders are measured from",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "remindersEachSeparate": "Pick as many as you like — each one is a separate reminder.",
+  "@remindersEachSeparate": {
+    "description": "Under the reminder chips: they are independent reminders"
+  },
   "nearbyRenameTitle": "Name this device",
   "@nearbyRenameTitle": {
     "description": "Nearby transfer: renaming this device"

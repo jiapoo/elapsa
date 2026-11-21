@@ -47,6 +47,25 @@ class LPt extends L {
   String get actionRetake => 'Refazer';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$type de $name';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Válido para viajar até $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'Os lembretes contam para trás a partir da data de validade, $date.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Escolha quantos quiser — cada um é um lembrete separado.';
+
+  @override
   String get nearbyRenameTitle => 'Nome deste aparelho';
 
   @override

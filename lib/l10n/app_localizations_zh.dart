@@ -46,6 +46,24 @@ class LZh extends L {
   String get actionRetake => '重拍';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$name的$type';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return '可出行至 $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return '提醒按到期日（$date）往前计算。';
+  }
+
+  @override
+  String get remindersEachSeparate => '可以多选，每一项都是一次单独的提醒。';
+
+  @override
   String get nearbyRenameTitle => '设置本机名称';
 
   @override
@@ -1059,6 +1077,24 @@ class LZhHant extends LZh {
 
   @override
   String get actionRetake => '重拍';
+
+  @override
+  String docNameOwned(String name, String type) {
+    return '$name的$type';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return '可出行至 $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return '提醒依到期日（$date）往前計算。';
+  }
+
+  @override
+  String get remindersEachSeparate => '可以複選，每一項都是一次單獨的提醒。';
 
   @override
   String get nearbyRenameTitle => '設定本機名稱';

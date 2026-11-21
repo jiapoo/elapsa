@@ -163,3 +163,47 @@ String documentNumberLabel(L l, DocumentType type) => switch (type) {
   DocumentType.passport => l.fieldNumberPassport,
   _ => l.fieldNumberGeneric,
 };
+
+/// What a scanned document is called until its owner says otherwise.
+///
+/// "Passport" on its own was the name of every passport in a family's wallet.
+/// The holder's given name tells them apart — "Albert's passport" — and the
+/// plain type name is kept for when no name was read.
+///
+/// [builtInType] is false for a type the user named: their capitals are theirs.
+String ownedDocumentName(
+  L l,
+  String typeLabel,
+  String? holderName, {
+  bool builtInType = true,
+}) {
+  final given = _firstGivenName(holderName);
+  if (given == null) return typeLabel;
+
+  // English writes the type in lower case after a possessive; the other
+  // languages either have no case or put the type first.
+  final type = builtInType && l.localeName.startsWith('en')
+      ? typeLabel.toLowerCase()
+      : typeLabel;
+  final name = l.docNameOwned(given, type);
+
+  // French elides before a vowel: "Passeport d’Albert", not "de Albert".
+  if (l.localeName.startsWith('fr') &&
+      RegExp(r'^[aeiouyhàâäéèêëîïôöûü]', caseSensitive: false)
+          .hasMatch(given)) {
+    return name.replaceFirst(' de $given', ' d’$given');
+  }
+  return name;
+}
+
+/// The first given name, written as a person would write it.
+///
+/// Latin-script names come from the MRZ in capitals with every given name run
+/// together, so only the first is kept. A name with no spaces — 刘嘉 on a
+/// Chinese identity card — is kept whole, because splitting it is guessing.
+String? _firstGivenName(String? raw) {
+  final trimmed = raw?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  final first = trimmed.split(RegExp(r'\s+')).first;
+  return first[0].toUpperCase() + first.substring(1).toLowerCase();
+}

@@ -47,6 +47,25 @@ class LFr extends L {
   String get actionRetake => 'Reprendre';
 
   @override
+  String docNameOwned(String name, String type) {
+    return '$type de $name';
+  }
+
+  @override
+  String travelReadyUntil(String date) {
+    return 'Valable pour voyager jusqu’au $date';
+  }
+
+  @override
+  String remindersCountFromExpiry(String date) {
+    return 'Les rappels sont calculés à rebours depuis la date d’expiration, le $date.';
+  }
+
+  @override
+  String get remindersEachSeparate =>
+      'Choisissez-en autant que vous voulez : chacun est un rappel distinct.';
+
+  @override
   String get nearbyRenameTitle => 'Nom de cet appareil';
 
   @override

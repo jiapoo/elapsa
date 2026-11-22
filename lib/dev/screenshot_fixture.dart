@@ -1,3 +1,5 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:elapsa/data/document_repository.dart';
@@ -20,6 +22,13 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
   final repo = container.read(documentRepositoryProvider);
   if ((await repo.getAll()).isNotEmpty) return;
 
+  // Names follow the phone's language, so a Chinese screenshot or preview
+  // shows a Chinese wallet. Printed fields (numbers, MRZ nationality,
+  // cardholder names on cards) stay as they're printed.
+  final zh = PlatformDispatcher.instance.locale.languageCode == 'zh';
+  String name(String en, String chinese) => zh ? chinese : en;
+  final holder = name('Chen Wei', '陈伟');
+
   final now = DateTime.now();
   DateTime inDays(int days) => DateTime(now.year, now.month, now.day + days);
 
@@ -28,8 +37,8 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
   // starting on, and a shelf of things that are fine.
   await repo.create(
     type: DocumentType.passport,
-    label: 'Passport',
-    holder: 'Chen Wei',
+    label: name('Passport', '护照'),
+    holder: holder,
     documentNumber: 'EM1234567',
     issuingCountry: 'CHN',
     issueDate: inDays(-2430),
@@ -39,8 +48,8 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
 
   await repo.create(
     type: DocumentType.visa,
-    label: 'US B1/B2 visa',
-    holder: 'Chen Wei',
+    label: name('US B1/B2 visa', '美国 B1/B2 签证'),
+    holder: holder,
     documentNumber: 'K1234567',
     issuingCountry: 'USA',
     expiryDate: inDays(23),
@@ -48,22 +57,22 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
 
   await repo.create(
     type: DocumentType.driversLicence,
-    label: "Driver's licence",
-    holder: 'Chen Wei',
+    label: name("Driver's licence", '驾照'),
+    holder: holder,
     documentNumber: 'S9876543',
     expiryDate: inDays(-12),
   );
 
   await repo.create(
     type: DocumentType.residencePermit,
-    label: 'Residence permit',
-    holder: 'Chen Wei',
+    label: name('Residence permit', '居留许可'),
+    holder: holder,
     expiryDate: inDays(412),
   );
 
   await repo.create(
     type: DocumentType.bankCard,
-    label: 'China Merchants Bank',
+    label: name('China Merchants Bank', '招商银行'),
     holder: 'CHEN WEI',
     documentNumber: '4111 1111 1111 1111',
     issueDate: DateTime(now.year - 2, 10),
@@ -73,7 +82,7 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
 
   await repo.create(
     type: DocumentType.bankCard,
-    label: 'China Construction Bank',
+    label: name('China Construction Bank', '建设银行'),
     holder: 'CHEN WEI',
     documentNumber: '5555 5555 5555 4444',
     expiryDate: DateTime(now.year + 1, 6, 30),
@@ -81,7 +90,7 @@ Future<void> seedForScreenshots(ProviderContainer container) async {
 
   await repo.create(
     type: DocumentType.insurance,
-    label: 'Travel insurance',
+    label: name('Travel insurance', '旅行保险'),
     expiryDate: inDays(268),
   );
 }
